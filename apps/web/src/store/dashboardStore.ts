@@ -61,11 +61,22 @@ function mapStats(raw: Record<string, unknown>): DashboardStats {
   };
 }
 
+const EMPTY_STATS: DashboardStats = {
+  transactions: { nbAujourdhui: 0, montantAujourdhui: 0, variationPct: 0, enAttente: 0 },
+  caisse: { soldeActuel: 0, entrees: 0, sorties: 0, ecart: 0 },
+  float: { soldes: [], alertes: 0 },
+  performances: { chiffreAffaires: 0, objectif: 0, progressionPct: 0, topAgent: null },
+  agences: { nbActives: 0, nbTotal: 0, nbAgentsEnLigne: 0, nbAgentsTotal: 0 },
+  clients: { nbTotal: 0, nouveaux: 0, actifs: 0 },
+  commissions: { duesCeMois: 0, payees: 0, enAttente: 0 },
+  rapports: { dernierRapport: '', alertes: [] },
+};
+
 export const useDashboardStore = create<DashboardStore>((set) => ({
-  stats: mockDashboardStats,
-  recommandationIA: mockRecommandationIA,
-  isLoading: false,
-  lastUpdated: new Date().toISOString(),
+  stats: EMPTY_STATS,
+  recommandationIA: null,
+  isLoading: true,
+  lastUpdated: null,
 
   setStats: (stats) => set({ stats, lastUpdated: new Date().toISOString() }),
   setRecommandationIA: (rec) => set({ recommandationIA: rec }),
@@ -82,9 +93,8 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         lastUpdated: new Date().toISOString(),
       });
     } catch {
-      // Backend absent : on garde les données mock
-      await new Promise((r) => setTimeout(r, 400));
-      set({ stats: mockDashboardStats, isLoading: false, lastUpdated: new Date().toISOString() });
+      // Backend absent : fallback sur données démo
+      set({ stats: mockDashboardStats, recommandationIA: mockRecommandationIA, isLoading: false, lastUpdated: new Date().toISOString() });
     }
   },
 }));
