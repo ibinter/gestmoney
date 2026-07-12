@@ -41,7 +41,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         >
           <Menu size={20} />
         </button>
-        <Logo variante="compact" largeur={130} className="hidden sm:block" />
+        <Logo variante="compact" className="hidden sm:block" />
         <p className="text-xs text-gray-400 hidden md:block capitalize">{dateNow}</p>
       </div>
 

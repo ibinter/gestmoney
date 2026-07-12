@@ -82,7 +82,7 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
       {/* Logo header */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-white/10 flex-shrink-0">
         <div className="flex items-center gap-0">
-          <Logo variante="compact" theme="sombre" largeur={130} />
+          <Logo variante="compact" theme="sombre" />
         </div>
         {mode === 'overlay' && onFermer && (
           <button onClick={onFermer} className="text-gray-400 hover:text-white">
