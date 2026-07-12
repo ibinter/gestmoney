@@ -1,0 +1,230 @@
+name: Deploy — Production
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/gestmoney
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build et push des images Docker
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-push:
+    name: Build & Push images (production)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract version tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-api:${{ steps.version.outputs.VERSION }}
+            ${{ env.IMAGE_PREFIX }}-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.web
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-web:${{ steps.version.outputs.VERSION }}
+            ${{ env.IMAGE_PREFIX }}-web:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.PROD_API_URL }}
+            NEXT_PUBLIC_APP_NAME=GESTMONEY
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push AI Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/ai-service
+          file: apps/ai-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-ai:${{ steps.version.outputs.VERSION }}
+            ${{ env.IMAGE_PREFIX }}-ai:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Déploiement production — avec confirmation manuelle
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy Production (confirmation manuelle requise)
+    runs-on: ubuntu-latest
+    needs: build-push
+    environment: production   # <-- déclenche l'approbation manuelle dans GitHub
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Migration Prisma — Production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/gestmoney
+
+            echo "=== Prisma Migration — ${{ steps.version.outputs.VERSION }} ==="
+
+            # Backup avant migration
+            docker compose exec -T postgres pg_dump \
+              -U $POSTGRES_USER $POSTGRES_DB \
+              > /backups/pre-migration-${{ steps.version.outputs.VERSION }}-$(date +%Y%m%d%H%M%S).sql
+
+            # Exécution des migrations
+            docker compose run --rm api npx prisma migrate deploy
+
+            echo "Migration completed successfully"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/gestmoney
+
+            echo "=== GESTMONEY Production Deployment ==="
+            echo "Version: ${{ steps.version.outputs.VERSION }}"
+            echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+            # Connexion au registry
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Mise à jour du fichier .env avec la nouvelle version
+            sed -i "s/IMAGE_TAG=.*/IMAGE_TAG=${{ steps.version.outputs.VERSION }}/" .env
+
+            # Pull des nouvelles images
+            docker compose pull api web ai-service
+
+            # Déploiement sans downtime (rolling update)
+            docker compose up -d --remove-orphans
+
+            # Nettoyage
+            docker image prune -f
+
+            echo "=== Production deployment complete ==="
+
+      - name: Health check post-déploiement
+        run: |
+          echo "Waiting 30s for services to stabilize..."
+          sleep 30
+
+          # Health check API
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PROD_API_URL }}/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "API health check passed (attempt $i)"
+              break
+            fi
+            echo "Attempt $i failed (status: $STATUS), retrying in 10s..."
+            sleep 10
+            if [ $i -eq 5 ]; then
+              echo "Health check failed after 5 attempts"
+              exit 1
+            fi
+          done
+
+          # Health check Web
+          WEB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PROD_WEB_URL }})
+          if [ "$WEB_STATUS" != "200" ]; then
+            echo "Web health check failed (status: $WEB_STATUS)"
+            exit 1
+          fi
+          echo "All health checks passed"
+
+      - name: Créer une release GitHub
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.version.outputs.VERSION }}
+          name: GESTMONEY ${{ steps.version.outputs.VERSION }}
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notification Slack — Production déployée
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🚀 *GESTMONEY Production* — Version ${{ steps.version.outputs.VERSION }} déployée",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚀 *Déploiement Production réussi*\n*Version:* `${{ steps.version.outputs.VERSION }}`\n*Déployé par:* ${{ github.actor }}\n*URL:* ${{ secrets.PROD_WEB_URL }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Notification Slack — Échec production
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🔴 *GESTMONEY Production* — ÉCHEC déploiement ${{ steps.version.outputs.VERSION }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🔴 *ÉCHEC Déploiement Production*\n*Version:* `${{ steps.version.outputs.VERSION }}`\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n<!here> Intervention requise"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

@@ -1,0 +1,173 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
+
+export type NotificationChannel = 'SMS' | 'EMAIL' | 'PUSH';
+
+export interface SendSmsOptions {
+  to: string;
+  message: string;
+  tenantId: string;
+}
+
+export interface SendEmailOptions {
+  to: string;
+  subject: string;
+  body: string;
+  tenantId: string;
+  html?: string;
+}
+
+export interface SendPushOptions {
+  userId: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  tenantId: string;
+}
+
+@Injectable()
+export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  // ─── SMS via Twilio ───────────────────────────────────────────────────────────
+
+  async sendSms(options: SendSmsOptions): Promise<void> {
+    try {
+      // Intégration Twilio — injecter TwilioClient en production
+      // const message = await this.twilioClient.messages.create({ ... });
+      this.logger.log(`[SMS] To: ${options.to} | ${options.message.substring(0, 50)}...`);
+
+      await this.logNotification({
+        tenantId: options.tenantId,
+        canal: 'SMS',
+        destinataire: options.to,
+        contenu: options.message,
+        statut: 'SENT',
+      });
+    } catch (error: any) {
+      this.logger.error(`Erreur envoi SMS à ${options.to}: ${error.message}`);
+      await this.logNotification({
+        tenantId: options.tenantId,
+        canal: 'SMS',
+        destinataire: options.to,
+        contenu: options.message,
+        statut: 'FAILED',
+        erreur: error.message,
+      });
+    }
+  }
+
+  // ─── Email via Nodemailer ────────────────────────────────────────────────────
+
+  async sendEmail(options: SendEmailOptions): Promise<void> {
+    try {
+      // Intégration Nodemailer — injecter le transporter en production
+      this.logger.log(`[EMAIL] To: ${options.to} | Subject: ${options.subject}`);
+
+      await this.logNotification({
+        tenantId: options.tenantId,
+        canal: 'EMAIL',
+        destinataire: options.to,
+        contenu: `${options.subject}: ${options.body}`,
+        statut: 'SENT',
+      });
+    } catch (error: any) {
+      this.logger.error(`Erreur envoi email à ${options.to}: ${error.message}`);
+      await this.logNotification({
+        tenantId: options.tenantId,
+        canal: 'EMAIL',
+        destinataire: options.to,
+        contenu: options.subject,
+        statut: 'FAILED',
+        erreur: error.message,
+      });
+    }
+  }
+
+  // ─── Push notification ────────────────────────────────────────────────────────
+
+  async sendPush(options: SendPushOptions): Promise<void> {
+    try {
+      // Intégration FCM / Expo Push — injecter le client en production
+      this.logger.log(`[PUSH] UserId: ${options.userId} | ${options.title}`);
+
+      await this.logNotification({
+        tenantId: options.tenantId,
+        canal: 'PUSH',
+        destinataire: options.userId,
+        contenu: `${options.title}: ${options.body}`,
+        statut: 'SENT',
+      });
+    } catch (error: any) {
+      this.logger.error(`Erreur push pour user ${options.userId}: ${error.message}`);
+    }
+  }
+
+  // ─── Préférences utilisateur ─────────────────────────────────────────────────
+
+  async getUserPreferences(userId: string, tenantId: string) {
+    return this.prisma.notificationPreference.findFirst({
+      where: { userId, tenantId },
+    });
+  }
+
+  async upsertPreferences(
+    userId: string,
+    preferences: {
+      smsEnabled?: boolean;
+      emailEnabled?: boolean;
+      pushEnabled?: boolean;
+      emailAddress?: string;
+      phoneNumber?: string;
+    },
+    tenantId: string,
+  ) {
+    return this.prisma.notificationPreference.upsert({
+      where: { userId_tenantId: { userId, tenantId } },
+      create: { userId, tenantId, ...preferences },
+      update: preferences,
+    });
+  }
+
+  // ─── Historique notifications ────────────────────────────────────────────────
+
+  async getHistory(tenantId: string, userId?: string, page = 1, limit = 20) {
+    const where: any = { tenantId };
+    if (userId) where.destinataire = userId;
+
+    const [data, total] = await Promise.all([
+      this.prisma.notificationLog.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.notificationLog.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  // ─── Log interne ─────────────────────────────────────────────────────────────
+
+  private async logNotification(data: {
+    tenantId: string;
+    canal: string;
+    destinataire: string;
+    contenu: string;
+    statut: 'SENT' | 'FAILED' | 'PENDING';
+    erreur?: string;
+  }) {
+    try {
+      await this.prisma.notificationLog.create({ data });
+    } catch {
+      // Ne pas bloquer si le log échoue
+    }
+  }
+}

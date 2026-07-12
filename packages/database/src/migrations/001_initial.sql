@@ -1,0 +1,14 @@
+-- ==============================================================================
+-- GESTMONEY - Migration initiale
+-- ==============================================================================
+-- Les migrations sont gérées par Prisma Migrate.
+-- Ce fichier est conservé à titre de référence historique.
+--
+-- Pour créer et appliquer les migrations, utiliser :
+--   npx prisma migrate dev   (développement)
+--   npx prisma migrate deploy (production)
+--
+-- Ne pas modifier ce fichier manuellement.
+-- Toute modification du schéma doit passer par schema.prisma
+-- puis être générée via `prisma migrate dev`.
+-- ==============================================================================

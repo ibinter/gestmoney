@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "GESTMONEY Frontend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@gestmoney/web", "dev"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

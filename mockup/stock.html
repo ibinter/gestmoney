@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Stock & Inventaire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #F5B800; --primary-dark: #D9A200; --primary-light: #FFF8E1;
+  --dark: #1A1D2E; --dark-2: #252840;
+  --bg: #F0F2F7; --white: #FFFFFF;
+  --text: #1A1D2E; --text-2: #6B7280;
+  --success: #22C55E; --danger: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+  --border: #E5E7EB;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 16px; --topbar-h: 64px; --sidebar-w: 240px;
+}
+html { font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.topbar { position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h); background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.topbar-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(245,184,0,0.35); }
+.topbar-name { font-size: 18px; font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
+.topbar-name span { color: var(--primary); }
+.topbar-search { flex: 1; max-width: 420px; position: relative; }
+.topbar-search input { width: 100%; padding: 9px 16px 9px 40px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); outline: none; }
+.topbar-search input:focus { border-color: var(--primary); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.topbar-date { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.notif-btn { position: relative; width: 38px; height: 38px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+.notif-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; background: var(--danger); border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--white); }
+.profile-btn { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; }
+.profile-avatar { width: 28px; height: 28px; background: var(--dark); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--primary); font-weight: 700; }
+.profile-info { font-size: 12px; line-height: 1.3; }
+.profile-name { font-weight: 600; }
+.profile-agency { color: var(--text-2); }
+
+.layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+.sidebar { position: fixed; top: var(--topbar-h); left: 0; width: var(--sidebar-w); height: calc(100vh - var(--topbar-h)); background: var(--dark); display: flex; flex-direction: column; overflow-y: auto; z-index: 90; }
+.sidebar-context { padding: 16px 20px 8px; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 8px; }
+.sidebar-section-title { padding: 10px 20px 4px; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+.sidebar-item { display: flex; align-items: center; gap: 12px; padding: 11px 20px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65); cursor: pointer; transition: all 0.15s; text-decoration: none; margin: 1px 8px; border-radius: 10px; }
+.sidebar-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.sidebar-item.active { background: rgba(245,184,0,0.15); color: var(--primary); }
+.sidebar-item .si-icon { font-size: 16px; flex-shrink: 0; }
+.sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.07); font-size: 12px; color: rgba(255,255,255,0.3); display: flex; gap: 10px; align-items: center; }
+.main { margin-left: var(--sidebar-w); flex: 1; padding: 28px 28px 40px; min-width: 0; }
+
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-bottom: 20px; }
+.breadcrumb a { color: var(--text-2); text-decoration: none; }
+.breadcrumb a:hover { color: var(--primary); }
+
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.page-sub { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+.page-actions { display: flex; gap: 8px; }
+.btn { padding: 9px 16px; font-size: 13px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn-primary { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary-dark); }
+.btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--white); border-radius: 12px; padding: 16px 18px; box-shadow: var(--card-shadow); border-left: 3px solid transparent; }
+.stat-card.s1 { border-left-color: var(--primary); }
+.stat-card.s2 { border-left-color: var(--info); }
+.stat-card.s3 { border-left-color: var(--danger); }
+.stat-card.s4 { border-left-color: var(--success); }
+.stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 11px; color: var(--text-2); margin-top: 4px; font-weight: 500; }
+.stat-sub { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+
+/* ALERT BANNER */
+.alert-banner { background: rgba(239,68,68,0.07); border: 1.5px solid rgba(239,68,68,0.2); border-radius: 12px; padding: 12px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+.alert-icon { font-size: 20px; flex-shrink: 0; }
+.alert-text { font-size: 13px; font-weight: 500; color: var(--danger); }
+.alert-text strong { font-weight: 700; }
+
+/* SECTION */
+.section-block { margin-bottom: 28px; }
+.section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+
+/* TABLE */
+.table-wrap { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 12px 16px; font-size: 11px; font-weight: 700; color: var(--text-2); text-align: left; letter-spacing: 0.5px; text-transform: uppercase; background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(245,184,0,0.03); }
+
+/* STOCK LEVEL BAR */
+.stock-bar-wrap { display: flex; align-items: center; gap: 10px; }
+.stock-bar { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; min-width: 80px; }
+.stock-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+.stock-val { font-size: 12px; font-weight: 700; width: 50px; text-align: right; white-space: nowrap; }
+
+/* CATEGORY BADGES */
+.cat-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.cat-sim { background: rgba(59,130,246,0.1); color: #2563eb; }
+.cat-terminal { background: rgba(139,92,246,0.1); color: #7c3aed; }
+.cat-accessoire { background: rgba(34,197,94,0.1); color: #16a34a; }
+.cat-consommable { background: rgba(245,158,11,0.1); color: #d97706; }
+
+/* STATUS */
+.status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.pill-ok { background: rgba(34,197,94,0.1); color: #16a34a; }
+.pill-low { background: rgba(245,158,11,0.1); color: #d97706; }
+.pill-critical { background: rgba(239,68,68,0.1); color: #dc2626; }
+.pill-pending { background: rgba(59,130,246,0.1); color: #2563eb; }
+.pill-delivered { background: rgba(34,197,94,0.1); color: #16a34a; }
+.pill-ordered { background: rgba(107,114,128,0.1); color: #4b5563; }
+
+/* ACTION BTNS */
+.action-btns { display: flex; gap: 4px; }
+.action-btn { padding: 5px 9px; font-size: 11px; font-weight: 600; border-radius: 7px; border: 1.5px solid var(--border); background: var(--white); color: var(--text); cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.action-btn:hover { border-color: var(--primary); color: var(--primary); }
+.action-btn.danger { color: var(--danger); }
+.action-btn.danger:hover { border-color: var(--danger); }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 300; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border-radius: var(--radius); width: 480px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.form-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--bg); outline: none; }
+.form-input:focus { border-color: var(--primary); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+@media (max-width: 1100px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; padding: 20px 14px; } }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a class="topbar-brand" href="index.html">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Rechercher un produit, un bon de commande…">
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-date" id="topbar-date"></span>
+    <div class="notif-btn">🔔<div class="notif-badge">12</div></div>
+    <div class="profile-btn">
+      <div class="profile-avatar">KY</div>
+      <div class="profile-info">
+        <div class="profile-name">Konan Yao</div>
+        <div class="profile-agency">Super Admin</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-context">STOCK & INVENTAIRE</div>
+  <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span><span>Tableau de bord</span></a>
+  <div class="sidebar-section-title">INVENTAIRE</div>
+  <a class="sidebar-item active" href="#"><span class="si-icon">📦</span><span>Tous les produits</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">📱</span><span>Cartes SIM</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">🖥️</span><span>Terminaux</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">⚠️</span><span>Alertes stock bas (12)</span></a>
+  <div class="sidebar-section-title">COMMANDES</div>
+  <a class="sidebar-item" href="#commandes"><span class="si-icon">🛒</span><span>Commandes en cours</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">📋</span><span>Historique commandes</span></a>
+  <div class="sidebar-section-title">ACTIONS</div>
+  <a class="sidebar-item" href="#" onclick="openModal('modal-commande')"><span class="si-icon">➕</span><span>Nouvelle commande</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">📥</span><span>Réception stock</span></a>
+  <div class="sidebar-footer"><span>🪙</span> GESTMONEY v2.4.1</div>
+</aside>
+
+<!-- MODAL COMMANDE -->
+<div class="modal-overlay" id="modal-commande">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🛒 Nouvelle commande</div>
+      <button class="modal-close" onclick="closeModal('modal-commande')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Produit</label>
+        <select class="form-input">
+          <option>Cartes SIM Orange Money</option>
+          <option>Cartes SIM MTN MoMo</option>
+          <option>Cartes SIM Wave</option>
+          <option>Terminal Ingenico IWL250</option>
+          <option>Terminal PAX A920</option>
+          <option>Rouleaux thermiques 57mm</option>
+          <option>Cordons USB Type-C</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Quantité</label>
+          <input class="form-input" type="number" value="500" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fournisseur</label>
+          <select class="form-input">
+            <option>Orange CI</option>
+            <option>MTN Côte d'Ivoire</option>
+            <option>Wave Africa</option>
+            <option>Ingenico Group</option>
+            <option>PAX Technology</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Agence destination</label>
+          <select class="form-input">
+            <option>Siège (distribution)</option>
+            <option>Agence Plateau</option>
+            <option>Agence Cocody</option>
+            <option>Agence Bouaké</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Urgence</label>
+          <select class="form-input">
+            <option>Standard (5-7 jours)</option>
+            <option>Urgente (48h)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-input" type="text" placeholder="Observations, instructions particulières…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-commande')">Annuler</button>
+      <button class="btn btn-primary">✅ Passer la commande</button>
+    </div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+<main class="main">
+
+  <div class="breadcrumb">
+    <a href="index.html">🏠 Accueil</a> › <span style="color:var(--text);font-weight:500">Stock & Inventaire</span>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">📦 Stock & Inventaire</div>
+      <div class="page-sub">Gestion des SIM, terminaux et consommables — Réseau IBIG SOFT</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline btn-sm">📥 Exporter inventaire</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-commande')">+ Nouvelle commande</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card s1">
+      <div class="stat-value">4 500</div>
+      <div class="stat-label">Cartes SIM en stock</div>
+      <div class="stat-sub">Toutes agences confondues</div>
+    </div>
+    <div class="stat-card s2">
+      <div class="stat-value">87</div>
+      <div class="stat-label">Terminaux en service</div>
+      <div class="stat-sub">76 actifs · 11 en maintenance</div>
+    </div>
+    <div class="stat-card s3">
+      <div class="stat-value">12</div>
+      <div class="stat-label">Alertes stock bas</div>
+      <div class="stat-sub">3 critiques</div>
+    </div>
+    <div class="stat-card s4">
+      <div class="stat-value">4</div>
+      <div class="stat-label">Commandes en cours</div>
+      <div class="stat-sub">Livraison sous 48h–7 jours</div>
+    </div>
+  </div>
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-text">
+      <strong>3 alertes critiques :</strong> SIM MTN Agence Abengourou (12 unités), Rouleaux thermiques Agence Korhogo (8 unités), Câbles USB Agence San-Pédro (4 unités).
+      <a href="#" style="color:var(--danger);text-decoration:underline;margin-left:8px">Commander maintenant →</a>
+    </div>
+  </div>
+
+  <!-- STOCK TABLE -->
+  <div class="section-block">
+    <div class="section-title">
+      📋 Inventaire produits
+      <button class="btn btn-outline btn-sm">🔄 Actualiser</button>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Produit</th>
+            <th>Catégorie</th>
+            <th>Agence / Lieu</th>
+            <th>Niveau de stock</th>
+            <th>Seuil alerte</th>
+            <th>Valeur unitaire</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- SIM CARDS -->
+          <tr>
+            <td><strong>🔶 SIM Orange Money</strong><div style="font-size:11px;color:var(--text-2)">Nano-SIM prépayée Orange CI</div></td>
+            <td><span class="cat-badge cat-sim">SIM</span></td>
+            <td>Siège — Stock central</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:78%;background:#FF6B00"></div></div>
+                <span class="stock-val" style="color:#FF6B00">1 950 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">500 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">250 XOF</td>
+            <td><span class="status-pill pill-ok">● OK</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🛒 Commander</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🟡 SIM MTN MoMo</strong><div style="font-size:11px;color:var(--text-2)">Nano-SIM MTN CI</div></td>
+            <td><span class="cat-badge cat-sim">SIM</span></td>
+            <td>Siège — Stock central</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:32%;background:#FFCC00"></div></div>
+                <span class="stock-val" style="color:var(--warning)">640 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">500 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">250 XOF</td>
+            <td><span class="status-pill pill-low">⚠️ Bas</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn" style="color:var(--warning);border-color:rgba(245,158,11,0.4)">🚨 Commander</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🔵 SIM Wave</strong><div style="font-size:11px;color:var(--text-2)">Micro-SIM Wave CI</div></td>
+            <td><span class="cat-badge cat-sim">SIM</span></td>
+            <td>Siège — Stock central</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:88%;background:#1DA7E8"></div></div>
+                <span class="stock-val" style="color:#1DA7E8">1 760 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">300 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">200 XOF</td>
+            <td><span class="status-pill pill-ok">● OK</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🛒 Commander</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🟢 SIM Moov Money</strong><div style="font-size:11px;color:var(--text-2)">SIM Moov Afrique</div></td>
+            <td><span class="cat-badge cat-sim">SIM</span></td>
+            <td>Agence Bouaké</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:6%;background:var(--danger)"></div></div>
+                <span class="stock-val" style="color:var(--danger)">12 u. !</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--danger)">200 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">200 XOF</td>
+            <td><span class="status-pill pill-critical">🔴 Critique</span></td>
+            <td><div class="action-btns"><button class="action-btn danger">🚨 Urgent</button></div></td>
+          </tr>
+
+          <!-- TERMINALS -->
+          <tr>
+            <td><strong>🖥️ Terminal Ingenico IWL250</strong><div style="font-size:11px;color:var(--text-2)">WiFi + 3G, NFC, imprimante</div></td>
+            <td><span class="cat-badge cat-terminal">Terminal</span></td>
+            <td>Multi-agences</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:72%;background:#7c3aed"></div></div>
+                <span class="stock-val" style="color:#7c3aed">36 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">10 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">185 000 XOF</td>
+            <td><span class="status-pill pill-ok">● OK</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🔧 Maintenance</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🖥️ Terminal PAX A920</strong><div style="font-size:11px;color:var(--text-2)">Android, 4G, NFC, caméra</div></td>
+            <td><span class="cat-badge cat-terminal">Terminal</span></td>
+            <td>Multi-agences</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:42%;background:#8B5CF6"></div></div>
+                <span class="stock-val" style="color:#8B5CF6">21 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">8 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">220 000 XOF</td>
+            <td><span class="status-pill pill-ok">● OK</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🔧 Maintenance</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🖥️ Tablette Samsung A7</strong><div style="font-size:11px;color:var(--text-2)">Backup agents, Android 13</div></td>
+            <td><span class="cat-badge cat-terminal">Terminal</span></td>
+            <td>Siège — Stock central</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:53%;background:#6366f1"></div></div>
+                <span class="stock-val" style="color:#6366f1">16 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">5 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">145 000 XOF</td>
+            <td><span class="status-pill pill-ok">● OK</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🛒 Commander</button></div></td>
+          </tr>
+
+          <!-- CONSOMMABLES -->
+          <tr>
+            <td><strong>🧻 Rouleaux thermiques 57mm</strong><div style="font-size:11px;color:var(--text-2)">Pour terminaux Ingenico</div></td>
+            <td><span class="cat-badge cat-consommable">Consommable</span></td>
+            <td>Agence Korhogo</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:4%;background:var(--danger)"></div></div>
+                <span class="stock-val" style="color:var(--danger)">8 u. !</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--danger)">50 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">800 XOF</td>
+            <td><span class="status-pill pill-critical">🔴 Critique</span></td>
+            <td><div class="action-btns"><button class="action-btn danger">🚨 Urgent</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🧻 Rouleaux thermiques 80mm</strong><div style="font-size:11px;color:var(--text-2)">Pour terminaux PAX A920</div></td>
+            <td><span class="cat-badge cat-consommable">Consommable</span></td>
+            <td>Siège — Stock central</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:65%;background:#d97706"></div></div>
+                <span class="stock-val" style="color:#d97706">195 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">80 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">1 200 XOF</td>
+            <td><span class="status-pill pill-ok">● OK</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🛒 Commander</button></div></td>
+          </tr>
+
+          <!-- ACCESSORIES -->
+          <tr>
+            <td><strong>🔌 Câbles USB Type-C</strong><div style="font-size:11px;color:var(--text-2)">Chargeurs et synchronisation</div></td>
+            <td><span class="cat-badge cat-accessoire">Accessoire</span></td>
+            <td>Agence San-Pédro</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:8%;background:var(--danger)"></div></div>
+                <span class="stock-val" style="color:var(--danger)">4 u. !</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--danger)">20 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">2 500 XOF</td>
+            <td><span class="status-pill pill-critical">🔴 Critique</span></td>
+            <td><div class="action-btns"><button class="action-btn danger">🚨 Urgent</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🔋 Batteries de remplacement</strong><div style="font-size:11px;color:var(--text-2)">Compatible Ingenico IWL250</div></td>
+            <td><span class="cat-badge cat-accessoire">Accessoire</span></td>
+            <td>Siège — Stock central</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:48%;background:#16a34a"></div></div>
+                <span class="stock-val" style="color:#16a34a">24 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">10 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">12 000 XOF</td>
+            <td><span class="status-pill pill-ok">● OK</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🛒 Commander</button></div></td>
+          </tr>
+          <tr>
+            <td><strong>🖨️ Encre pour tampons</strong><div style="font-size:11px;color:var(--text-2)">Tampons encreurs bleus</div></td>
+            <td><span class="cat-badge cat-consommable">Consommable</span></td>
+            <td>Multi-agences</td>
+            <td>
+              <div class="stock-bar-wrap">
+                <div class="stock-bar"><div class="stock-fill" style="width:22%;background:var(--warning)"></div></div>
+                <span class="stock-val" style="color:var(--warning)">33 u.</span>
+              </div>
+            </td>
+            <td style="font-size:12px;color:var(--text-2)">30 u.</td>
+            <td style="font-size:12px;font-variant-numeric:tabular-nums">1 800 XOF</td>
+            <td><span class="status-pill pill-low">⚠️ Bas</span></td>
+            <td><div class="action-btns"><button class="action-btn">📋 Détails</button><button class="action-btn">🛒 Commander</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- COMMANDES EN COURS -->
+  <div class="section-block" id="commandes">
+    <div class="section-title">
+      🛒 Commandes en cours
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-commande')">+ Nouvelle commande</button>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Réf. bon</th>
+            <th>Produit</th>
+            <th>Quantité</th>
+            <th>Fournisseur</th>
+            <th>Agence dest.</th>
+            <th>Date commande</th>
+            <th>Livraison prev.</th>
+            <th>Valeur</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-family:monospace;font-size:11px;color:var(--text-2)">BC-2026-0118</td>
+            <td><strong>SIM MTN MoMo</strong></td>
+            <td style="font-weight:700;font-variant-numeric:tabular-nums">2 000 u.</td>
+            <td style="font-size:12px">MTN Côte d'Ivoire</td>
+            <td style="font-size:12px">Siège — Distrib.</td>
+            <td style="font-size:12px;color:var(--text-2)">08/07/2026</td>
+            <td style="font-size:12px;color:var(--success)">12/07/2026</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">500 000 XOF</td>
+            <td><span class="status-pill pill-pending">📦 En transit</span></td>
+            <td><div class="action-btns"><button class="action-btn">👁️ Suivre</button><button class="action-btn">✅ Réceptionner</button></div></td>
+          </tr>
+          <tr>
+            <td style="font-family:monospace;font-size:11px;color:var(--text-2)">BC-2026-0117</td>
+            <td><strong>Rouleaux thermiques 57mm</strong></td>
+            <td style="font-weight:700;font-variant-numeric:tabular-nums">500 u.</td>
+            <td style="font-size:12px">Fournisseur local</td>
+            <td style="font-size:12px">Agence Korhogo</td>
+            <td style="font-size:12px;color:var(--text-2)">09/07/2026</td>
+            <td style="font-size:12px;color:var(--warning)">10/07/2026 ⚡</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">400 000 XOF</td>
+            <td><span class="status-pill pill-pending" style="background:rgba(239,68,68,0.1);color:#dc2626">🚚 Urgent</span></td>
+            <td><div class="action-btns"><button class="action-btn">👁️ Suivre</button><button class="action-btn">✅ Réceptionner</button></div></td>
+          </tr>
+          <tr>
+            <td style="font-family:monospace;font-size:11px;color:var(--text-2)">BC-2026-0116</td>
+            <td><strong>Terminal PAX A920</strong></td>
+            <td style="font-weight:700;font-variant-numeric:tabular-nums">5 u.</td>
+            <td style="font-size:12px">PAX Technology</td>
+            <td style="font-size:12px">Multi-agences</td>
+            <td style="font-size:12px;color:var(--text-2)">05/07/2026</td>
+            <td style="font-size:12px;color:var(--text-2)">15/07/2026</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">1 100 000 XOF</td>
+            <td><span class="status-pill pill-ordered">📋 Confirmée</span></td>
+            <td><div class="action-btns"><button class="action-btn">👁️ Suivre</button><button class="action-btn">📄 Bon</button></div></td>
+          </tr>
+          <tr>
+            <td style="font-family:monospace;font-size:11px;color:var(--text-2)">BC-2026-0115</td>
+            <td><strong>Câbles USB Type-C (lot 50)</strong></td>
+            <td style="font-weight:700;font-variant-numeric:tabular-nums">50 u.</td>
+            <td style="font-size:12px">Grossiste Abidjan</td>
+            <td style="font-size:12px">Agence San-Pédro</td>
+            <td style="font-size:12px;color:var(--text-2)">09/07/2026</td>
+            <td style="font-size:12px;color:var(--warning)">11/07/2026 ⚡</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">125 000 XOF</td>
+            <td><span class="status-pill pill-pending" style="background:rgba(239,68,68,0.1);color:#dc2626">🚚 Urgent</span></td>
+            <td><div class="action-btns"><button class="action-btn">👁️ Suivre</button><button class="action-btn">✅ Réceptionner</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const now = new Date();
+document.getElementById('topbar-date').textContent =
+  days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+</script>
+</body>
+</html>

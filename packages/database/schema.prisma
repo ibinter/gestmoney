@@ -1,0 +1,1543 @@
+// ==============================================================================
+// GESTMONEY - Schéma Prisma
+// Base de données: PostgreSQL
+// ORM: Prisma
+// ==============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================================================================
+// MULTI-TENANT
+// ==============================================================================
+
+model Tenant {
+  id                  String       @id @default(cuid())
+  name                String
+  slug                String       @unique
+  domain              String?      @unique
+  logo                String?
+  status              TenantStatus @default(ACTIVE)
+  plan                TenantPlan   @default(STARTER)
+  country             String       @default("CI")
+  currency            String       @default("XOF")
+  timezone            String       @default("Africa/Abidjan")
+  locale              String       @default("fr-CI")
+  settings            Json         @default("{}")
+  trialEndsAt         DateTime?
+  subscriptionEndsAt  DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  // Relations
+  users               User[]
+  roles               Role[]
+  networks            Network[]
+  agencies            Agency[]
+  superAgents         SuperAgent[]
+  agents              Agent[]
+  territories         Territory[]
+  transactions        Transaction[]
+  reversals           Reversal[]
+  floatAccounts       FloatAccount[]
+  floatMovements      FloatMovement[]
+  floatThresholds     FloatThreshold[]
+  replenishmentReqs   ReplenishmentRequest[]
+  cashiers            Cashier[]
+  cashMovements       CashMovement[]
+  vaultOperations     VaultOperation[]
+  commissionPlans     CommissionPlan[]
+  commissionRates     CommissionRate[]
+  commissionEarnings  CommissionEarning[]
+  commissionPayments  CommissionPayment[]
+  customers           Customer[]
+  customerAccounts    CustomerAccount[]
+  loyaltyPoints       LoyaltyPoint[]
+  accountCharts       AccountChart[]
+  journalEntries      JournalEntry[]
+  ledgers             Ledger[]
+  fiscalYears         FiscalYear[]
+  products            Product[]
+  inventory           Inventory[]
+  stockMovements      StockMovement[]
+  employees           Employee[]
+  contracts           Contract[]
+  payrolls            Payroll[]
+  leaves              Leave[]
+  auditLogs           AuditLog[]
+  fraudAlerts         FraudAlert[]
+  mlPredictions       MlPrediction[]
+  sessions            Session[]
+  kycVerifications    KycVerification[]
+  integrationLogs     IntegrationLog[]
+  notificationLogs    NotificationLog[]
+  scheduledReports    ScheduledReport[]
+  generatedReports    GeneratedReport[]
+
+  @@map("tenants")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  EXPIRED
+}
+
+enum TenantPlan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  CUSTOM
+}
+
+// ==============================================================================
+// UTILISATEURS & AUTHENTIFICATION
+// ==============================================================================
+
+model User {
+  id                  String     @id @default(cuid())
+  tenantId            String
+  email               String
+  phone               String?
+  passwordHash        String
+  firstName           String
+  lastName            String
+  avatar              String?
+  status              UserStatus @default(PENDING_VERIFICATION)
+  lastLoginAt         DateTime?
+  emailVerifiedAt     DateTime?
+  phoneVerifiedAt     DateTime?
+  twoFactorEnabled    Boolean    @default(false)
+  twoFactorSecret     String?
+  twoFactorVerifiedAt DateTime?
+  preferredLanguage   String     @default("fr")
+  timezone            String     @default("Africa/Abidjan")
+  passwordChangedAt   DateTime?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  // Relations
+  tenant              Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles           UserRole[]
+  sessions            Session[]
+  auditLogs           AuditLog[]
+  requestedReversals  Reversal[] @relation("ReversalRequestedBy")
+  approvedReversals   Reversal[] @relation("ReversalApprovedBy")
+  replenishmentReqs   ReplenishmentRequest[] @relation("ReplenishmentRequestedBy")
+  approvedReplenishments ReplenishmentRequest[] @relation("ReplenishmentApprovedBy")
+  journalEntries      JournalEntry[] @relation("JournalCreatedBy")
+  postedJournals      JournalEntry[] @relation("JournalPostedBy")
+  resolvedAlerts      FraudAlert[]
+  closedFiscalYears   FiscalYear[]
+  commissionApprovals CommissionPayment[]
+  kycVerifications    KycVerification[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  PASSWORD_RESET
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  isSystem    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles   UserRole[]
+  rolePerms   RolePermission[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  resource    String
+  action      String
+  description String?
+  createdAt   DateTime         @default(now())
+
+  rolePerms   RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId    String
+  roleId    String
+  grantedAt DateTime @default(now())
+  grantedBy String?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  tenantId     String
+  refreshToken String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  revokedAt    DateTime?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("sessions")
+}
+
+// ==============================================================================
+// RÉSEAUX MOBILE MONEY
+// ==============================================================================
+
+model Network {
+  id           String        @id @default(cuid())
+  tenantId     String
+  operatorCode String
+  name         String
+  country      String
+  currency     String        @default("XOF")
+  status       NetworkStatus @default(ACTIVE)
+  apiConfig    Json?
+  settings     Json          @default("{}")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agencies     Agency[]
+  transactions Transaction[]
+  floatAccounts FloatAccount[]
+  commissionPlans CommissionPlan[]
+  customerAccounts CustomerAccount[]
+
+  @@unique([tenantId, operatorCode])
+  @@index([tenantId])
+  @@map("networks")
+}
+
+enum NetworkStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+model Agency {
+  id             String       @id @default(cuid())
+  tenantId       String
+  networkId      String
+  name           String
+  code           String
+  address        String
+  city           String
+  region         String?
+  country        String       @default("CI")
+  phone          String
+  email          String?
+  latitude       Float?
+  longitude      Float?
+  status         AgencyStatus @default(ACTIVE)
+  managerId      String?
+  openingHours   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  network        Network      @relation(fields: [networkId], references: [id])
+  superAgents    SuperAgent[]
+  agents         Agent[]
+  transactions   Transaction[]
+  floatAccounts  FloatAccount[]
+  cashiers       Cashier[]
+  vaultOperations VaultOperation[]
+
+  @@unique([tenantId, networkId, code])
+  @@index([tenantId])
+  @@index([networkId])
+  @@map("agencies")
+}
+
+enum AgencyStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model SuperAgent {
+  id              String      @id @default(cuid())
+  tenantId        String
+  agencyId        String
+  userId          String      @unique
+  agentCode       String
+  phoneNumber     String
+  nationalId      String
+  address         String
+  status          AgentStatus @default(PENDING)
+  commissionPlanId String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agency          Agency      @relation(fields: [agencyId], references: [id])
+  commissionPlan  CommissionPlan? @relation(fields: [commissionPlanId], references: [id])
+  agents          Agent[]
+  commissionEarnings CommissionEarning[]
+  commissionPayments CommissionPayment[]
+
+  @@unique([tenantId, agentCode])
+  @@index([tenantId])
+  @@map("super_agents")
+}
+
+model Agent {
+  id              String      @id @default(cuid())
+  tenantId        String
+  superAgentId    String?
+  agencyId        String
+  userId          String      @unique
+  agentCode       String
+  phoneNumber     String
+  nationalId      String
+  address         String
+  status          AgentStatus @default(PENDING)
+  commissionPlanId String?
+  lastActivityAt  DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  superAgent      SuperAgent? @relation(fields: [superAgentId], references: [id])
+  agency          Agency      @relation(fields: [agencyId], references: [id])
+  commissionPlan  CommissionPlan? @relation(fields: [commissionPlanId], references: [id])
+  territory       Territory?
+  transactions    Transaction[]
+  floatAccounts   FloatAccount[]
+  commissionEarnings CommissionEarning[]
+  commissionPayments CommissionPayment[]
+  fraudAlerts     FraudAlert[]
+
+  @@unique([tenantId, agentCode])
+  @@index([tenantId])
+  @@map("agents")
+}
+
+enum AgentStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+model Territory {
+  id          String   @id @default(cuid())
+  tenantId    String
+  agentId     String   @unique
+  name        String
+  description String?
+  boundaries  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("territories")
+}
+
+// ==============================================================================
+// TRANSACTIONS
+// ==============================================================================
+
+model Transaction {
+  id                String            @id @default(cuid())
+  tenantId          String
+  reference         String
+  externalReference String?
+  type              TransactionType
+  status            TransactionStatus @default(PENDING)
+  amount            Decimal           @db.Decimal(15, 2)
+  fee               Decimal           @default(0) @db.Decimal(15, 2)
+  commission        Decimal           @default(0) @db.Decimal(15, 2)
+  netAmount         Decimal           @db.Decimal(15, 2)
+  currency          String            @default("XOF")
+  operatorCode      String
+  senderId          String?
+  senderPhone       String?
+  senderName        String?
+  receiverId        String?
+  receiverPhone     String?
+  receiverName      String?
+  agentId           String
+  agencyId          String
+  networkId         String
+  description       String?
+  metadata          Json?
+  completedAt       DateTime?
+  failureReason     String?
+  reversalId        String?           @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent             Agent             @relation(fields: [agentId], references: [id])
+  agency            Agency            @relation(fields: [agencyId], references: [id])
+  network           Network           @relation(fields: [networkId], references: [id])
+  reversal          Reversal?         @relation("ReversalOriginal", fields: [reversalId], references: [id])
+  commissionEarnings CommissionEarning[]
+  fraudAlerts       FraudAlert[]
+  mlPredictions     MlPrediction[]
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@index([agentId])
+  @@index([agencyId])
+  @@index([networkId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+  PAYMENT
+  AIRTIME_PURCHASE
+  BILL_PAYMENT
+  FLOAT_REPLENISHMENT
+  FLOAT_WITHDRAWAL
+  COMMISSION_PAYMENT
+  REVERSAL
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REVERSED
+  DISPUTED
+  EXPIRED
+}
+
+model Reversal {
+  id                    String            @id @default(cuid())
+  tenantId              String
+  originalTransactionId String
+  reference             String
+  reason                ReversalReason
+  description           String?
+  amount                Decimal           @db.Decimal(15, 2)
+  currency              String            @default("XOF")
+  status                TransactionStatus @default(PENDING)
+  requestedById         String
+  approvedById          String?
+  approvedAt            DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy           User              @relation("ReversalRequestedBy", fields: [requestedById], references: [id])
+  approvedBy            User?             @relation("ReversalApprovedBy", fields: [approvedById], references: [id])
+  transaction           Transaction?      @relation("ReversalOriginal")
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@map("reversals")
+}
+
+enum ReversalReason {
+  CUSTOMER_REQUEST
+  TECHNICAL_ERROR
+  FRAUD_DETECTED
+  DUPLICATE_TRANSACTION
+  INSUFFICIENT_FUNDS
+  OPERATOR_ERROR
+  COMPLIANCE
+}
+
+// ==============================================================================
+// GESTION DU FLOAT (LIQUIDITÉ)
+// ==============================================================================
+
+model FloatAccount {
+  id               String    @id @default(cuid())
+  tenantId         String
+  agentId          String?
+  agencyId         String?
+  networkId        String
+  accountNumber    String
+  balance          Decimal   @default(0) @db.Decimal(15, 2)
+  reservedBalance  Decimal   @default(0) @db.Decimal(15, 2)
+  currency         String    @default("XOF")
+  minimumBalance   Decimal   @default(0) @db.Decimal(15, 2)
+  maximumBalance   Decimal   @db.Decimal(15, 2)
+  isActive         Boolean   @default(true)
+  lastMovementAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent            Agent?    @relation(fields: [agentId], references: [id])
+  agency           Agency?   @relation(fields: [agencyId], references: [id])
+  network          Network   @relation(fields: [networkId], references: [id])
+  movements        FloatMovement[]
+  thresholds       FloatThreshold[]
+  replenishments   ReplenishmentRequest[]
+
+  @@unique([tenantId, accountNumber])
+  @@index([tenantId])
+  @@map("float_accounts")
+}
+
+model FloatMovement {
+  id              String              @id @default(cuid())
+  tenantId        String
+  floatAccountId  String
+  transactionId   String?
+  type            FloatMovementType
+  amount          Decimal             @db.Decimal(15, 2)
+  balanceBefore   Decimal             @db.Decimal(15, 2)
+  balanceAfter    Decimal             @db.Decimal(15, 2)
+  currency        String              @default("XOF")
+  description     String
+  reference       String
+  performedById   String
+  createdAt       DateTime            @default(now())
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  floatAccount    FloatAccount        @relation(fields: [floatAccountId], references: [id])
+
+  @@index([tenantId])
+  @@index([floatAccountId])
+  @@map("float_movements")
+}
+
+enum FloatMovementType {
+  CREDIT
+  DEBIT
+}
+
+model FloatThreshold {
+  id                    String       @id @default(cuid())
+  tenantId              String
+  floatAccountId        String
+  warningLevel          Decimal      @db.Decimal(15, 2)
+  criticalLevel         Decimal      @db.Decimal(15, 2)
+  autoReplenishEnabled  Boolean      @default(false)
+  autoReplenishAmount   Decimal?     @db.Decimal(15, 2)
+  notifyEmails          String[]
+  notifyPhones          String[]
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  tenant                Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  floatAccount          FloatAccount @relation(fields: [floatAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, floatAccountId])
+  @@index([tenantId])
+  @@map("float_thresholds")
+}
+
+model ReplenishmentRequest {
+  id               String               @id @default(cuid())
+  tenantId         String
+  floatAccountId   String
+  requestedById    String
+  requestedAmount  Decimal              @db.Decimal(15, 2)
+  approvedAmount   Decimal?             @db.Decimal(15, 2)
+  currency         String               @default("XOF")
+  status           ReplenishmentStatus  @default(PENDING)
+  reason           String?
+  rejectionReason  String?
+  approvedById     String?
+  approvedAt       DateTime?
+  paymentReference String?
+  completedAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  floatAccount     FloatAccount         @relation(fields: [floatAccountId], references: [id])
+  requestedBy      User                 @relation("ReplenishmentRequestedBy", fields: [requestedById], references: [id])
+  approvedBy       User?                @relation("ReplenishmentApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([tenantId])
+  @@map("replenishment_requests")
+}
+
+enum ReplenishmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+// ==============================================================================
+// CAISSE & COFFRE
+// ==============================================================================
+
+model Cashier {
+  id         String   @id @default(cuid())
+  tenantId   String
+  agencyId   String
+  userId     String   @unique
+  code       String
+  isOpen     Boolean  @default(false)
+  openedAt   DateTime?
+  closedAt   DateTime?
+  openingBalance Decimal @default(0) @db.Decimal(15, 2)
+  closingBalance Decimal? @db.Decimal(15, 2)
+  currency   String   @default("XOF")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agency     Agency   @relation(fields: [agencyId], references: [id])
+  movements  CashMovement[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("cashiers")
+}
+
+model CashMovement {
+  id          String            @id @default(cuid())
+  tenantId    String
+  cashierId   String
+  type        FloatMovementType
+  amount      Decimal           @db.Decimal(15, 2)
+  balanceBefore Decimal         @db.Decimal(15, 2)
+  balanceAfter  Decimal         @db.Decimal(15, 2)
+  currency    String            @default("XOF")
+  description String
+  reference   String
+  performedById String
+  createdAt   DateTime          @default(now())
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cashier     Cashier           @relation(fields: [cashierId], references: [id])
+
+  @@index([tenantId])
+  @@index([cashierId])
+  @@map("cash_movements")
+}
+
+model VaultOperation {
+  id          String              @id @default(cuid())
+  tenantId    String
+  agencyId    String
+  type        VaultOperationType
+  amount      Decimal             @db.Decimal(15, 2)
+  balanceBefore Decimal           @db.Decimal(15, 2)
+  balanceAfter  Decimal           @db.Decimal(15, 2)
+  currency    String              @default("XOF")
+  description String
+  reference   String
+  performedById String
+  approvedById  String?
+  approvedAt  DateTime?
+  createdAt   DateTime            @default(now())
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agency      Agency              @relation(fields: [agencyId], references: [id])
+
+  @@index([tenantId])
+  @@index([agencyId])
+  @@map("vault_operations")
+}
+
+enum VaultOperationType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+}
+
+// ==============================================================================
+// COMMISSIONS
+// ==============================================================================
+
+model CommissionPlan {
+  id            String          @id @default(cuid())
+  tenantId      String
+  name          String
+  description   String?
+  networkId     String
+  basis         CommissionBasis
+  isActive      Boolean         @default(true)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  network       Network         @relation(fields: [networkId], references: [id])
+  rates         CommissionRate[]
+  superAgents   SuperAgent[]
+  agents        Agent[]
+  earnings      CommissionEarning[]
+
+  @@unique([tenantId, name, networkId])
+  @@index([tenantId])
+  @@map("commission_plans")
+}
+
+enum CommissionBasis {
+  PERCENTAGE
+  FIXED
+  TIERED
+}
+
+model CommissionRate {
+  id               String         @id @default(cuid())
+  tenantId         String
+  commissionPlanId String
+  transactionType  String
+  minAmount        Decimal?       @db.Decimal(15, 2)
+  maxAmount        Decimal?       @db.Decimal(15, 2)
+  rate             Decimal        @db.Decimal(8, 4)
+  fixedAmount      Decimal?       @db.Decimal(15, 2)
+  agentShare       Decimal        @default(70) @db.Decimal(5, 2)
+  superAgentShare  Decimal        @default(10) @db.Decimal(5, 2)
+  agencyShare      Decimal        @default(15) @db.Decimal(5, 2)
+  networkShare     Decimal        @default(5) @db.Decimal(5, 2)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  commissionPlan   CommissionPlan @relation(fields: [commissionPlanId], references: [id], onDelete: Cascade)
+  earnings         CommissionEarning[]
+
+  @@index([tenantId])
+  @@index([commissionPlanId])
+  @@map("commission_rates")
+}
+
+model CommissionEarning {
+  id               String         @id @default(cuid())
+  tenantId         String
+  transactionId    String
+  agentId          String?
+  superAgentId     String?
+  agencyId         String?
+  commissionPlanId String
+  commissionRateId String
+  grossAmount      Decimal        @db.Decimal(15, 2)
+  agentAmount      Decimal        @db.Decimal(15, 2)
+  superAgentAmount Decimal        @db.Decimal(15, 2)
+  agencyAmount     Decimal        @db.Decimal(15, 2)
+  networkAmount    Decimal        @db.Decimal(15, 2)
+  currency         String         @default("XOF")
+  periodMonth      Int
+  periodYear       Int
+  createdAt        DateTime       @default(now())
+
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transaction      Transaction    @relation(fields: [transactionId], references: [id])
+  agent            Agent?         @relation(fields: [agentId], references: [id])
+  superAgent       SuperAgent?    @relation(fields: [superAgentId], references: [id])
+  commissionPlan   CommissionPlan @relation(fields: [commissionPlanId], references: [id])
+  commissionRate   CommissionRate @relation(fields: [commissionRateId], references: [id])
+
+  @@index([tenantId])
+  @@index([transactionId])
+  @@index([periodMonth, periodYear])
+  @@map("commission_earnings")
+}
+
+model CommissionPayment {
+  id            String                  @id @default(cuid())
+  tenantId      String
+  agentId       String?
+  superAgentId  String?
+  agencyId      String?
+  periodMonth   Int
+  periodYear    Int
+  totalEarnings Decimal                 @db.Decimal(15, 2)
+  deductions    Decimal                 @default(0) @db.Decimal(15, 2)
+  netAmount     Decimal                 @db.Decimal(15, 2)
+  currency      String                  @default("XOF")
+  status        CommissionPaymentStatus @default(PENDING)
+  paymentMethod String?
+  paymentReference String?
+  paidAt        DateTime?
+  approvedById  String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent         Agent?                  @relation(fields: [agentId], references: [id])
+  superAgent    SuperAgent?             @relation(fields: [superAgentId], references: [id])
+  approvedBy    User?                   @relation(fields: [approvedById], references: [id])
+
+  @@index([tenantId])
+  @@index([periodMonth, periodYear])
+  @@map("commission_payments")
+}
+
+enum CommissionPaymentStatus {
+  PENDING
+  CALCULATED
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+// ==============================================================================
+// CLIENTS & FIDÉLITÉ
+// ==============================================================================
+
+model Customer {
+  id                String         @id @default(cuid())
+  tenantId          String
+  phoneNumber       String
+  firstName         String?
+  lastName          String?
+  email             String?
+  nationalId        String?
+  dateOfBirth       DateTime?
+  address           String?
+  city              String?
+  country           String         @default("CI")
+  status            CustomerStatus @default(ACTIVE)
+  kycVerified       Boolean        @default(false)
+  kycVerifiedAt     DateTime?
+  totalTransactions Int            @default(0)
+  totalVolume       Decimal        @default(0) @db.Decimal(15, 2)
+  loyaltyPoints     Int            @default(0)
+  lastTransactionAt DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  accounts          CustomerAccount[]
+  loyaltyHistory    LoyaltyPoint[]
+  fraudAlerts       FraudAlert[]
+
+  @@unique([tenantId, phoneNumber])
+  @@index([tenantId])
+  @@map("customers")
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLACKLISTED
+}
+
+model CustomerAccount {
+  id            String   @id @default(cuid())
+  tenantId      String
+  customerId    String
+  networkId     String
+  accountNumber String
+  balance       Decimal  @default(0) @db.Decimal(15, 2)
+  currency      String   @default("XOF")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer      Customer @relation(fields: [customerId], references: [id])
+  network       Network  @relation(fields: [networkId], references: [id])
+
+  @@unique([tenantId, customerId, networkId])
+  @@index([tenantId])
+  @@map("customer_accounts")
+}
+
+model LoyaltyPoint {
+  id            String               @id @default(cuid())
+  tenantId      String
+  customerId    String
+  transactionId String?
+  type          LoyaltyTransactionType
+  points        Int
+  balanceBefore Int
+  balanceAfter  Int
+  description   String
+  expiresAt     DateTime?
+  createdAt     DateTime             @default(now())
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer      Customer             @relation(fields: [customerId], references: [id])
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@map("loyalty_points")
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUST
+}
+
+// ==============================================================================
+// COMPTABILITÉ
+// ==============================================================================
+
+model AccountChart {
+  id            String      @id @default(cuid())
+  tenantId      String
+  code          String
+  name          String
+  description   String?
+  type          AccountType
+  parentId      String?
+  isActive      Boolean     @default(true)
+  normalBalance String      @default("DEBIT")
+  level         Int         @default(1)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent        AccountChart? @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children      AccountChart[] @relation("AccountHierarchy")
+  ledgerEntries Ledger[]
+  journalLines  JournalLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("account_charts")
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model JournalEntry {
+  id           String              @id @default(cuid())
+  tenantId     String
+  reference    String
+  description  String
+  status       JournalEntryStatus  @default(DRAFT)
+  totalDebit   Decimal             @db.Decimal(15, 2)
+  totalCredit  Decimal             @db.Decimal(15, 2)
+  currency     String              @default("XOF")
+  entryDate    DateTime
+  fiscalYearId String
+  createdById  String
+  postedById   String?
+  postedAt     DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fiscalYear   FiscalYear          @relation(fields: [fiscalYearId], references: [id])
+  createdBy    User                @relation("JournalCreatedBy", fields: [createdById], references: [id])
+  postedBy     User?               @relation("JournalPostedBy", fields: [postedById], references: [id])
+  lines        JournalLine[]
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@map("journal_entries")
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+model JournalLine {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  accountId      String
+  description    String?
+  debit          Decimal      @default(0) @db.Decimal(15, 2)
+  credit         Decimal      @default(0) @db.Decimal(15, 2)
+  currency       String       @default("XOF")
+
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        AccountChart @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@map("journal_lines")
+}
+
+model Ledger {
+  id             String       @id @default(cuid())
+  tenantId       String
+  accountId      String
+  journalLineId  String
+  debit          Decimal      @default(0) @db.Decimal(15, 2)
+  credit         Decimal      @default(0) @db.Decimal(15, 2)
+  balance        Decimal      @db.Decimal(15, 2)
+  currency       String       @default("XOF")
+  entryDate      DateTime
+  fiscalYearId   String
+  createdAt      DateTime     @default(now())
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  account        AccountChart @relation(fields: [accountId], references: [id])
+  fiscalYear     FiscalYear   @relation(fields: [fiscalYearId], references: [id])
+
+  @@index([tenantId])
+  @@index([accountId])
+  @@index([fiscalYearId])
+  @@map("ledgers")
+}
+
+model FiscalYear {
+  id            String         @id @default(cuid())
+  tenantId      String
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  isClosed      Boolean        @default(false)
+  closedAt      DateTime?
+  closedById    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  closedBy      User?          @relation(fields: [closedById], references: [id])
+  journalEntries JournalEntry[]
+  ledgers       Ledger[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("fiscal_years")
+}
+
+// ==============================================================================
+// INVENTAIRE / PRODUITS
+// ==============================================================================
+
+model Product {
+  id          String    @id @default(cuid())
+  tenantId    String
+  code        String
+  name        String
+  description String?
+  category    String
+  unit        String    @default("piece")
+  unitPrice   Decimal   @db.Decimal(15, 2)
+  currency    String    @default("XOF")
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventory   Inventory[]
+  stockMovements StockMovement[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("products")
+}
+
+model Inventory {
+  id             String   @id @default(cuid())
+  tenantId       String
+  productId      String
+  agencyId       String?
+  quantity       Decimal  @default(0) @db.Decimal(15, 4)
+  reservedQty    Decimal  @default(0) @db.Decimal(15, 4)
+  reorderLevel   Decimal  @default(0) @db.Decimal(15, 4)
+  maxLevel       Decimal? @db.Decimal(15, 4)
+  lastUpdatedAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id])
+
+  @@unique([tenantId, productId, agencyId])
+  @@index([tenantId])
+  @@map("inventory")
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  tenantId      String
+  productId     String
+  agencyId      String?
+  type          StockMovementType
+  quantity      Decimal           @db.Decimal(15, 4)
+  unitPrice     Decimal           @db.Decimal(15, 2)
+  totalValue    Decimal           @db.Decimal(15, 2)
+  currency      String            @default("XOF")
+  reference     String?
+  description   String?
+  performedById String
+  createdAt     DateTime          @default(now())
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product       Product           @relation(fields: [productId], references: [id])
+
+  @@index([tenantId])
+  @@index([productId])
+  @@map("stock_movements")
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+  RETURN
+}
+
+// ==============================================================================
+// RH - EMPLOYÉS & PAIE
+// ==============================================================================
+
+model Employee {
+  id              String           @id @default(cuid())
+  tenantId        String
+  userId          String?          @unique
+  employeeNumber  String
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  nationalId      String?
+  dateOfBirth     DateTime?
+  gender          String?
+  address         String?
+  city            String?
+  position        String
+  department      String
+  hireDate        DateTime
+  terminationDate DateTime?
+  status          EmployeeStatus   @default(ACTIVE)
+  salary          Decimal?         @db.Decimal(15, 2)
+  currency        String           @default("XOF")
+  bankAccount     String?
+  bankName        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contracts       Contract[]
+  payrolls        Payroll[]
+  leaves          Leave[]
+
+  @@unique([tenantId, employeeNumber])
+  @@index([tenantId])
+  @@map("employees")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+model Contract {
+  id          String         @id @default(cuid())
+  tenantId    String
+  employeeId  String
+  type        ContractType
+  startDate   DateTime
+  endDate     DateTime?
+  salary      Decimal        @db.Decimal(15, 2)
+  currency    String         @default("XOF")
+  position    String
+  department  String
+  terms       String?
+  isActive    Boolean        @default(true)
+  signedAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee    Employee       @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("contracts")
+}
+
+enum ContractType {
+  CDI
+  CDD
+  STAGE
+  CONSULTANT
+  FREELANCE
+}
+
+model Payroll {
+  id            String        @id @default(cuid())
+  tenantId      String
+  employeeId    String
+  periodMonth   Int
+  periodYear    Int
+  baseSalary    Decimal       @db.Decimal(15, 2)
+  bonuses       Decimal       @default(0) @db.Decimal(15, 2)
+  deductions    Decimal       @default(0) @db.Decimal(15, 2)
+  taxes         Decimal       @default(0) @db.Decimal(15, 2)
+  netSalary     Decimal       @db.Decimal(15, 2)
+  currency      String        @default("XOF")
+  status        PayrollStatus @default(DRAFT)
+  paidAt        DateTime?
+  paymentRef    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+
+  @@unique([tenantId, employeeId, periodMonth, periodYear])
+  @@index([tenantId])
+  @@map("payrolls")
+}
+
+enum PayrollStatus {
+  DRAFT
+  VALIDATED
+  PAID
+  CANCELLED
+}
+
+model Leave {
+  id           String      @id @default(cuid())
+  tenantId     String
+  employeeId   String
+  type         LeaveType
+  startDate    DateTime
+  endDate      DateTime
+  days         Int
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  approvedById String?
+  approvedAt   DateTime?
+  rejectionReason String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee     Employee    @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("leaves")
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  UNPAID
+  EXCEPTIONAL
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// ==============================================================================
+// AUDIT, FRAUDE & ML
+// ==============================================================================
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  tenantId    String
+  userId      String?
+  action      AuditAction
+  resource    String
+  resourceId  String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  sessionId   String?
+  description String?
+  createdAt   DateTime    @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  LOGIN
+  LOGOUT
+  EXPORT
+  APPROVE
+  REJECT
+  SUSPEND
+  ACTIVATE
+}
+
+model FraudAlert {
+  id               String              @id @default(cuid())
+  tenantId         String
+  transactionId    String?
+  agentId          String?
+  customerId       String?
+  severity         FraudAlertSeverity
+  status           FraudAlertStatus    @default(OPEN)
+  alertType        String
+  description      String
+  riskScore        Decimal             @db.Decimal(5, 2)
+  indicators       String[]
+  resolvedById     String?
+  resolvedAt       DateTime?
+  resolutionNotes  String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transaction      Transaction?        @relation(fields: [transactionId], references: [id])
+  agent            Agent?              @relation(fields: [agentId], references: [id])
+  customer         Customer?           @relation(fields: [customerId], references: [id])
+  resolvedBy       User?               @relation(fields: [resolvedById], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([severity])
+  @@map("fraud_alerts")
+}
+
+enum FraudAlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FraudAlertStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+model MlPrediction {
+  id               String   @id @default(cuid())
+  tenantId         String
+  transactionId    String
+  modelName        String
+  modelVersion     String
+  fraudProbability Decimal  @db.Decimal(5, 4)
+  riskScore        Decimal  @db.Decimal(5, 2)
+  features         Json
+  prediction       String
+  confidence       Decimal  @db.Decimal(5, 4)
+  processingTimeMs Int
+  createdAt        DateTime @default(now())
+
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transaction      Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([tenantId])
+  @@index([transactionId])
+  @@map("ml_predictions")
+}
+
+// ==============================================================================
+// KYC - VÉRIFICATION D'IDENTITÉ
+// ==============================================================================
+
+model KycVerification {
+  id              String    @id @default(cuid())
+  tenantId        String
+  userId          String
+  documentType    String
+  documentNumber  String
+  documentUrl     String
+  selfieUrl       String?
+  status          KycStatus @default(PENDING)
+  level           KycLevel  @default(NONE)
+  expiresAt       DateTime?
+  reviewedBy      String?
+  rejectionReason String?
+  submittedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("kyc_verifications")
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum KycLevel {
+  NONE
+  BASIC
+  FULL
+}
+
+// ==============================================================================
+// INTÉGRATIONS & LOGS
+// ==============================================================================
+
+model IntegrationLog {
+  id           String   @id @default(cuid())
+  tenantId     String
+  operator     String
+  endpoint     String
+  method       String
+  statusCode   Int?
+  duration     Int
+  success      Boolean
+  errorMessage String?
+  requestId    String?
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, operator])
+  @@index([createdAt])
+  @@map("integration_logs")
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  channel   String
+  recipient String
+  subject   String?
+  body      String
+  status    String
+  error     String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("notification_logs")
+}
+
+// ==============================================================================
+// TAUX DE CHANGE
+// ==============================================================================
+
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  fromCurrency String
+  toCurrency   String
+  rate         Decimal  @db.Decimal(15, 6)
+  source       String   @default("OPENEXCHANGERATES")
+  fetchedAt    DateTime @default(now())
+
+  @@unique([fromCurrency, toCurrency])
+  @@index([fetchedAt])
+  @@map("exchange_rates")
+}
+
+// ==============================================================================
+// RAPPORTS
+// ==============================================================================
+
+model ScheduledReport {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  reportType String
+  frequency  String
+  format     String
+  recipients String[]
+  isActive   Boolean   @default(true)
+  lastRunAt  DateTime?
+  nextRunAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("scheduled_reports")
+}
+
+model GeneratedReport {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  reportType  String
+  format      String
+  fileUrl     String?
+  fileSize    Int?
+  status      String    @default("PENDING")
+  generatedBy String?
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("generated_reports")
+}

@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #F5B800;
+  --primary-dark: #D9A200;
+  --primary-light: #FFF8E1;
+  --dark: #1A1D2E;
+  --dark-2: #252840;
+  --bg: #F0F2F7;
+  --white: #FFFFFF;
+  --text: #1A1D2E;
+  --text-2: #6B7280;
+  --success: #22C55E;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+  --info: #3B82F6;
+  --border: #E5E7EB;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 16px;
+  --sidebar-w: 260px;
+  --topbar-h: 64px;
+}
+
+html { font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--topbar-h);
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  z-index: 100;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.topbar-icon {
+  width: 36px; height: 36px;
+  background: var(--primary);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 2px 8px rgba(245,184,0,0.35);
+}
+.topbar-name {
+  font-size: 18px; font-weight: 800;
+  color: var(--dark); letter-spacing: -0.5px;
+}
+.topbar-name span { color: var(--primary); }
+
+.topbar-search {
+  flex: 1;
+  max-width: 420px;
+  position: relative;
+}
+.topbar-search input {
+  width: 100%;
+  padding: 9px 16px 9px 40px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.topbar-search input:focus { border-color: var(--primary); }
+.topbar-search .search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; color: var(--text-2);
+}
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-date {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.notif-btn {
+  position: relative;
+  width: 38px; height: 38px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.15s;
+}
+.notif-btn:hover { background: var(--primary-light); border-color: var(--primary); }
+.notif-badge {
+  position: absolute;
+  top: -4px; right: -4px;
+  width: 18px; height: 18px;
+  background: var(--danger);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--white);
+}
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.profile-btn:hover { border-color: var(--primary); }
+.profile-avatar {
+  width: 28px; height: 28px;
+  background: var(--dark);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 700;
+}
+.profile-info { font-size: 12px; line-height: 1.3; }
+.profile-name { font-weight: 600; color: var(--text); }
+.profile-agency { color: var(--text-2); }
+.profile-chevron { font-size: 10px; color: var(--text-2); }
+
+/* Notification dropdown */
+.notif-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(var(--topbar-h) + 8px);
+  right: 120px;
+  width: 320px;
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  border: 1px solid var(--border);
+  z-index: 200;
+  overflow: hidden;
+}
+.notif-dropdown.open { display: block; }
+.notif-header {
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between;
+}
+.notif-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+  display: flex; gap: 10px;
+}
+.notif-item:hover { background: var(--bg); }
+.notif-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.notif-text { color: var(--text); line-height: 1.5; }
+.notif-time { color: var(--text-2); margin-top: 2px; }
+
+/* Profile dropdown */
+.profile-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(var(--topbar-h) + 8px);
+  right: 24px;
+  width: 200px;
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  border: 1px solid var(--border);
+  z-index: 200;
+  overflow: hidden;
+}
+.profile-dropdown.open { display: block; }
+.profile-dd-item {
+  padding: 12px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center;
+}
+.profile-dd-item:hover { background: var(--bg); }
+.profile-dd-item:last-child { border-bottom: none; color: var(--danger); }
+
+/* ── LAYOUT ── */
+.layout {
+  padding-top: var(--topbar-h);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  position: fixed;
+  top: var(--topbar-h);
+  left: -280px;
+  width: var(--sidebar-w);
+  height: calc(100vh - var(--topbar-h));
+  background: var(--dark);
+  transition: left 0.28s cubic-bezier(0.4,0,0.2,1);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar.open { left: 0; }
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 80;
+}
+.sidebar-overlay.open { display: block; }
+
+.sidebar-context {
+  padding: 16px 20px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 8px;
+}
+
+.sidebar-section-title {
+  padding: 10px 20px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.65);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 0;
+  text-decoration: none;
+  margin: 1px 8px;
+  border-radius: 10px;
+}
+.sidebar-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.sidebar-item.active {
+  background: rgba(245,184,0,0.15);
+  color: var(--primary);
+}
+.sidebar-item .si-icon { font-size: 16px; flex-shrink: 0; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+  display: flex; gap: 10px; align-items: center;
+}
+
+/* ── MAIN ── */
+.main {
+  flex: 1;
+  padding: 28px 28px 40px;
+  min-width: 0;
+  transition: margin-left 0.28s;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+.page-sub {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-top: 3px;
+}
+.page-actions { display: flex; gap: 10px; }
+
+.btn {
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-primary { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-ghost { background: transparent; color: var(--text-2); }
+.btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
+
+/* ── CARD GRID ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  padding: 22px 24px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+}
+.card.active {
+  border-color: var(--primary);
+  box-shadow: 0 4px 20px rgba(245,184,0,0.2);
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle at top right, rgba(245,184,0,0.06), transparent 70%);
+  pointer-events: none;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-icon-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.card-icon {
+  width: 40px; height: 40px;
+  border-radius: 11px;
+  background: var(--primary-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.card-trend {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+.trend-up { color: var(--success); background: rgba(34,197,94,0.1); }
+.trend-down { color: var(--danger); background: rgba(239,68,68,0.1); }
+.trend-warn { color: var(--warning); background: rgba(245,158,11,0.1); }
+
+.card-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.metric {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.metric-label {
+  font-size: 12px;
+  color: var(--text-2);
+}
+.metric-sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Operator badges */
+.op-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.op-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.op-amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+.op-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.status-ok { color: var(--success); background: rgba(34,197,94,0.1); }
+.status-warn { color: var(--warning); background: rgba(245,158,11,0.1); }
+.status-danger { color: var(--danger); background: rgba(239,68,68,0.1); }
+
+/* Progress bar */
+.progress-wrap { margin: 8px 0 4px; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--text-2); margin-bottom: 6px;
+}
+.progress-bar {
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+  border-radius: 4px;
+  transition: width 0.5s;
+}
+
+/* Gauge */
+.float-gauge {
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+  width: 80px;
+  flex-shrink: 0;
+}
+.float-fill { height: 100%; border-radius: 3px; }
+
+/* ── AI BANNER ── */
+.ai-banner {
+  background: linear-gradient(135deg, var(--dark) 0%, #252840 100%);
+  border-radius: var(--radius);
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(245,184,0,0.2);
+  flex-wrap: wrap;
+}
+.ai-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.ai-content { flex: 1; min-width: 200px; }
+.ai-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+.ai-message {
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.ai-message strong { color: var(--warning); }
+.ai-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-ai {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.15s;
+}
+.btn-ai-primary { background: var(--primary); color: var(--dark); border: none; }
+.btn-ai-primary:hover { background: var(--primary-dark); }
+.btn-ai-ghost { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.15); }
+.btn-ai-ghost:hover { background: rgba(255,255,255,0.15); }
+
+/* ── RECENT ACTIVITY ── */
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-wrap {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-align: left;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 13px 16px;
+  font-size: 13px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(245,184,0,0.03); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-depot { background: rgba(34,197,94,0.1); color: #16a34a; }
+.badge-retrait { background: rgba(239,68,68,0.1); color: #dc2626; }
+.badge-cashin { background: rgba(59,130,246,0.1); color: #2563eb; }
+.badge-cashout { background: rgba(168,85,247,0.1); color: #7c3aed; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pill-success { background: rgba(34,197,94,0.1); color: #16a34a; }
+.pill-pending { background: rgba(245,158,11,0.1); color: #d97706; }
+.pill-failed { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+.op-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.op-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+/* Tooltip */
+.tooltip-wrap { position: relative; display: inline-block; }
+.tooltip-wrap:hover .tooltip { display: block; }
+.tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--dark);
+  color: #fff;
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 50;
+}
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%; left: 50%; transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--dark);
+}
+
+@media (max-width: 900px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .main { padding: 16px; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .topbar-search { display: none; }
+  .topbar-date { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Rechercher une transaction, un agent, une agence…">
+  </div>
+
+  <div class="topbar-right">
+    <div class="topbar-date" id="topbar-date"></div>
+
+    <div class="notif-btn" onclick="toggleNotif()" id="notif-trigger">
+      🔔
+      <span class="notif-badge">3</span>
+    </div>
+
+    <div class="profile-btn" onclick="toggleProfile()" id="profile-trigger">
+      <div class="profile-avatar">KY</div>
+      <div class="profile-info">
+        <div class="profile-name">Konan Yao</div>
+        <div class="profile-agency">Agence Plateau</div>
+      </div>
+      <span class="profile-chevron">▼</span>
+    </div>
+  </div>
+</header>
+
+<!-- NOTIFICATION DROPDOWN -->
+<div class="notif-dropdown" id="notif-dropdown">
+  <div class="notif-header">
+    Notifications <span style="color:var(--primary);font-size:11px;cursor:pointer">Tout marquer lu</span>
+  </div>
+  <div class="notif-item">
+    <div class="notif-dot" style="background:var(--danger)"></div>
+    <div>
+      <div class="notif-text">⚠️ Float MTN critique — solde 12 000 XOF</div>
+      <div class="notif-time">Il y a 8 min</div>
+    </div>
+  </div>
+  <div class="notif-item">
+    <div class="notif-dot" style="background:var(--warning)"></div>
+    <div>
+      <div class="notif-text">Clôture de caisse en attente — Agence Cocody</div>
+      <div class="notif-time">Il y a 34 min</div>
+    </div>
+  </div>
+  <div class="notif-item">
+    <div class="notif-dot" style="background:var(--info)"></div>
+    <div>
+      <div class="notif-text">Rapport journalier généré avec succès</div>
+      <div class="notif-time">Aujourd'hui à 06:00</div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE DROPDOWN -->
+<div class="profile-dropdown" id="profile-dropdown">
+  <div class="profile-dd-item">👤 Mon profil</div>
+  <div class="profile-dd-item">⚙️ Paramètres</div>
+  <div class="profile-dd-item">📊 Mes performances</div>
+  <div class="profile-dd-item" onclick="window.location.href='login.html'">🚪 Déconnexion</div>
+</div>
+
+<!-- SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-context" id="sidebar-context-label">SECTION ACTIVE</div>
+  <div id="sidebar-content"></div>
+  <div class="sidebar-footer">
+    <span>🪙</span> GESTMONEY v2.4.1
+  </div>
+</aside>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <main class="main">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">Tableau de bord</div>
+        <div class="page-sub">Vue globale de l'activité — Jeudi 10 juillet 2026</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-outline btn-sm">📥 Exporter</button>
+        <button class="btn btn-primary btn-sm">+ Nouvelle transaction</button>
+      </div>
+    </div>
+
+    <!-- CARD GRID -->
+    <div class="card-grid">
+
+      <!-- 1. TRANSACTIONS -->
+      <div class="card" id="card-transactions" onclick="activateCard('transactions')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">💳</div>
+            <div class="card-title">Transactions</div>
+          </div>
+          <div class="card-trend trend-up tooltip-wrap">
+            ↑ +12% vs hier
+            <div class="tooltip">Hier : 1 111 transactions</div>
+          </div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">1 245</span>
+            <span class="metric-label">transactions aujourd'hui</span>
+          </div>
+          <div class="metric-sub">
+            <span>💰</span>
+            <span><strong style="color:var(--text)">87,4M</strong> XOF traités</span>
+          </div>
+          <div class="metric-sub">
+            <span>✅</span>
+            <span>1 198 réussies &nbsp;·&nbsp; <span style="color:var(--warning)">42 en attente</span> &nbsp;·&nbsp; <span style="color:var(--danger)">5 annulées</span></span>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='transactions.html'">+ Dépôt</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='transactions.html'">+ Retrait</button>
+
+        </div>
+      </div>
+
+      <!-- 2. CAISSE -->
+      <div class="card" id="card-caisse" onclick="activateCard('caisse')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">💵</div>
+            <div class="card-title">Caisse</div>
+          </div>
+          <div class="card-trend trend-up tooltip-wrap">
+            ↑ +320 000 XOF
+            <div class="tooltip">Variation nette aujourd'hui</div>
+          </div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value tooltip-wrap">2,45M<div class="tooltip">2 450 000 XOF</div></span>
+            <span class="metric-label">solde caisse</span>
+          </div>
+          <div class="metric-sub"><span>📈</span><span>Entrées : <strong style="color:var(--success)">1 820 000 XOF</strong></span></div>
+          <div class="metric-sub"><span>📉</span><span>Sorties : <strong style="color:var(--danger)">1 500 000 XOF</strong></span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation()">Entrée</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation()">Clôture</button>
+        </div>
+      </div>
+
+      <!-- 3. FLOAT -->
+      <div class="card" id="card-float" onclick="activateCard('float')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">🏦</div>
+            <div class="card-title">Float opérateurs</div>
+          </div>
+          <div class="card-trend trend-warn">⚠️ MTN critique</div>
+        </div>
+        <div class="card-metrics">
+          <div class="op-row">
+            <div class="op-name"><span style="color:#FF6B00;font-size:14px">●</span> Orange Money</div>
+            <div class="float-gauge"><div class="float-fill" style="width:82%;background:#FF6B00"></div></div>
+            <div class="op-amount">1 200 000 XOF</div>
+            <div class="op-status status-ok">OK</div>
+          </div>
+          <div class="op-row">
+            <div class="op-name"><span style="color:var(--danger);font-size:14px">●</span> MTN MoMo</div>
+            <div class="float-gauge"><div class="float-fill" style="width:6%;background:var(--danger)"></div></div>
+            <div class="op-amount" style="color:var(--danger)">12 000 XOF</div>
+            <div class="op-status status-danger">Critique</div>
+          </div>
+          <div class="op-row">
+            <div class="op-name"><span style="color:#1DA7E8;font-size:14px">●</span> Wave</div>
+            <div class="float-gauge"><div class="float-fill" style="width:56%;background:#1DA7E8"></div></div>
+            <div class="op-amount">280 000 XOF</div>
+            <div class="op-status status-ok">OK</div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='float.html'">Réapprovisionner</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='float.html'">Voir float</button>
+        </div>
+      </div>
+
+      <!-- 4. PERFORMANCES -->
+      <div class="card" id="card-perf" onclick="activateCard('perf')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">📈</div>
+            <div class="card-title">Performances</div>
+          </div>
+          <div class="card-trend trend-up">83% objectif</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">12,5M</span>
+            <span class="metric-label">XOF chiffre d'affaires</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label">
+              <span>CA mensuel vs objectif</span>
+              <span><strong>12,5M</strong> / 15M XOF</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:83%"></div>
+            </div>
+          </div>
+          <div class="metric-sub"><span>🎯</span><span>Reste : <strong style="color:var(--text)">2,5M XOF</strong> pour atteindre l'objectif</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation()">Voir détails</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation()">Par agence</button>
+        </div>
+      </div>
+
+      <!-- 5. AGENCES -->
+      <div class="card" id="card-agences" onclick="activateCard('agences')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">🏪</div>
+            <div class="card-title">Agences</div>
+          </div>
+          <div class="card-trend trend-up">8 actives</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">47</span>
+            <span class="metric-label">agents en ligne</span>
+          </div>
+          <div class="metric-sub"><span>🥇</span><span>Top: <strong style="color:var(--text)">Agence Plateau</strong> — 286 transac.</span></div>
+          <div class="metric-sub"><span>📍</span><span>Abidjan · Bouaké · San-Pédro · Yamoussoukro</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='agences.html'">Voir agences</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='agences.html'">+ Nouvelle agence</button>
+        </div>
+      </div>
+
+      <!-- 6. CLIENTS -->
+      <div class="card" id="card-clients" onclick="activateCard('clients')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">👥</div>
+            <div class="card-title">Clients</div>
+          </div>
+          <div class="card-trend trend-up">+12 aujourd'hui</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">3 214</span>
+            <span class="metric-label">clients enregistrés</span>
+          </div>
+          <div class="metric-sub"><span>🆕</span><span>12 nouveaux — <strong style="color:var(--success)">+0,4% vs hier</strong></span></div>
+          <div class="metric-sub"><span>📞</span><span>Top ville : Abidjan — 1 840 clients</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='clients.html'">Rechercher</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='clients.html'">+ Nouveau client</button>
+        </div>
+      </div>
+
+      <!-- 7. COMMISSIONS -->
+      <div class="card" id="card-commissions" onclick="activateCard('commissions')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">💰</div>
+            <div class="card-title">Commissions</div>
+          </div>
+          <div class="card-trend trend-up">↑ +8,2% vs mois</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">485 200</span>
+            <span class="metric-label">XOF ce mois</span>
+          </div>
+          <div class="metric-sub"><span style="color:var(--success)">✓</span><span>320 000 XOF payées</span></div>
+          <div class="metric-sub"><span style="color:var(--warning)">⏳</span><span><strong style="color:var(--warning)">165 200 XOF en attente</strong></span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='commissions.html'">Valider</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='commissions.html'">Historique</button>
+        </div>
+      </div>
+
+      <!-- 8. AGENTS -->
+      <div class="card" id="card-agents" onclick="activateCard('agents')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">👤</div>
+            <div class="card-title">Agents</div>
+          </div>
+          <div class="card-trend trend-up">47 actifs</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">12</span>
+            <span class="metric-label">en ligne maintenant</span>
+          </div>
+          <div class="metric-sub"><span>🏆</span><span>Top: <strong style="color:var(--text)">Kofi Asante</strong> — 8,4M XOF</span></div>
+          <div class="metric-sub"><span>🔴</span><span style="color:var(--warning)">3 agents suspendus</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='agents.html'">Voir agents</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='agents.html'">+ Créer agent</button>
+        </div>
+      </div>
+
+      <!-- 9. STOCKS -->
+      <div class="card" id="card-stock" onclick="activateCard('stock')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">📦</div>
+            <div class="card-title">Stocks</div>
+          </div>
+          <div class="card-trend" style="background:rgba(239,68,68,0.1);color:var(--danger)">⚠️ 12 alertes</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">4 907</span>
+            <span class="metric-label">articles en stock</span>
+          </div>
+          <div class="metric-sub"><span>📱</span><span>4 500 SIM · 87 terminaux · 320 accessoires</span></div>
+          <div class="metric-sub"><span style="color:var(--danger)">🔴</span><span style="color:var(--danger)">Stock bas : SIM Moov, Airtel POS…</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='stock.html'">Voir stock</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='stock.html'">Commander</button>
+        </div>
+      </div>
+
+      <!-- 10. ADMINISTRATION -->
+      <div class="card" id="card-administration" onclick="activateCard('administration')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">⚙️</div>
+            <div class="card-title">Administration</div>
+          </div>
+          <div class="card-trend trend-up">Système OK</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">23</span>
+            <span class="metric-label">utilisateurs actifs</span>
+          </div>
+          <div class="metric-sub"><span>🟢</span><span>6 connectés · <strong style="color:var(--text)">API 45ms</strong> · DB 12ms</span></div>
+          <div class="metric-sub"><span>📋</span><span>Dernier audit : il y a 2 min</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='administration.html'">Gérer</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='administration.html'">Journal audit</button>
+        </div>
+      </div>
+
+      <!-- 11. RAPPORTS (was 8) -->
+      <div class="card" id="card-rapports" onclick="activateCard('rapports')">
+        <div class="card-head">
+          <div class="card-icon-title">
+            <div class="card-icon">📊</div>
+            <div class="card-title">Rapports</div>
+          </div>
+          <div class="card-trend trend-up" style="background:rgba(59,130,246,0.1);color:var(--info)">Auto 06:00</div>
+        </div>
+        <div class="card-metrics">
+          <div class="metric-sub"><span>📅</span><span>Dernier rapport : <strong style="color:var(--text)">09/07/2026</strong></span></div>
+          <div class="metric-sub"><span>📄</span><span>Type : Rapport Journalier Consolidé</span></div>
+          <div class="metric-sub"><span>✅</span><span>Statut : <span style="color:var(--success)">Généré et envoyé</span></span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='rapports.html'">Générer rapport</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();window.location.href='rapports.html'">📥 Télécharger</button>
+        </div>
+      </div>
+
+    </div><!-- /card-grid -->
+
+    <!-- AI BANNER -->
+    <div class="ai-banner">
+      <div class="ai-icon">🤖</div>
+      <div class="ai-content">
+        <div class="ai-label">Assistant IA — Prédiction Float</div>
+        <div class="ai-message">⚠️ Float <strong>MTN MoMo</strong> prévu insuffisant demain matin — solde actuel 12 000 XOF. Recommande un réapprovisionnement de <strong>500 000 XOF</strong> avant 18h pour couvrir le volume prévu.</div>
+      </div>
+      <div class="ai-actions">
+        <button class="btn-ai btn-ai-primary" onclick="window.location.href='float.html'">Agir maintenant</button>
+        <button class="btn-ai btn-ai-ghost" onclick="this.closest('.ai-banner').style.display='none'">Ignorer</button>
+        <button class="btn-ai btn-ai-ghost" onclick="window.location.href='ia-fraude.html'">Voir prévisions IA</button>
+      </div>
+    </div>
+
+    <!-- RECENT ACTIVITY -->
+    <div class="section-title">
+      Activité récente
+      <a href="transactions.html" style="font-size:12px;color:var(--primary);text-decoration:none;font-weight:500">Voir tout →</a>
+    </div>
+
+    <div class="table-wrap">
+      <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Heure</th>
+            <th>Type</th>
+            <th>Agent</th>
+            <th>Opérateur</th>
+            <th>Client</th>
+            <th>Montant</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--text-2);font-size:12px">14:32</td>
+            <td><span class="badge badge-depot">Dépôt</span></td>
+            <td><strong>Aminata Koné</strong><br><span style="font-size:11px;color:var(--text-2)">Agence Plateau</span></td>
+            <td><span class="op-logo"><span class="op-dot" style="background:#FF6B00"></span>Orange</span></td>
+            <td style="font-size:12px">Djibril Touré</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">75 000 XOF</td>
+            <td><span class="status-pill pill-success">● Succès</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-2);font-size:12px">14:28</td>
+            <td><span class="badge badge-retrait">Retrait</span></td>
+            <td><strong>Koffi Asséa</strong><br><span style="font-size:11px;color:var(--text-2)">Agence Cocody</span></td>
+            <td><span class="op-logo"><span class="op-dot" style="background:#FFCC00"></span>MTN</span></td>
+            <td style="font-size:12px">Mariam Bamba</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">50 000 XOF</td>
+            <td><span class="status-pill pill-pending">● En attente</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-2);font-size:12px">14:15</td>
+            <td><span class="badge badge-cashin">Cash In</span></td>
+            <td><strong>Raïssa Dembélé</strong><br><span style="font-size:11px;color:var(--text-2)">Agence Bouaké</span></td>
+            <td><span class="op-logo"><span class="op-dot" style="background:#1DA7E8"></span>Wave</span></td>
+            <td style="font-size:12px">Ibrahim Sylla</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">120 000 XOF</td>
+            <td><span class="status-pill pill-success">● Succès</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-2);font-size:12px">13:58</td>
+            <td><span class="badge badge-cashout">Cash Out</span></td>
+            <td><strong>Youssouf Coulibaly</strong><br><span style="font-size:11px;color:var(--text-2)">Agence Plateau</span></td>
+            <td><span class="op-logo"><span class="op-dot" style="background:#FF6B00"></span>Orange</span></td>
+            <td style="font-size:12px">Fatoumata Diallo</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">200 000 XOF</td>
+            <td><span class="status-pill pill-success">● Succès</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-2);font-size:12px">13:44</td>
+            <td><span class="badge badge-depot">Dépôt</span></td>
+            <td><strong>Cécile Ahou</strong><br><span style="font-size:11px;color:var(--text-2)">Agence Yamoussoukro</span></td>
+            <td><span class="op-logo"><span class="op-dot" style="background:#00A651"></span>Moov</span></td>
+            <td style="font-size:12px">Seydou Traoré</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">30 000 XOF</td>
+            <td><span class="status-pill pill-failed">● Annulée</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// Date
+const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const now = new Date();
+document.getElementById('topbar-date').textContent =
+  days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+
+// Sidebar content definitions
+const sidebarData = {
+  transactions: {
+    label: 'TRANSACTIONS',
+    sections: [
+      { title: null, items: [
+        { icon: '📋', label: 'Vue d\'ensemble', active: true, href: 'transactions.html' },
+        { icon: '💳', label: 'Tous les types', href: 'transactions.html' },
+      ]},
+      { title: 'TYPES D\'OPÉRATION', items: [
+        { icon: '⬇️', label: 'Dépôts', href: 'transactions.html' },
+        { icon: '⬆️', label: 'Retraits', href: 'transactions.html' },
+        { icon: '↪️', label: 'Cash In', href: 'transactions.html' },
+        { icon: '↩️', label: 'Cash Out', href: 'transactions.html' },
+        { icon: '🔄', label: 'Transferts', href: 'transactions.html' },
+      ]},
+      { title: 'FILTRES RAPIDES', items: [
+        { icon: '⏳', label: 'En attente (42)' },
+        { icon: '❌', label: 'Annulées (5)' },
+        { icon: '📅', label: 'Aujourd\'hui' },
+      ]},
+    ]
+  },
+  caisse: {
+    label: 'CAISSE',
+    sections: [
+      { title: null, items: [
+        { icon: '💵', label: 'Solde en temps réel', active: true },
+        { icon: '📊', label: 'Historique du jour' },
+      ]},
+      { title: 'OPÉRATIONS', items: [
+        { icon: '➕', label: 'Entrée de caisse' },
+        { icon: '➖', label: 'Sortie de caisse' },
+        { icon: '🔒', label: 'Clôture de caisse' },
+        { icon: '📋', label: 'Procès-verbal' },
+      ]},
+      { title: 'RAPPROCHEMENT', items: [
+        { icon: '⚖️', label: 'Écarts de caisse' },
+        { icon: '🖨️', label: 'Imprimer ticket' },
+      ]},
+    ]
+  },
+  float: {
+    label: 'FLOAT',
+    sections: [
+      { title: null, items: [
+        { icon: '🏦', label: 'Niveaux en temps réel', active: true, href: 'float.html' },
+        { icon: '📈', label: 'Historique mouvements', href: 'float.html' },
+      ]},
+      { title: 'OPÉRATEURS', items: [
+        { icon: '🟠', label: 'Orange Money — 1,2M' },
+        { icon: '🔴', label: 'MTN MoMo — ⚠️ 12K' },
+        { icon: '🔵', label: 'Wave — 280K' },
+        { icon: '🟢', label: 'Moov Money' },
+      ]},
+      { title: 'ACTIONS', items: [
+        { icon: '🔁', label: 'Réapprovisionner', href: 'float.html' },
+        { icon: '📤', label: 'Demande de transfert' },
+        { icon: '🔔', label: 'Seuils d\'alerte' },
+      ]},
+    ]
+  },
+  perf: {
+    label: 'PERFORMANCES',
+    sections: [
+      { title: null, items: [
+        { icon: '📈', label: 'Vue globale', active: true },
+        { icon: '🎯', label: 'Objectifs du mois' },
+      ]},
+      { title: 'ANALYSE', items: [
+        { icon: '📊', label: 'CA par agence' },
+        { icon: '👤', label: 'CA par agent' },
+        { icon: '📱', label: 'CA par opérateur' },
+        { icon: '📅', label: 'Tendances mensuelles' },
+      ]},
+      { title: 'EXPORT', items: [
+        { icon: '📥', label: 'Télécharger rapport' },
+        { icon: '📧', label: 'Envoyer par mail' },
+      ]},
+    ]
+  },
+  agences: {
+    label: 'AGENCES',
+    sections: [
+      { title: null, items: [
+        { icon: '🏪', label: 'Liste des agences', active: true, href: 'agences.html' },
+        { icon: '🗺️', label: 'Carte géographique', href: 'agences.html' },
+      ]},
+      { title: 'AGENCES ACTIVES', items: [
+        { icon: '📍', label: 'Agence Plateau — Abidjan', href: 'agences.html' },
+        { icon: '📍', label: 'Agence Cocody — Abidjan', href: 'agences.html' },
+        { icon: '📍', label: 'Agence Bouaké Centre', href: 'agences.html' },
+        { icon: '📍', label: 'Agence San-Pédro Port', href: 'agences.html' },
+      ]},
+      { title: 'GESTION', items: [
+        { icon: '➕', label: 'Nouvelle agence', href: 'agences.html' },
+        { icon: '👥', label: 'Agents en ligne (47)', href: 'agents.html' },
+        { icon: '⚙️', label: 'Paramètres agences', href: 'agences.html' },
+      ]},
+    ]
+  },
+  clients: {
+    label: 'CLIENTS',
+    sections: [
+      { title: null, items: [
+        { icon: '👥', label: 'Liste clients', active: true, href: 'clients.html' },
+        { icon: '🆕', label: 'Nouveaux du jour (12)', href: 'clients.html' },
+      ]},
+      { title: 'RECHERCHE', items: [
+        { icon: '🔍', label: 'Par nom / téléphone', href: 'clients.html' },
+        { icon: '📍', label: 'Par ville', href: 'clients.html' },
+        { icon: '📱', label: 'Par opérateur', href: 'clients.html' },
+      ]},
+      { title: 'ACTIONS', items: [
+        { icon: '➕', label: 'Enregistrer client', href: 'clients.html' },
+        { icon: '📋', label: 'Fiche KYC', href: 'clients.html' },
+        { icon: '📊', label: 'Historique client', href: 'clients.html' },
+      ]},
+    ]
+  },
+  commissions: {
+    label: 'COMMISSIONS',
+    sections: [
+      { title: null, items: [
+        { icon: '💰', label: 'Vue d\'ensemble', active: true, href: 'commissions.html' },
+        { icon: '📋', label: 'Détail par agent', href: 'commissions.html' },
+      ]},
+      { title: 'STATUTS', items: [
+        { icon: '✅', label: 'Payées — 320 000 XOF', href: 'commissions.html' },
+        { icon: '⏳', label: 'En attente — 165 200 XOF', href: 'commissions.html' },
+        { icon: '❌', label: 'Rejetées', href: 'commissions.html' },
+      ]},
+      { title: 'VALIDATION', items: [
+        { icon: '✔️', label: 'Valider tout', href: 'commissions.html' },
+        { icon: '📤', label: 'Exporter bordereau', href: 'commissions.html' },
+        { icon: '🏦', label: 'Virement bancaire', href: 'commissions.html' },
+      ]},
+    ]
+  },
+  agents: {
+    label: 'AGENTS',
+    sections: [
+      { title: null, items: [
+        { icon: '👤', label: 'Liste des agents', active: true, href: 'agents.html' },
+        { icon: '➕', label: 'Créer un agent', href: 'agents.html' },
+      ]},
+      { title: 'FILTRES', items: [
+        { icon: '🟢', label: 'Agents actifs (47)', href: 'agents.html' },
+        { icon: '🔴', label: 'Suspendus (3)', href: 'agents.html' },
+        { icon: '🟡', label: 'En ligne (12)', href: 'agents.html' },
+      ]},
+      { title: 'PERFORMANCES', items: [
+        { icon: '🏆', label: 'Top agents', href: 'agents.html' },
+        { icon: '💰', label: 'Commissions agents', href: 'commissions.html' },
+      ]},
+    ]
+  },
+  stock: {
+    label: 'STOCKS',
+    sections: [
+      { title: null, items: [
+        { icon: '📦', label: 'Inventaire', active: true, href: 'stock.html' },
+        { icon: '🔔', label: 'Alertes stock (12)', href: 'stock.html' },
+      ]},
+      { title: 'CATÉGORIES', items: [
+        { icon: '📱', label: 'SIM (4 500)', href: 'stock.html' },
+        { icon: '🖥️', label: 'Terminaux (87)', href: 'stock.html' },
+        { icon: '🛍️', label: 'Accessoires (320)', href: 'stock.html' },
+      ]},
+      { title: 'GESTION', items: [
+        { icon: '📋', label: 'Bons de commande', href: 'stock.html' },
+        { icon: '📤', label: 'Exporter inventaire', href: 'stock.html' },
+      ]},
+    ]
+  },
+  administration: {
+    label: 'ADMINISTRATION',
+    sections: [
+      { title: null, items: [
+        { icon: '👥', label: 'Utilisateurs', active: true, href: 'administration.html' },
+        { icon: '📱', label: 'Opérateurs', href: 'administration.html' },
+      ]},
+      { title: 'SYSTÈME', items: [
+        { icon: '💚', label: 'Santé système', href: 'administration.html' },
+        { icon: '📋', label: 'Journal d\'audit', href: 'administration.html' },
+      ]},
+      { title: 'CONFIGURATION', items: [
+        { icon: '⚙️', label: 'Paramètres globaux', href: 'administration.html' },
+        { icon: '🔐', label: 'Rôles & permissions', href: 'administration.html' },
+      ]},
+    ]
+  },
+  rapports: {
+    label: 'RAPPORTS',
+    sections: [
+      { title: null, items: [
+        { icon: '📊', label: 'Générer un rapport', active: true, href: 'rapports.html' },
+        { icon: '📁', label: 'Historique rapports', href: 'rapports.html' },
+      ]},
+      { title: 'TYPES', items: [
+        { icon: '📅', label: 'Rapport journalier', href: 'rapports.html' },
+        { icon: '📆', label: 'Rapport mensuel', href: 'rapports.html' },
+        { icon: '🏪', label: 'Rapport par agence', href: 'rapports.html' },
+        { icon: '📱', label: 'Rapport par opérateur', href: 'rapports.html' },
+        { icon: '👤', label: 'Rapport par agent', href: 'rapports.html' },
+      ]},
+      { title: 'PLANIFICATION', items: [
+        { icon: '⏰', label: 'Rapports automatiques', href: 'rapports.html' },
+        { icon: '📧', label: 'Destinataires', href: 'rapports.html' },
+      ]},
+    ]
+  },
+};
+
+let activeCard = null;
+
+function activateCard(key) {
+  // Toggle off
+  if (activeCard === key) {
+    closeSidebar();
+    if (activeCard) document.getElementById('card-' + activeCard)?.classList.remove('active');
+    activeCard = null;
+    return;
+  }
+
+  // Deactivate previous
+  if (activeCard) document.getElementById('card-' + activeCard)?.classList.remove('active');
+
+  activeCard = key;
+  document.getElementById('card-' + key)?.classList.add('active');
+
+  // Populate sidebar
+  const data = sidebarData[key];
+  document.getElementById('sidebar-context-label').textContent = data.label;
+
+  let html = '';
+  data.sections.forEach(sec => {
+    if (sec.title) html += `<div class="sidebar-section-title">${sec.title}</div>`;
+    sec.items.forEach(item => {
+      const href = item.href ? `href="${item.href}"` : 'href="#"';
+      html += `<a class="sidebar-item${item.active ? ' active' : ''}" ${href} onclick="event.stopPropagation()">
+        <span class="si-icon">${item.icon}</span>
+        <span>${item.label}</span>
+      </a>`;
+    });
+  });
+
+  document.getElementById('sidebar-content').innerHTML = html;
+  openSidebar();
+}
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  if (activeCard) {
+    document.getElementById('card-' + activeCard)?.classList.remove('active');
+    activeCard = null;
+  }
+}
+
+// Dropdowns
+function toggleNotif() {
+  document.getElementById('notif-dropdown').classList.toggle('open');
+  document.getElementById('profile-dropdown').classList.remove('open');
+}
+function toggleProfile() {
+  document.getElementById('profile-dropdown').classList.toggle('open');
+  document.getElementById('notif-dropdown').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#notif-trigger') && !e.target.closest('#notif-dropdown')) {
+    document.getElementById('notif-dropdown').classList.remove('open');
+  }
+  if (!e.target.closest('#profile-trigger') && !e.target.closest('#profile-dropdown')) {
+    document.getElementById('profile-dropdown').classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>

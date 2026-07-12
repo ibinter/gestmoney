@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Agences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #F5B800; --primary-dark: #D9A200; --primary-light: #FFF8E1;
+  --dark: #1A1D2E; --dark-2: #252840;
+  --bg: #F0F2F7; --white: #FFFFFF;
+  --text: #1A1D2E; --text-2: #6B7280;
+  --success: #22C55E; --danger: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+  --border: #E5E7EB;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 16px; --topbar-h: 64px; --sidebar-w: 240px;
+}
+html { font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* TOPBAR */
+.topbar { position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h); background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.topbar-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(245,184,0,0.35); }
+.topbar-name { font-size: 18px; font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
+.topbar-name span { color: var(--primary); }
+.topbar-search { flex: 1; max-width: 420px; position: relative; }
+.topbar-search input { width: 100%; padding: 9px 16px 9px 40px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); outline: none; }
+.topbar-search input:focus { border-color: var(--primary); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.topbar-date { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.notif-btn { position: relative; width: 38px; height: 38px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+.notif-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; background: var(--danger); border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--white); }
+.profile-btn { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; }
+.profile-avatar { width: 28px; height: 28px; background: var(--dark); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--primary); font-weight: 700; }
+.profile-info { font-size: 12px; line-height: 1.3; }
+.profile-name { font-weight: 600; color: var(--text); }
+.profile-agency { color: var(--text-2); }
+
+/* LAYOUT */
+.layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { position: fixed; top: var(--topbar-h); left: 0; width: var(--sidebar-w); height: calc(100vh - var(--topbar-h)); background: var(--dark); display: flex; flex-direction: column; overflow-y: auto; z-index: 90; }
+.sidebar-context { padding: 16px 20px 8px; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 8px; }
+.sidebar-section-title { padding: 10px 20px 4px; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+.sidebar-item { display: flex; align-items: center; gap: 12px; padding: 11px 20px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65); cursor: pointer; transition: all 0.15s; text-decoration: none; margin: 1px 8px; border-radius: 10px; }
+.sidebar-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.sidebar-item.active { background: rgba(245,184,0,0.15); color: var(--primary); }
+.sidebar-item .si-icon { font-size: 16px; flex-shrink: 0; }
+.sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.07); font-size: 12px; color: rgba(255,255,255,0.3); display: flex; gap: 10px; align-items: center; }
+
+/* MAIN */
+.main { margin-left: var(--sidebar-w); flex: 1; padding: 28px 28px 40px; min-width: 0; }
+
+/* BREADCRUMB */
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-bottom: 20px; }
+.breadcrumb a { color: var(--text-2); text-decoration: none; }
+.breadcrumb a:hover { color: var(--primary); }
+.breadcrumb span { color: var(--text); font-weight: 500; }
+
+/* PAGE HEADER */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+.page-sub { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+.page-actions { display: flex; gap: 8px; }
+
+.btn { padding: 9px 16px; font-size: 13px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn-primary { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary-dark); }
+.btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--white); border-radius: 12px; padding: 16px 18px; box-shadow: var(--card-shadow); border-left: 3px solid transparent; }
+.stat-card.s1 { border-left-color: var(--primary); }
+.stat-card.s2 { border-left-color: var(--success); }
+.stat-card.s3 { border-left-color: var(--info); }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+.stat-label { font-size: 11px; color: var(--text-2); margin-top: 4px; font-weight: 500; }
+.stat-sub { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+
+/* GRID + MAP */
+.content-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+
+/* AGENCES CARDS */
+.agences-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.agence-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 20px; border: 2px solid transparent; transition: all 0.2s; cursor: pointer; }
+.agence-card:hover { border-color: var(--primary); box-shadow: 0 6px 24px rgba(245,184,0,0.15); transform: translateY(-2px); }
+.agence-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.agence-name { font-size: 14px; font-weight: 700; }
+.agence-city { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.pill-active { background: rgba(34,197,94,0.1); color: #16a34a; }
+.pill-warning { background: rgba(245,158,11,0.1); color: #d97706; }
+.agence-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.agence-metric { font-size: 12px; }
+.agence-metric-value { font-size: 16px; font-weight: 700; color: var(--text); }
+.agence-metric-label { font-size: 11px; color: var(--text-2); }
+.mini-chart { margin: 10px 0; }
+.agence-actions { display: flex; gap: 8px; }
+.agence-btn { flex: 1; padding: 7px; font-size: 12px; font-weight: 600; border-radius: 9px; border: 1.5px solid var(--border); background: var(--white); cursor: pointer; font-family: 'Inter', sans-serif; text-align: center; transition: all 0.15s; }
+.agence-btn:hover { border-color: var(--primary); color: var(--primary); }
+.agence-btn.primary { background: var(--primary); color: var(--dark); border-color: var(--primary); }
+.agence-btn.primary:hover { background: var(--primary-dark); }
+
+/* MAP */
+.map-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 18px; position: sticky; top: calc(var(--topbar-h) + 20px); }
+.map-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.map-legend { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; }
+.map-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-2); }
+
+@media (max-width: 1200px) { .content-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .agences-grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; padding: 20px 14px; } }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a class="topbar-brand" href="index.html">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Rechercher une agence…">
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-date" id="topbar-date"></span>
+    <div class="notif-btn">🔔<div class="notif-badge">3</div></div>
+    <div class="profile-btn">
+      <div class="profile-avatar">KY</div>
+      <div class="profile-info">
+        <div class="profile-name">Konan Yao</div>
+        <div class="profile-agency">Super Admin</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-context">POINTS DE VENTE</div>
+  <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span><span>Tableau de bord</span></a>
+  <div class="sidebar-section-title">AGENCES</div>
+  <a class="sidebar-item active" href="agences.html"><span class="si-icon">🏪</span><span>Liste des agences</span></a>
+  <a class="sidebar-item" href="#map-section"><span class="si-icon">🗺️</span><span>Carte géographique</span></a>
+  <div class="sidebar-section-title">AGENTS</div>
+  <a class="sidebar-item" href="agents.html"><span class="si-icon">👤</span><span>Tous les agents</span></a>
+  <a class="sidebar-item" href="agents.html"><span class="si-icon">🟢</span><span>En ligne (12)</span></a>
+  <div class="sidebar-section-title">GESTION</div>
+  <a class="sidebar-item" href="#"><span class="si-icon">➕</span><span>Nouvelle agence</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">⚙️</span><span>Paramètres agences</span></a>
+  <div class="sidebar-footer"><span>🪙</span> GESTMONEY v2.4.1</div>
+</aside>
+
+<!-- LAYOUT -->
+<div class="layout">
+<main class="main">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="index.html">🏠 Accueil</a> › <span>Agences</span>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">🏪 Gestion des Agences</div>
+      <div class="page-sub">Réseau de 8 agences actives — Côte d'Ivoire</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline btn-sm">📥 Exporter</button>
+      <button class="btn btn-primary btn-sm">+ Nouvelle agence</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card s1">
+      <div class="stat-value">8</div>
+      <div class="stat-label">Agences actives</div>
+      <div class="stat-sub">Côte d'Ivoire</div>
+    </div>
+    <div class="stat-card s2">
+      <div class="stat-value">47</div>
+      <div class="stat-label">Agents au total</div>
+      <div class="stat-sub">12 en ligne maintenant</div>
+    </div>
+    <div class="stat-card s3">
+      <div class="stat-value" style="font-size:16px;padding-top:4px">12,5M XOF</div>
+      <div class="stat-label">Top : Agence Plateau</div>
+      <div class="stat-sub">CA ce mois</div>
+    </div>
+  </div>
+
+  <!-- CONTENT GRID -->
+  <div class="content-grid">
+
+    <!-- AGENCES GRID -->
+    <div class="agences-grid">
+
+      <!-- PLATEAU -->
+      <div class="agence-card" onclick="window.location.href='agents.html'">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence Plateau</div>
+            <div class="agence-city">📍 Abidjan, Plateau</div>
+          </div>
+          <span class="status-pill pill-active">● Active</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric">
+            <div class="agence-metric-value">8</div>
+            <div class="agence-metric-label">Agents</div>
+          </div>
+          <div class="agence-metric">
+            <div class="agence-metric-value" style="color:var(--primary)">12,5M</div>
+            <div class="agence-metric-label">CA du mois (XOF)</div>
+          </div>
+          <div class="agence-metric">
+            <div class="agence-metric-value" style="color:var(--info)">2,4M</div>
+            <div class="agence-metric-label">Float total</div>
+          </div>
+          <div class="agence-metric">
+            <div class="agence-metric-value" style="color:var(--success)">286</div>
+            <div class="agence-metric-label">Transactions/jour</div>
+          </div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="18" width="26" height="22" fill="#F5B800" rx="3" opacity="0.8"/>
+            <rect x="30" y="22" width="26" height="18" fill="#F5B800" rx="3" opacity="0.6"/>
+            <rect x="60" y="14" width="26" height="26" fill="#F5B800" rx="3" opacity="0.8"/>
+            <rect x="90" y="20" width="26" height="20" fill="#F5B800" rx="3" opacity="0.6"/>
+            <rect x="120" y="10" width="26" height="30" fill="#F5B800" rx="3" opacity="0.9"/>
+            <rect x="150" y="16" width="26" height="24" fill="#F5B800" rx="3" opacity="0.7"/>
+            <rect x="180" y="4" width="26" height="36" fill="#F5B800" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary" onclick="event.stopPropagation()">👁️ Voir détails</button>
+          <button class="agence-btn" onclick="event.stopPropagation();window.location.href='agents.html'">👥 Gérer agents</button>
+        </div>
+      </div>
+
+      <!-- COCODY -->
+      <div class="agence-card">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence Cocody</div>
+            <div class="agence-city">📍 Abidjan, Cocody</div>
+          </div>
+          <span class="status-pill pill-active">● Active</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric"><div class="agence-metric-value">7</div><div class="agence-metric-label">Agents</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--primary)">9,8M</div><div class="agence-metric-label">CA du mois (XOF)</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--info)">1,9M</div><div class="agence-metric-label">Float total</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--success)">218</div><div class="agence-metric-label">Transactions/jour</div></div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="20" width="26" height="20" fill="#3B82F6" rx="3" opacity="0.7"/>
+            <rect x="30" y="16" width="26" height="24" fill="#3B82F6" rx="3" opacity="0.8"/>
+            <rect x="60" y="22" width="26" height="18" fill="#3B82F6" rx="3" opacity="0.6"/>
+            <rect x="90" y="12" width="26" height="28" fill="#3B82F6" rx="3" opacity="0.9"/>
+            <rect x="120" y="18" width="26" height="22" fill="#3B82F6" rx="3" opacity="0.7"/>
+            <rect x="150" y="10" width="26" height="30" fill="#3B82F6" rx="3" opacity="0.85"/>
+            <rect x="180" y="8" width="26" height="32" fill="#3B82F6" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary">👁️ Voir détails</button>
+          <button class="agence-btn" onclick="window.location.href='agents.html'">👥 Gérer agents</button>
+        </div>
+      </div>
+
+      <!-- BOUAKE -->
+      <div class="agence-card">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence Bouaké Centre</div>
+            <div class="agence-city">📍 Bouaké, Centre</div>
+          </div>
+          <span class="status-pill pill-active">● Active</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric"><div class="agence-metric-value">9</div><div class="agence-metric-label">Agents</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--primary)">8,2M</div><div class="agence-metric-label">CA du mois (XOF)</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--info)">1,6M</div><div class="agence-metric-label">Float total</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--success)">192</div><div class="agence-metric-label">Transactions/jour</div></div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="22" width="26" height="18" fill="#22C55E" rx="3" opacity="0.7"/>
+            <rect x="30" y="18" width="26" height="22" fill="#22C55E" rx="3" opacity="0.8"/>
+            <rect x="60" y="20" width="26" height="20" fill="#22C55E" rx="3" opacity="0.6"/>
+            <rect x="90" y="14" width="26" height="26" fill="#22C55E" rx="3" opacity="0.85"/>
+            <rect x="120" y="16" width="26" height="24" fill="#22C55E" rx="3" opacity="0.75"/>
+            <rect x="150" y="12" width="26" height="28" fill="#22C55E" rx="3" opacity="0.9"/>
+            <rect x="180" y="6" width="26" height="34" fill="#22C55E" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary">👁️ Voir détails</button>
+          <button class="agence-btn" onclick="window.location.href='agents.html'">👥 Gérer agents</button>
+        </div>
+      </div>
+
+      <!-- SAN PEDRO -->
+      <div class="agence-card">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence San-Pédro Port</div>
+            <div class="agence-city">📍 San-Pédro, Zone portuaire</div>
+          </div>
+          <span class="status-pill pill-active">● Active</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric"><div class="agence-metric-value">6</div><div class="agence-metric-label">Agents</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--primary)">6,7M</div><div class="agence-metric-label">CA du mois (XOF)</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--info)">1,3M</div><div class="agence-metric-label">Float total</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--success)">158</div><div class="agence-metric-label">Transactions/jour</div></div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="18" width="26" height="22" fill="#8B5CF6" rx="3" opacity="0.7"/>
+            <rect x="30" y="22" width="26" height="18" fill="#8B5CF6" rx="3" opacity="0.65"/>
+            <rect x="60" y="16" width="26" height="24" fill="#8B5CF6" rx="3" opacity="0.8"/>
+            <rect x="90" y="20" width="26" height="20" fill="#8B5CF6" rx="3" opacity="0.7"/>
+            <rect x="120" y="14" width="26" height="26" fill="#8B5CF6" rx="3" opacity="0.85"/>
+            <rect x="150" y="18" width="26" height="22" fill="#8B5CF6" rx="3" opacity="0.75"/>
+            <rect x="180" y="10" width="26" height="30" fill="#8B5CF6" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary">👁️ Voir détails</button>
+          <button class="agence-btn" onclick="window.location.href='agents.html'">👥 Gérer agents</button>
+        </div>
+      </div>
+
+      <!-- YAMOUSSOUKRO -->
+      <div class="agence-card">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence Yamoussoukro</div>
+            <div class="agence-city">📍 Yamoussoukro, Centre</div>
+          </div>
+          <span class="status-pill pill-active">● Active</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric"><div class="agence-metric-value">5</div><div class="agence-metric-label">Agents</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--primary)">4,1M</div><div class="agence-metric-label">CA du mois (XOF)</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--info)">820K</div><div class="agence-metric-label">Float total</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--success)">97</div><div class="agence-metric-label">Transactions/jour</div></div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="24" width="26" height="16" fill="#F59E0B" rx="3" opacity="0.7"/>
+            <rect x="30" y="20" width="26" height="20" fill="#F59E0B" rx="3" opacity="0.75"/>
+            <rect x="60" y="22" width="26" height="18" fill="#F59E0B" rx="3" opacity="0.65"/>
+            <rect x="90" y="18" width="26" height="22" fill="#F59E0B" rx="3" opacity="0.8"/>
+            <rect x="120" y="16" width="26" height="24" fill="#F59E0B" rx="3" opacity="0.85"/>
+            <rect x="150" y="20" width="26" height="20" fill="#F59E0B" rx="3" opacity="0.7"/>
+            <rect x="180" y="12" width="26" height="28" fill="#F59E0B" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary">👁️ Voir détails</button>
+          <button class="agence-btn" onclick="window.location.href='agents.html'">👥 Gérer agents</button>
+        </div>
+      </div>
+
+      <!-- KORHOGO -->
+      <div class="agence-card">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence Korhogo</div>
+            <div class="agence-city">📍 Korhogo, Nord</div>
+          </div>
+          <span class="status-pill pill-active">● Active</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric"><div class="agence-metric-value">4</div><div class="agence-metric-label">Agents</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--primary)">3,4M</div><div class="agence-metric-label">CA du mois (XOF)</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--info)">680K</div><div class="agence-metric-label">Float total</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--success)">80</div><div class="agence-metric-label">Transactions/jour</div></div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="26" width="26" height="14" fill="#EF4444" rx="3" opacity="0.6"/>
+            <rect x="30" y="22" width="26" height="18" fill="#EF4444" rx="3" opacity="0.7"/>
+            <rect x="60" y="20" width="26" height="20" fill="#EF4444" rx="3" opacity="0.65"/>
+            <rect x="90" y="18" width="26" height="22" fill="#EF4444" rx="3" opacity="0.75"/>
+            <rect x="120" y="22" width="26" height="18" fill="#EF4444" rx="3" opacity="0.7"/>
+            <rect x="150" y="14" width="26" height="26" fill="#EF4444" rx="3" opacity="0.85"/>
+            <rect x="180" y="10" width="26" height="30" fill="#EF4444" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary">👁️ Voir détails</button>
+          <button class="agence-btn" onclick="window.location.href='agents.html'">👥 Gérer agents</button>
+        </div>
+      </div>
+
+      <!-- DALOA -->
+      <div class="agence-card">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence Daloa</div>
+            <div class="agence-city">📍 Daloa, Centre-Ouest</div>
+          </div>
+          <span class="status-pill pill-active">● Active</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric"><div class="agence-metric-value">4</div><div class="agence-metric-label">Agents</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--primary)">2,9M</div><div class="agence-metric-label">CA du mois (XOF)</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--info)">580K</div><div class="agence-metric-label">Float total</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--success)">68</div><div class="agence-metric-label">Transactions/jour</div></div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="24" width="26" height="16" fill="#0EA5E9" rx="3" opacity="0.6"/>
+            <rect x="30" y="20" width="26" height="20" fill="#0EA5E9" rx="3" opacity="0.7"/>
+            <rect x="60" y="22" width="26" height="18" fill="#0EA5E9" rx="3" opacity="0.65"/>
+            <rect x="90" y="16" width="26" height="24" fill="#0EA5E9" rx="3" opacity="0.75"/>
+            <rect x="120" y="20" width="26" height="20" fill="#0EA5E9" rx="3" opacity="0.8"/>
+            <rect x="150" y="12" width="26" height="28" fill="#0EA5E9" rx="3" opacity="0.85"/>
+            <rect x="180" y="8" width="26" height="32" fill="#0EA5E9" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary">👁️ Voir détails</button>
+          <button class="agence-btn" onclick="window.location.href='agents.html'">👥 Gérer agents</button>
+        </div>
+      </div>
+
+      <!-- ABENGOUROU -->
+      <div class="agence-card">
+        <div class="agence-card-header">
+          <div>
+            <div class="agence-name">🏪 Agence Abengourou</div>
+            <div class="agence-city">📍 Abengourou, Est</div>
+          </div>
+          <span class="status-pill pill-warning">⚠️ Float bas</span>
+        </div>
+        <div class="agence-metrics">
+          <div class="agence-metric"><div class="agence-metric-value">4</div><div class="agence-metric-label">Agents</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--primary)">2,1M</div><div class="agence-metric-label">CA du mois (XOF)</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--danger)">120K ⚠️</div><div class="agence-metric-label">Float total</div></div>
+          <div class="agence-metric"><div class="agence-metric-value" style="color:var(--success)">49</div><div class="agence-metric-label">Transactions/jour</div></div>
+        </div>
+        <div class="mini-chart">
+          <svg viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px">
+            <rect x="0" y="20" width="26" height="20" fill="#D97706" rx="3" opacity="0.6"/>
+            <rect x="30" y="16" width="26" height="24" fill="#D97706" rx="3" opacity="0.7"/>
+            <rect x="60" y="18" width="26" height="22" fill="#D97706" rx="3" opacity="0.65"/>
+            <rect x="90" y="20" width="26" height="20" fill="#D97706" rx="3" opacity="0.7"/>
+            <rect x="120" y="14" width="26" height="26" fill="#D97706" rx="3" opacity="0.75"/>
+            <rect x="150" y="18" width="26" height="22" fill="#D97706" rx="3" opacity="0.65"/>
+            <rect x="180" y="22" width="26" height="18" fill="#D97706" rx="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-2)"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Auj</span></div>
+        </div>
+        <div class="agence-actions">
+          <button class="agence-btn primary">👁️ Voir détails</button>
+          <button class="agence-btn" style="color:var(--warning);border-color:rgba(245,158,11,0.4)" onclick="window.location.href='float.html'">🏦 Réappro float</button>
+        </div>
+      </div>
+
+    </div><!-- /agences-grid -->
+
+    <!-- MAP -->
+    <div class="map-card" id="map-section">
+      <div class="map-title">
+        🗺️ Carte réseau CI
+        <span style="font-size:11px;color:var(--text-2);font-weight:400">8 points</span>
+      </div>
+
+      <!-- SVG MAP OF COTE D'IVOIRE (schematic) -->
+      <svg viewBox="0 0 340 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;border-radius:12px;background:#EEF2FF">
+        <!-- Country outline (schematic shape of Côte d'Ivoire) -->
+        <path d="M80,30 L200,20 L280,60 L310,120 L320,200 L300,280 L260,340 L200,370 L140,360 L80,330 L50,270 L40,200 L50,130 L80,30Z"
+          fill="#E0E7FF" stroke="#C7D2FE" stroke-width="2"/>
+
+        <!-- Grid lines for visual texture -->
+        <line x1="40" y1="100" x2="320" y2="100" stroke="#C7D2FE" stroke-width="0.5"/>
+        <line x1="40" y1="200" x2="320" y2="200" stroke="#C7D2FE" stroke-width="0.5"/>
+        <line x1="40" y1="300" x2="320" y2="300" stroke="#C7D2FE" stroke-width="0.5"/>
+        <line x1="120" y1="20" x2="120" y2="380" stroke="#C7D2FE" stroke-width="0.5"/>
+        <line x1="220" y1="20" x2="220" y2="380" stroke="#C7D2FE" stroke-width="0.5"/>
+
+        <!-- Abidjan (Plateau + Cocody) -->
+        <circle cx="200" cy="320" r="18" fill="#F5B800" opacity="0.25"/>
+        <circle cx="200" cy="320" r="10" fill="#F5B800" opacity="0.5"/>
+        <circle cx="200" cy="320" r="6" fill="#F5B800"/>
+        <text x="215" y="316" font-size="10" fill="#1A1D2E" font-family="Inter,sans-serif" font-weight="600">Abidjan</text>
+        <text x="215" y="328" font-size="9" fill="#6B7280" font-family="Inter,sans-serif">Plateau · Cocody</text>
+
+        <!-- Bouaké -->
+        <circle cx="180" cy="190" r="14" fill="#3B82F6" opacity="0.25"/>
+        <circle cx="180" cy="190" r="8" fill="#3B82F6" opacity="0.5"/>
+        <circle cx="180" cy="190" r="5" fill="#3B82F6"/>
+        <text x="195" y="187" font-size="10" fill="#1A1D2E" font-family="Inter,sans-serif" font-weight="600">Bouaké</text>
+        <text x="195" y="199" font-size="9" fill="#6B7280" font-family="Inter,sans-serif">Centre</text>
+
+        <!-- San-Pedro -->
+        <circle cx="120" cy="345" r="12" fill="#8B5CF6" opacity="0.25"/>
+        <circle cx="120" cy="345" r="7" fill="#8B5CF6" opacity="0.5"/>
+        <circle cx="120" cy="345" r="4" fill="#8B5CF6"/>
+        <text x="85" y="342" font-size="9" fill="#1A1D2E" font-family="Inter,sans-serif" font-weight="600">San-Pédro</text>
+
+        <!-- Yamoussoukro -->
+        <circle cx="155" cy="255" r="11" fill="#F59E0B" opacity="0.25"/>
+        <circle cx="155" cy="255" r="7" fill="#F59E0B" opacity="0.5"/>
+        <circle cx="155" cy="255" r="4" fill="#F59E0B"/>
+        <text x="100" y="252" font-size="9" fill="#1A1D2E" font-family="Inter,sans-serif" font-weight="600">Yamoussoukro</text>
+
+        <!-- Korhogo -->
+        <circle cx="165" cy="85" r="11" fill="#EF4444" opacity="0.25"/>
+        <circle cx="165" cy="85" r="7" fill="#EF4444" opacity="0.5"/>
+        <circle cx="165" cy="85" r="4" fill="#EF4444"/>
+        <text x="178" y="82" font-size="10" fill="#1A1D2E" font-family="Inter,sans-serif" font-weight="600">Korhogo</text>
+
+        <!-- Daloa -->
+        <circle cx="115" cy="245" r="10" fill="#0EA5E9" opacity="0.25"/>
+        <circle cx="115" cy="245" r="6" fill="#0EA5E9" opacity="0.5"/>
+        <circle cx="115" cy="245" r="4" fill="#0EA5E9"/>
+        <text x="60" y="242" font-size="9" fill="#1A1D2E" font-family="Inter,sans-serif" font-weight="600">Daloa</text>
+
+        <!-- Abengourou -->
+        <circle cx="255" cy="270" r="10" fill="#D97706" opacity="0.25"/>
+        <circle cx="255" cy="270" r="6" fill="#D97706" opacity="0.5"/>
+        <circle cx="255" cy="270" r="4" fill="#D97706"/>
+        <text x="263" y="267" font-size="9" fill="#1A1D2E" font-family="Inter,sans-serif" font-weight="600">Abengourou</text>
+
+        <!-- Route lines -->
+        <line x1="200" y1="320" x2="180" y2="190" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="180" y1="190" x2="165" y2="85" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="200" y1="320" x2="155" y2="255" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="200" y1="320" x2="120" y2="345" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="155" y1="255" x2="115" y2="245" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="200" y1="320" x2="255" y2="270" stroke="#9CA3AF" stroke-width="1" stroke-dasharray="4,3"/>
+      </svg>
+
+      <div class="map-legend">
+        <div class="map-legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#F5B800"/></svg>Abidjan (×2)</div>
+        <div class="map-legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#3B82F6"/></svg>Bouaké</div>
+        <div class="map-legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#8B5CF6"/></svg>San-Pédro</div>
+        <div class="map-legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#F59E0B"/></svg>Yamoussoukro</div>
+        <div class="map-legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#EF4444"/></svg>Korhogo</div>
+        <div class="map-legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#D97706"/></svg>Abengourou ⚠️</div>
+      </div>
+    </div>
+
+  </div><!-- /content-grid -->
+
+</main>
+</div>
+
+<script>
+const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const now = new Date();
+document.getElementById('topbar-date').textContent =
+  days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+</script>
+</body>
+</html>

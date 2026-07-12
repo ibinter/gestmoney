@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Transactions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #F5B800; --primary-dark: #D9A200; --primary-light: #FFF8E1;
+  --dark: #1A1D2E; --dark-2: #252840;
+  --bg: #F0F2F7; --white: #FFFFFF;
+  --text: #1A1D2E; --text-2: #6B7280;
+  --success: #22C55E; --danger: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+  --border: #E5E7EB;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 16px; --topbar-h: 64px;
+}
+html { font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--topbar-h); background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 16px;
+  z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.topbar-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(245,184,0,0.35); }
+.topbar-name { font-size: 18px; font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
+.topbar-name span { color: var(--primary); }
+.topbar-search { flex: 1; max-width: 420px; position: relative; }
+.topbar-search input { width: 100%; padding: 9px 16px 9px 40px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); outline: none; }
+.topbar-search input:focus { border-color: var(--primary); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.notif-btn { position: relative; width: 38px; height: 38px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+.notif-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; background: var(--danger); border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--white); }
+.profile-btn { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; }
+.profile-avatar { width: 28px; height: 28px; background: var(--dark); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--primary); font-weight: 700; }
+.profile-info { font-size: 12px; line-height: 1.3; }
+.profile-name { font-weight: 600; color: var(--text); }
+.profile-agency { color: var(--text-2); }
+
+/* MAIN */
+.main { padding: calc(var(--topbar-h) + 28px) 28px 40px; }
+
+/* BREADCRUMB */
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-bottom: 20px; }
+.breadcrumb a { color: var(--text-2); text-decoration: none; }
+.breadcrumb a:hover { color: var(--primary); }
+.breadcrumb span { color: var(--text); font-weight: 500; }
+
+/* PAGE HEADER */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+.page-sub { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+.page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn { padding: 9px 16px; font-size: 13px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn-primary { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary-dark); }
+.btn-success { background: rgba(34,197,94,0.1); color: #16a34a; border: 1.5px solid rgba(34,197,94,0.2); }
+.btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: 1.5px solid rgba(239,68,68,0.2); }
+.btn-info { background: rgba(59,130,246,0.1); color: var(--info); border: 1.5px solid rgba(59,130,246,0.2); }
+.btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
+.btn-export { background: var(--dark); color: #fff; }
+.btn-export:hover { background: var(--dark-2); }
+
+/* STATS ROW */
+.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
+.stat-card { background: var(--white); border-radius: 12px; padding: 16px 18px; box-shadow: var(--card-shadow); border-left: 3px solid transparent; }
+.stat-card.total { border-left-color: var(--primary); }
+.stat-card.success { border-left-color: var(--success); }
+.stat-card.pending { border-left-color: var(--warning); }
+.stat-card.failed { border-left-color: var(--danger); }
+.stat-card.amount { border-left-color: var(--info); }
+.stat-value { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 11px; color: var(--text-2); margin-top: 4px; font-weight: 500; }
+.stat-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+/* FILTERS */
+.filters-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 18px 20px; margin-bottom: 18px; }
+.filters-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.filter-group { display: flex; flex-direction: column; gap: 5px; min-width: 130px; flex: 1; }
+.filter-group label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.filter-group input, .filter-group select {
+  padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text);
+  background: var(--bg); outline: none; transition: border-color 0.2s; width: 100%;
+}
+.filter-group input:focus, .filter-group select:focus { border-color: var(--primary); background: var(--white); }
+.filter-search { flex: 2; min-width: 200px; }
+.filters-actions { display: flex; gap: 8px; }
+
+/* TABLE */
+.table-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+.table-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+.table-toolbar-left { display: flex; align-items: center; gap: 12px; }
+.selected-count { font-size: 12px; color: var(--text-2); }
+.selected-count strong { color: var(--primary-dark); }
+.sort-note { font-size: 11px; color: var(--text-2); }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 900px; }
+th { padding: 11px 14px; font-size: 11px; font-weight: 700; color: var(--text-2); text-align: left; letter-spacing: 0.5px; text-transform: uppercase; background: var(--bg); border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; user-select: none; }
+th:hover { color: var(--primary-dark); }
+th .sort-icon { opacity: 0.4; margin-left: 4px; }
+th.sorted .sort-icon { opacity: 1; color: var(--primary); }
+td { padding: 13px 14px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(245,184,0,0.025); }
+tr.selected td { background: var(--primary-light); }
+
+.checkbox-col { width: 40px; }
+input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-depot { background: rgba(34,197,94,0.1); color: #16a34a; }
+.badge-retrait { background: rgba(239,68,68,0.1); color: #dc2626; }
+.badge-cashin { background: rgba(59,130,246,0.1); color: #2563eb; }
+.badge-cashout { background: rgba(168,85,247,0.1); color: #7c3aed; }
+.badge-transfert { background: rgba(245,158,11,0.1); color: #d97706; }
+
+.status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.pill-success { background: rgba(34,197,94,0.1); color: #16a34a; }
+.pill-pending { background: rgba(245,158,11,0.1); color: #d97706; }
+.pill-failed { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+.op-logo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+.op-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.amount-cell { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.action-btns { display: flex; gap: 6px; }
+.icon-btn { width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+.icon-btn:hover { border-color: var(--primary); background: var(--primary-light); }
+
+/* PAGINATION */
+.pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+.pag-info { font-size: 12px; color: var(--text-2); }
+.pag-controls { display: flex; gap: 6px; align-items: center; }
+.pag-btn { width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--white); cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+.pag-btn:hover { border-color: var(--primary); color: var(--primary-dark); }
+.pag-btn.active { background: var(--primary); border-color: var(--primary); color: var(--dark); font-weight: 700; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border-radius: var(--radius); width: 480px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
+.modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-2); padding: 4px; }
+.modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.form-group input, .form-group select { padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(245,184,0,0.12); }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .stats-row .stat-card:nth-child(5) { grid-column: span 2; }
+  .main { padding: calc(var(--topbar-h) + 16px) 16px 40px; }
+  .topbar-search { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Rechercher une transaction, un agent…">
+  </div>
+  <div class="topbar-right">
+    <div class="notif-btn">🔔<span class="notif-badge">3</span></div>
+    <div class="profile-btn">
+      <div class="profile-avatar">KY</div>
+      <div class="profile-info">
+        <div class="profile-name">Konan Yao</div>
+        <div class="profile-agency">Agence Plateau</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="index.html">🏠 Accueil</a>
+    <span>›</span>
+    <span>Transactions</span>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">💳 Transactions</div>
+      <div class="page-sub">Toutes les opérations — Jeudi 10 juillet 2026</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-success btn-sm" onclick="openModal('depot')">+ Dépôt</button>
+      <button class="btn btn-danger btn-sm" onclick="openModal('retrait')">+ Retrait</button>
+      <button class="btn btn-info btn-sm" onclick="openModal('cashin')">+ Cash In</button>
+      <button class="btn btn-outline btn-sm" onclick="openModal('cashout')">+ Cash Out</button>
+      <button class="btn btn-export btn-sm">📥 Export</button>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card total">
+      <div class="stat-value">1 245</div>
+      <div class="stat-label">Total transactions</div>
+      <div class="stat-sub" style="color:var(--success)">↑ +12% vs hier</div>
+    </div>
+    <div class="stat-card amount">
+      <div class="stat-value">87,4M</div>
+      <div class="stat-label">Volume XOF traité</div>
+      <div class="stat-sub" style="color:var(--info)">↑ +9,3% vs hier</div>
+    </div>
+    <div class="stat-card success">
+      <div class="stat-value">1 198</div>
+      <div class="stat-label">Réussies</div>
+      <div class="stat-sub">96,2% taux de succès</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="stat-value">42</div>
+      <div class="stat-label">En attente</div>
+      <div class="stat-sub" style="color:var(--warning)">3,4% du total</div>
+    </div>
+    <div class="stat-card failed">
+      <div class="stat-value">5</div>
+      <div class="stat-label">Annulées</div>
+      <div class="stat-sub" style="color:var(--danger)">0,4% du total</div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-card">
+    <div class="filters-row">
+      <div class="filter-group">
+        <label>Date début</label>
+        <input type="date" id="filter-date-start" value="2026-07-10">
+      </div>
+      <div class="filter-group">
+        <label>Date fin</label>
+        <input type="date" id="filter-date-end" value="2026-07-10">
+      </div>
+      <div class="filter-group">
+        <label>Type</label>
+        <select id="filter-type" onchange="applyFilters()">
+          <option value="">Tous les types</option>
+          <option value="Dépôt">Dépôt</option>
+          <option value="Retrait">Retrait</option>
+          <option value="Cash In">Cash In</option>
+          <option value="Cash Out">Cash Out</option>
+          <option value="Transfert">Transfert</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Opérateur</label>
+        <select id="filter-op" onchange="applyFilters()">
+          <option value="">Tous</option>
+          <option value="Orange">Orange Money</option>
+          <option value="MTN">MTN MoMo</option>
+          <option value="Wave">Wave</option>
+          <option value="Moov">Moov Money</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Statut</label>
+        <select id="filter-status" onchange="applyFilters()">
+          <option value="">Tous</option>
+          <option value="Succès">Succès</option>
+          <option value="En attente">En attente</option>
+          <option value="Annulée">Annulée</option>
+        </select>
+      </div>
+      <div class="filter-group filter-search">
+        <label>Recherche</label>
+        <input type="text" id="filter-search" placeholder="Agent, montant, client…" oninput="applyFilters()">
+      </div>
+      <div class="filters-actions">
+        <button class="btn btn-primary btn-sm" onclick="applyFilters()">Filtrer</button>
+        <button class="btn btn-outline btn-sm" onclick="resetFilters()">Réinitialiser</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-toolbar">
+      <div class="table-toolbar-left">
+        <div class="selected-count" id="selected-count">Affichage de <strong>15</strong> sur 1 245 transactions</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="sort-note">Cliquer sur un en-tête pour trier</span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="transactions-table">
+        <thead>
+          <tr>
+            <th class="checkbox-col"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
+            <th onclick="sortTable(1)">Heure <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(2)">Type <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(3)">Agent <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(4)">Agence <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(5)">Opérateur <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(6)">Client <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(7)" class="sorted">Montant <span class="sort-icon">↓</span></th>
+            <th onclick="sortTable(8)">Commission <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(9)">Statut <span class="sort-icon">↕</span></th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <div class="pag-info" id="pag-info">Page 1 sur 84</div>
+      <div class="pag-controls">
+        <button class="pag-btn" onclick="goPage(currentPage-1)">‹</button>
+        <button class="pag-btn active" id="pag-1" onclick="goPage(1)">1</button>
+        <button class="pag-btn" id="pag-2" onclick="goPage(2)">2</button>
+        <button class="pag-btn" id="pag-3" onclick="goPage(3)">3</button>
+        <span style="color:var(--text-2);font-size:13px">…</span>
+        <button class="pag-btn" onclick="goPage(84)">84</button>
+        <button class="pag-btn" onclick="goPage(currentPage+1)">›</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Nouvelle transaction</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Type d'opération</label>
+          <select id="modal-type">
+            <option>Dépôt</option>
+            <option>Retrait</option>
+            <option>Cash In</option>
+            <option>Cash Out</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Opérateur</label>
+          <select>
+            <option>Orange Money</option>
+            <option>MTN MoMo</option>
+            <option>Wave</option>
+            <option>Moov Money</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Numéro de téléphone client</label>
+        <input type="tel" placeholder="+225 07 XX XX XX XX">
+      </div>
+      <div class="form-group">
+        <label>Nom du client</label>
+        <input type="text" placeholder="Prénom Nom">
+      </div>
+      <div class="form-group">
+        <label>Montant (XOF)</label>
+        <input type="number" placeholder="ex: 50000" min="500">
+      </div>
+      <div class="form-group">
+        <label>Commentaire (optionnel)</label>
+        <input type="text" placeholder="Note sur la transaction">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="submitTransaction()">Valider la transaction</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Data
+const operators = ['Orange','MTN','Wave','Moov','Orange','MTN','Wave'];
+const opColors = { Orange:'#FF6B00', MTN:'#FFCC00', Wave:'#1DA7E8', Moov:'#00A651' };
+const types = ['Dépôt','Retrait','Cash In','Cash Out','Transfert','Dépôt','Dépôt','Retrait','Cash In','Cash Out'];
+const agents = ['Aminata Koné','Koffi Asséa','Raïssa Dembélé','Youssouf Coulibaly','Cécile Ahou','Jean-Marc Gbagbo','Fatou Sidibé','Moussa Camara','Awa Touré','Brice Tano'];
+const agences = ['Agence Plateau','Agence Cocody','Agence Bouaké','Agence Yamoussoukro','Agence San-Pédro'];
+const clients = ['Djibril Touré','Mariam Bamba','Ibrahim Sylla','Fatoumata Diallo','Seydou Traoré','Kadidjatou Ouédraogo','Ali Konaté','Rokhaya Mbaye','Oumar Traoré','Natacha Kouassi'];
+const statuses = ['Succès','Succès','Succès','Succès','Succès','Succès','En attente','Succès','Succès','Annulée'];
+const amounts = [75000,50000,120000,200000,30000,95000,150000,45000,300000,180000,60000,25000,500000,85000,110000];
+
+const allRows = [];
+for (let i = 0; i < 50; i++) {
+  const h = 14 - Math.floor(i/4);
+  const m = String((i*7)%60).padStart(2,'0');
+  const type = types[i % types.length];
+  const op = operators[i % operators.length];
+  const agent = agents[i % agents.length];
+  const agence = agences[i % agences.length];
+  const client = clients[i % clients.length];
+  const amount = amounts[i % amounts.length];
+  const status = statuses[i % statuses.length];
+  const commission = Math.round(amount * 0.008);
+  allRows.push({ time:`${h}:${m}`, type, op, agent, agence, client, amount, commission, status });
+}
+
+let filtered = [...allRows];
+let currentPage = 1;
+const perPage = 15;
+
+function typeBadge(t) {
+  const map = { 'Dépôt':'badge-depot','Retrait':'badge-retrait','Cash In':'badge-cashin','Cash Out':'badge-cashout','Transfert':'badge-transfert' };
+  return `<span class="badge ${map[t]||'badge-depot'}">${t}</span>`;
+}
+function statusPill(s) {
+  const map = { 'Succès':'pill-success','En attente':'pill-pending','Annulée':'pill-failed' };
+  return `<span class="status-pill ${map[s]||'pill-pending'}">● ${s}</span>`;
+}
+function fmtAmount(n) { return n.toLocaleString('fr-FR') + ' XOF'; }
+
+function renderTable() {
+  const start = (currentPage - 1) * perPage;
+  const rows = filtered.slice(start, start + perPage);
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="checkbox-col"><input type="checkbox" onchange="countSelected()"></td>
+      <td style="color:var(--text-2);font-size:12px">${r.time}</td>
+      <td>${typeBadge(r.type)}</td>
+      <td><strong>${r.agent}</strong></td>
+      <td style="font-size:12px;color:var(--text-2)">${r.agence}</td>
+      <td><span class="op-logo"><span class="op-dot" style="background:${opColors[r.op]||'#999'}"></span>${r.op}</span></td>
+      <td style="font-size:12px">${r.client}</td>
+      <td class="amount-cell">${fmtAmount(r.amount)}</td>
+      <td style="font-size:12px;color:var(--text-2)">${fmtAmount(r.commission)}</td>
+      <td>${statusPill(r.status)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn" title="Voir détails">👁</button>
+          <button class="icon-btn" title="Imprimer">🖨️</button>
+          <button class="icon-btn" title="Annuler" style="color:var(--danger)">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  const total = filtered.length;
+  const pages = Math.ceil(total / perPage);
+  document.getElementById('pag-info').textContent = `Page ${currentPage} sur ${pages}`;
+  document.getElementById('selected-count').innerHTML = `Affichage de <strong>${Math.min(perPage, total - start)}</strong> sur ${total.toLocaleString('fr-FR')} transactions`;
+}
+
+function applyFilters() {
+  const type = document.getElementById('filter-type').value;
+  const op = document.getElementById('filter-op').value;
+  const status = document.getElementById('filter-status').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+  filtered = allRows.filter(r => {
+    if (type && r.type !== type) return false;
+    if (op && r.op !== op) return false;
+    if (status && r.status !== status) return false;
+    if (search && !r.agent.toLowerCase().includes(search) && !r.client.toLowerCase().includes(search) && !String(r.amount).includes(search)) return false;
+    return true;
+  });
+  currentPage = 1;
+  renderTable();
+}
+
+function resetFilters() {
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-op').value = '';
+  document.getElementById('filter-status').value = '';
+  document.getElementById('filter-search').value = '';
+  filtered = [...allRows];
+  currentPage = 1;
+  renderTable();
+}
+
+function goPage(p) {
+  const max = Math.ceil(filtered.length / perPage);
+  if (p < 1 || p > max) return;
+  currentPage = p;
+  document.querySelectorAll('.pag-btn').forEach(b => b.classList.remove('active'));
+  renderTable();
+}
+
+function toggleAll(cb) {
+  document.querySelectorAll('#table-body input[type="checkbox"]').forEach(c => c.checked = cb.checked);
+}
+function countSelected() {
+  const n = document.querySelectorAll('#table-body input:checked').length;
+}
+
+let sortDir = {};
+function sortTable(col) {
+  sortDir[col] = !sortDir[col];
+  filtered.sort((a, b) => {
+    const keys = [null,'time','type','agent','agence','op','client','amount','commission','status'];
+    const k = keys[col];
+    if (!k) return 0;
+    const va = a[k]; const vb = b[k];
+    return sortDir[col] ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+  renderTable();
+}
+
+function openModal(type) {
+  const labels = { depot:'Nouveau Dépôt', retrait:'Nouveau Retrait', cashin:'Nouveau Cash In', cashout:'Nouveau Cash Out' };
+  document.getElementById('modal-title').textContent = labels[type] || 'Nouvelle transaction';
+  const sel = document.getElementById('modal-type');
+  const map = { depot:'Dépôt', retrait:'Retrait', cashin:'Cash In', cashout:'Cash Out' };
+  sel.value = map[type] || 'Dépôt';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal')) {
+    document.getElementById('modal').classList.remove('open');
+  }
+}
+function submitTransaction() {
+  document.getElementById('modal').classList.remove('open');
+  // visual feedback
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1A1D2E;color:#fff;padding:14px 20px;border-radius:12px;font-size:13px;z-index:300;border-left:4px solid #22C55E;box-shadow:0 4px 20px rgba(0,0,0,0.2)';
+  bar.innerHTML = '✅ Transaction enregistrée avec succès';
+  document.body.appendChild(bar);
+  setTimeout(() => bar.remove(), 3000);
+}
+
+renderTable();
+</script>
+</body>
+</html>

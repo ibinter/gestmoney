@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Administration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #F5B800; --primary-dark: #D9A200; --primary-light: #FFF8E1;
+  --dark: #1A1D2E; --dark-2: #252840;
+  --bg: #F0F2F7; --white: #FFFFFF;
+  --text: #1A1D2E; --text-2: #6B7280;
+  --success: #22C55E; --danger: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+  --border: #E5E7EB;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 16px; --topbar-h: 64px; --sidebar-w: 260px;
+}
+html { font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* TOPBAR */
+.topbar { position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h); background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.topbar-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(245,184,0,0.35); }
+.topbar-name { font-size: 18px; font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
+.topbar-name span { color: var(--primary); }
+.topbar-search { flex: 1; max-width: 420px; position: relative; }
+.topbar-search input { width: 100%; padding: 9px 16px 9px 40px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); outline: none; }
+.topbar-search input:focus { border-color: var(--primary); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.topbar-date { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.notif-btn { position: relative; width: 38px; height: 38px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+.notif-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; background: var(--danger); border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--white); }
+.profile-btn { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; }
+.profile-avatar { width: 28px; height: 28px; background: var(--dark); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--primary); font-weight: 700; }
+.profile-info { font-size: 12px; line-height: 1.3; }
+.profile-name { font-weight: 600; color: var(--text); }
+.profile-agency { color: var(--text-2); }
+
+/* LAYOUT */
+.layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { position: fixed; top: var(--topbar-h); left: 0; width: var(--sidebar-w); height: calc(100vh - var(--topbar-h)); background: var(--dark); display: flex; flex-direction: column; overflow-y: auto; z-index: 90; }
+.sidebar-context { padding: 16px 20px 8px; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 8px; }
+.sidebar-section-title { padding: 10px 20px 4px; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+.sidebar-item { display: flex; align-items: center; gap: 12px; padding: 11px 20px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65); cursor: pointer; transition: all 0.15s; text-decoration: none; margin: 1px 8px; border-radius: 10px; }
+.sidebar-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.sidebar-item.active { background: rgba(245,184,0,0.15); color: var(--primary); }
+.sidebar-item .si-icon { font-size: 16px; flex-shrink: 0; }
+.sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.07); font-size: 12px; color: rgba(255,255,255,0.3); display: flex; gap: 10px; align-items: center; }
+
+/* MAIN */
+.main { margin-left: var(--sidebar-w); flex: 1; padding: 28px 28px 40px; min-width: 0; }
+
+/* BREADCRUMB */
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-bottom: 20px; }
+.breadcrumb a { color: var(--text-2); text-decoration: none; }
+.breadcrumb a:hover { color: var(--primary); }
+.breadcrumb span { color: var(--text); font-weight: 500; }
+
+/* PAGE HEADER */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+.page-sub { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+.page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn { padding: 9px 16px; font-size: 13px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn-primary { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary-dark); }
+.btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: 1.5px solid rgba(239,68,68,0.2); }
+.btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--white); border-radius: 12px; padding: 16px 18px; box-shadow: var(--card-shadow); border-left: 3px solid transparent; }
+.stat-card.s1 { border-left-color: var(--success); }
+.stat-card.s2 { border-left-color: var(--primary); }
+.stat-card.s3 { border-left-color: var(--danger); }
+.stat-card.s4 { border-left-color: var(--info); }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+.stat-label { font-size: 11px; color: var(--text-2); margin-top: 4px; font-weight: 500; }
+.stat-sub { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+
+/* SECTION */
+.section-block { margin-bottom: 28px; }
+.section-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.section-title-left { display: flex; align-items: center; gap: 10px; }
+
+/* TABLE */
+.table-wrap { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 12px 16px; font-size: 11px; font-weight: 700; color: var(--text-2); text-align: left; letter-spacing: 0.5px; text-transform: uppercase; background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 12px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(245,184,0,0.03); }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-super { background: rgba(139,92,246,0.12); color: #7c3aed; }
+.badge-net-admin { background: rgba(59,130,246,0.12); color: #2563eb; }
+.badge-mgr { background: rgba(34,197,94,0.12); color: #16a34a; }
+.badge-agent { background: rgba(107,114,128,0.12); color: #4b5563; }
+.badge-accountant { background: rgba(245,158,11,0.12); color: #d97706; }
+.badge-auditor { background: rgba(239,68,68,0.12); color: #dc2626; }
+
+.status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.pill-success { background: rgba(34,197,94,0.1); color: #16a34a; }
+.pill-warn { background: rgba(245,158,11,0.1); color: #d97706; }
+.pill-danger { background: rgba(239,68,68,0.1); color: #dc2626; }
+.pill-info { background: rgba(59,130,246,0.1); color: #2563eb; }
+.pill-config { background: rgba(107,114,128,0.1); color: #4b5563; }
+
+/* AVATAR */
+.avatar-cell { display: flex; align-items: center; gap: 10px; }
+.avatar { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+
+/* ACTION BUTTONS */
+.action-btns { display: flex; gap: 5px; }
+.action-btn { padding: 5px 10px; font-size: 11px; font-weight: 600; border-radius: 7px; border: 1.5px solid var(--border); background: var(--white); color: var(--text); cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.action-btn:hover { border-color: var(--primary); color: var(--primary); }
+.action-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ROLES GRID */
+.roles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.role-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 18px 20px; }
+.role-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.role-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+.role-name { font-size: 13px; font-weight: 700; }
+.role-count { font-size: 11px; color: var(--text-2); }
+.perm-item { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0; color: var(--text); }
+.perm-item.off { color: var(--text-2); text-decoration: line-through; }
+.perm-check { font-size: 13px; }
+
+/* OPERATORS TABLE */
+.op-logo-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.op-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* HEALTH GRID */
+.health-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 14px; }
+.health-card { background: var(--white); border-radius: 12px; padding: 16px 18px; box-shadow: var(--card-shadow); display: flex; flex-direction: column; gap: 6px; }
+.health-name { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.health-status { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.health-ms { font-size: 11px; color: var(--text-2); }
+
+.resource-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.resource-label { font-size: 12px; color: var(--text-2); width: 80px; font-weight: 500; }
+.resource-bar { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.resource-fill { height: 100%; border-radius: 4px; }
+.resource-value { font-size: 12px; font-weight: 700; color: var(--text); width: 40px; text-align: right; }
+
+/* AUDIT TABLE */
+.audit-result-ok { color: var(--success); font-weight: 600; font-size: 12px; }
+.audit-result-fail { color: var(--danger); font-weight: 600; font-size: 12px; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 300; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border-radius: var(--radius); width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.form-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--bg); outline: none; transition: border-color 0.2s; }
+.form-input:focus { border-color: var(--primary); background: var(--white); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* RESOURCES CARD */
+.resources-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 18px 20px; }
+
+@media (max-width: 1100px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .roles-grid { grid-template-columns: repeat(2, 1fr); }
+  .health-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 20px 16px 40px; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .roles-grid { grid-template-columns: 1fr; }
+  .health-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a class="topbar-brand" href="index.html">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Rechercher un utilisateur, rôle, action…">
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-date" id="topbar-date"></span>
+    <div class="notif-btn">🔔<div class="notif-badge">3</div></div>
+    <div class="profile-btn">
+      <div class="profile-avatar">KY</div>
+      <div class="profile-info">
+        <div class="profile-name">Konan Yao</div>
+        <div class="profile-agency">Super Admin</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-context">ADMINISTRATION</div>
+  <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span><span>Tableau de bord</span></a>
+  <div class="sidebar-section-title">ACCÈS & SÉCURITÉ</div>
+  <a class="sidebar-item active" href="#utilisateurs"><span class="si-icon">👥</span><span>Utilisateurs & Accès</span></a>
+  <a class="sidebar-item" href="#roles"><span class="si-icon">🔐</span><span>Rôles & Permissions</span></a>
+  <div class="sidebar-section-title">CONFIGURATION</div>
+  <a class="sidebar-item" href="#operateurs"><span class="si-icon">📡</span><span>Opérateurs configurés</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">🌍</span><span>Multi-pays / Devises</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">⚙️</span><span>Paramètres généraux</span></a>
+  <div class="sidebar-section-title">MONITORING</div>
+  <a class="sidebar-item" href="#audit"><span class="si-icon">📋</span><span>Journal d'audit</span></a>
+  <a class="sidebar-item" href="#sante"><span class="si-icon">💚</span><span>Santé système</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">🔌</span><span>Intégrations API</span></a>
+  <div class="sidebar-footer"><span>🪙</span> GESTMONEY v2.4.1</div>
+</aside>
+
+<!-- LAYOUT -->
+<div class="layout">
+<main class="main">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="index.html">🏠 Accueil</a> › <span>Administration</span>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">⚙️ Administration système</div>
+      <div class="page-sub">Gestion des utilisateurs, rôles, opérateurs et supervision technique</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline btn-sm">📥 Exporter audit</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-user')">+ Nouvel utilisateur</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card s1">
+      <div class="stat-value">6</div>
+      <div class="stat-label">Connectés maintenant</div>
+      <div class="stat-sub">↑ pic à 11h ce matin</div>
+    </div>
+    <div class="stat-card s2">
+      <div class="stat-value">23</div>
+      <div class="stat-label">Utilisateurs total</div>
+      <div class="stat-sub">21 actifs · 2 inactifs</div>
+    </div>
+    <div class="stat-card s3">
+      <div class="stat-value">2</div>
+      <div class="stat-label">Comptes inactifs</div>
+      <div class="stat-sub">Suspendus manuellement</div>
+    </div>
+    <div class="stat-card s4">
+      <div class="stat-value">148</div>
+      <div class="stat-label">Actions audit (24h)</div>
+      <div class="stat-sub">3 alertes sécurité</div>
+    </div>
+  </div>
+
+  <!-- USERS TABLE -->
+  <div class="section-block" id="utilisateurs">
+    <div class="section-title">
+      <div class="section-title-left">👥 Utilisateurs actifs</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-user')">+ Nouvel utilisateur</button>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Utilisateur</th>
+            <th>Rôle</th>
+            <th>Agence</th>
+            <th>Dernière connexion</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="avatar-cell"><div class="avatar" style="background:#7c3aed">KY</div><div><div style="font-weight:600">Konan Yao</div><div style="font-size:11px;color:var(--text-2)">konan.yao@gestmoney.ci</div></div></div></td>
+            <td><span class="badge badge-super">SUPER_ADMIN</span></td>
+            <td>Siège — Abidjan</td>
+            <td style="color:var(--success);font-size:12px">🟢 En ligne</td>
+            <td><span class="status-pill pill-success">● Actif</span></td>
+            <td><div class="action-btns"><button class="action-btn">✏️ Modifier</button><button class="action-btn danger">🔑 Réinit.</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="avatar" style="background:#2563eb">AK</div><div><div style="font-weight:600">Aminata Koné</div><div style="font-size:11px;color:var(--text-2)">aminata.kone@gestmoney.ci</div></div></div></td>
+            <td><span class="badge badge-net-admin">NETWORK_ADMIN</span></td>
+            <td>Agence Plateau</td>
+            <td style="font-size:12px">Il y a 2h</td>
+            <td><span class="status-pill pill-success">● Actif</span></td>
+            <td><div class="action-btns"><button class="action-btn">✏️ Modifier</button><button class="action-btn danger">🚫 Suspendre</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="avatar" style="background:#16a34a">RD</div><div><div style="font-weight:600">Raïssa Dembélé</div><div style="font-size:11px;color:var(--text-2)">raissa.dembele@gestmoney.ci</div></div></div></td>
+            <td><span class="badge badge-mgr">AGENCY_MANAGER</span></td>
+            <td>Agence Bouaké</td>
+            <td style="color:var(--success);font-size:12px">🟢 En ligne</td>
+            <td><span class="status-pill pill-success">● Actif</span></td>
+            <td><div class="action-btns"><button class="action-btn">✏️ Modifier</button><button class="action-btn danger">🚫 Suspendre</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="avatar" style="background:#4b5563">KA</div><div><div style="font-weight:600">Koffi Asséa</div><div style="font-size:11px;color:var(--text-2)">koffi.assea@gestmoney.ci</div></div></div></td>
+            <td><span class="badge badge-agent">AGENT</span></td>
+            <td>Agence Cocody</td>
+            <td style="font-size:12px">Il y a 45 min</td>
+            <td><span class="status-pill pill-success">● Actif</span></td>
+            <td><div class="action-btns"><button class="action-btn">✏️ Modifier</button><button class="action-btn danger">🚫 Suspendre</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="avatar" style="background:#d97706">CA</div><div><div style="font-weight:600">Cécile Ahou</div><div style="font-size:11px;color:var(--text-2)">cecile.ahou@gestmoney.ci</div></div></div></td>
+            <td><span class="badge badge-accountant">ACCOUNTANT</span></td>
+            <td>Siège — Abidjan</td>
+            <td style="color:var(--success);font-size:12px">🟢 En ligne</td>
+            <td><span class="status-pill pill-success">● Actif</span></td>
+            <td><div class="action-btns"><button class="action-btn">✏️ Modifier</button><button class="action-btn danger">🔑 Réinit.</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="avatar" style="background:#dc2626">YC</div><div><div style="font-weight:600">Youssouf Coulibaly</div><div style="font-size:11px;color:var(--text-2)">youssouf.coulibaly@gestmoney.ci</div></div></div></td>
+            <td><span class="badge badge-auditor">AUDITOR</span></td>
+            <td>Siège — Abidjan</td>
+            <td style="color:var(--success);font-size:12px">🟢 En ligne</td>
+            <td><span class="status-pill pill-success">● Actif</span></td>
+            <td><div class="action-btns"><button class="action-btn">✏️ Modifier</button><button class="action-btn danger">🚫 Suspendre</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="avatar" style="background:#9ca3af">MT</div><div><div style="font-weight:600">Moussa Traoré</div><div style="font-size:11px;color:var(--text-2)">moussa.traore@gestmoney.ci</div></div></div></td>
+            <td><span class="badge badge-agent">AGENT</span></td>
+            <td>Agence San-Pédro</td>
+            <td style="font-size:12px;color:var(--danger)">Suspendu</td>
+            <td><span class="status-pill pill-danger">● Suspendu</span></td>
+            <td><div class="action-btns"><button class="action-btn" style="color:var(--success);border-color:rgba(34,197,94,0.3)">✅ Réactiver</button><button class="action-btn danger">🔑 Réinit.</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROLES -->
+  <div class="section-block" id="roles">
+    <div class="section-title">
+      <div class="section-title-left">🔐 Rôles & Permissions</div>
+      <button class="btn btn-outline btn-sm">⚙️ Gérer rôles</button>
+    </div>
+    <div class="roles-grid">
+      <!-- SUPER ADMIN -->
+      <div class="role-card">
+        <div class="role-card-header">
+          <div class="role-icon" style="background:rgba(139,92,246,0.12)">👑</div>
+          <div>
+            <div class="role-name"><span class="badge badge-super">SUPER_ADMIN</span></div>
+            <div class="role-count">2 utilisateurs</div>
+          </div>
+        </div>
+        <div class="perm-item"><span class="perm-check">✅</span> Voir toutes transactions</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Créer/modifier transactions</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Gérer agents & agences</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Comptabilité & rapports</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Accès Super Admin</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Configuration opérateurs</div>
+      </div>
+      <!-- NETWORK ADMIN -->
+      <div class="role-card">
+        <div class="role-card-header">
+          <div class="role-icon" style="background:rgba(59,130,246,0.12)">🌐</div>
+          <div>
+            <div class="role-name"><span class="badge badge-net-admin">NETWORK_ADMIN</span></div>
+            <div class="role-count">3 utilisateurs</div>
+          </div>
+        </div>
+        <div class="perm-item"><span class="perm-check">✅</span> Voir toutes transactions</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Créer/modifier transactions</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Gérer agents & agences</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Comptabilité & rapports</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Accès Super Admin</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Configuration opérateurs</div>
+      </div>
+      <!-- AGENCY MANAGER -->
+      <div class="role-card">
+        <div class="role-card-header">
+          <div class="role-icon" style="background:rgba(34,197,94,0.12)">🏪</div>
+          <div>
+            <div class="role-name"><span class="badge badge-mgr">AGENCY_MANAGER</span></div>
+            <div class="role-count">8 utilisateurs</div>
+          </div>
+        </div>
+        <div class="perm-item"><span class="perm-check">✅</span> Voir transactions agence</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Créer transactions</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Gérer agents</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Comptabilité globale</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Accès Super Admin</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Config opérateurs</div>
+      </div>
+      <!-- AGENT -->
+      <div class="role-card">
+        <div class="role-card-header">
+          <div class="role-icon" style="background:rgba(107,114,128,0.12)">👤</div>
+          <div>
+            <div class="role-name"><span class="badge badge-agent">AGENT</span></div>
+            <div class="role-count">7 utilisateurs</div>
+          </div>
+        </div>
+        <div class="perm-item"><span class="perm-check">✅</span> Voir ses transactions</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Créer transactions</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Gérer agents</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Comptabilité</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Accès Super Admin</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Config opérateurs</div>
+      </div>
+      <!-- ACCOUNTANT -->
+      <div class="role-card">
+        <div class="role-card-header">
+          <div class="role-icon" style="background:rgba(245,158,11,0.12)">📊</div>
+          <div>
+            <div class="role-name"><span class="badge badge-accountant">ACCOUNTANT</span></div>
+            <div class="role-count">2 utilisateurs</div>
+          </div>
+        </div>
+        <div class="perm-item"><span class="perm-check">✅</span> Voir toutes transactions</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Créer transactions</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Gérer agents</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Comptabilité & rapports</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Accès Super Admin</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Config opérateurs</div>
+      </div>
+      <!-- AUDITOR -->
+      <div class="role-card">
+        <div class="role-card-header">
+          <div class="role-icon" style="background:rgba(239,68,68,0.12)">🔍</div>
+          <div>
+            <div class="role-name"><span class="badge badge-auditor">AUDITOR</span></div>
+            <div class="role-count">1 utilisateur</div>
+          </div>
+        </div>
+        <div class="perm-item"><span class="perm-check">✅</span> Lecture seule — tout</div>
+        <div class="perm-item"><span class="perm-check">✅</span> Journal d'audit</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Créer transactions</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Modifier données</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Accès Super Admin</div>
+        <div class="perm-item off"><span class="perm-check">❌</span> Config opérateurs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPERATEURS -->
+  <div class="section-block" id="operateurs">
+    <div class="section-title">
+      <div class="section-title-left">📡 Opérateurs configurés</div>
+      <button class="btn btn-primary btn-sm">+ Ajouter opérateur</button>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Opérateur</th>
+            <th>Pays</th>
+            <th>Statut API</th>
+            <th>Dernière synchro</th>
+            <th>Solde float total</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="op-logo-badge"><div class="op-color-dot" style="background:#FF6B00"></div><strong>Orange Money</strong></div></td>
+            <td>🇨🇮 Côte d'Ivoire</td>
+            <td><span class="status-pill pill-success">✅ Connecté</span></td>
+            <td style="font-size:12px">Il y a 2 min</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">4 800 000 XOF</td>
+            <td><div class="action-btns"><button class="action-btn">🔌 Tester</button><button class="action-btn">⚙️ Configurer</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="op-logo-badge"><div class="op-color-dot" style="background:#FFCC00"></div><strong>MTN MoMo</strong></div></td>
+            <td>🇨🇮 Côte d'Ivoire</td>
+            <td><span class="status-pill pill-success">✅ Connecté</span></td>
+            <td style="font-size:12px">Il y a 5 min</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums;color:var(--danger)">48 000 XOF ⚠️</td>
+            <td><div class="action-btns"><button class="action-btn">🔌 Tester</button><button class="action-btn">⚙️ Configurer</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="op-logo-badge"><div class="op-color-dot" style="background:#1DA7E8"></div><strong>Wave</strong></div></td>
+            <td>🇨🇮 Côte d'Ivoire</td>
+            <td><span class="status-pill pill-success">✅ Connecté</span></td>
+            <td style="font-size:12px">Il y a 1 min</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">1 120 000 XOF</td>
+            <td><div class="action-btns"><button class="action-btn">🔌 Tester</button><button class="action-btn">⚙️ Configurer</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="op-logo-badge"><div class="op-color-dot" style="background:#00A651"></div><strong>Moov Money</strong></div></td>
+            <td>🇨🇮 Côte d'Ivoire</td>
+            <td><span class="status-pill pill-danger">⚠️ Erreur</span></td>
+            <td style="font-size:12px;color:var(--danger)">Échec il y a 18 min</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums">630 000 XOF</td>
+            <td><div class="action-btns"><button class="action-btn" style="color:var(--warning);border-color:rgba(245,158,11,0.4)">🔁 Reconnecter</button><button class="action-btn">⚙️ Configurer</button></div></td>
+          </tr>
+          <tr>
+            <td><div class="op-logo-badge"><div class="op-color-dot" style="background:#E4000F"></div><strong>Airtel Money</strong></div></td>
+            <td>🇧🇫 Burkina Faso</td>
+            <td><span class="status-pill pill-config">⚙️ Configuration</span></td>
+            <td style="font-size:12px;color:var(--text-2)">Non configuré</td>
+            <td style="font-size:12px;color:var(--text-2)">—</td>
+            <td><div class="action-btns"><button class="action-btn">⚙️ Finaliser config</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SYSTEM HEALTH -->
+  <div class="section-block" id="sante">
+    <div class="section-title">
+      <div class="section-title-left">💚 Santé système</div>
+      <button class="btn btn-outline btn-sm">🔄 Rafraîchir</button>
+    </div>
+    <div class="health-grid">
+      <div class="health-card">
+        <div class="health-name">API NestJS</div>
+        <div class="health-status" style="color:var(--success)">✅ Opérationnel</div>
+        <div class="health-ms">Latence : 45ms</div>
+      </div>
+      <div class="health-card">
+        <div class="health-name">Base de données</div>
+        <div class="health-status" style="color:var(--success)">✅ Opérationnel</div>
+        <div class="health-ms">Latence : 12ms</div>
+      </div>
+      <div class="health-card">
+        <div class="health-name">Redis Cache</div>
+        <div class="health-status" style="color:var(--success)">✅ Opérationnel</div>
+        <div class="health-ms">Latence : 2ms</div>
+      </div>
+      <div class="health-card">
+        <div class="health-name">Service IA</div>
+        <div class="health-status" style="color:var(--success)">✅ Opérationnel</div>
+        <div class="health-ms">Latence : 120ms</div>
+      </div>
+      <div class="health-card">
+        <div class="health-name">Elasticsearch</div>
+        <div class="health-status" style="color:var(--success)">✅ Opérationnel</div>
+        <div class="health-ms">Indices : 14</div>
+      </div>
+    </div>
+    <div class="resources-card">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text)">Ressources serveur</div>
+      <div class="resource-row">
+        <div class="resource-label">CPU</div>
+        <div class="resource-bar"><div class="resource-fill" style="width:23%;background:var(--success)"></div></div>
+        <div class="resource-value" style="color:var(--success)">23%</div>
+      </div>
+      <div class="resource-row">
+        <div class="resource-label">RAM</div>
+        <div class="resource-bar"><div class="resource-fill" style="width:67%;background:var(--warning)"></div></div>
+        <div class="resource-value" style="color:var(--warning)">67%</div>
+      </div>
+      <div class="resource-row">
+        <div class="resource-label">Disque</div>
+        <div class="resource-bar"><div class="resource-fill" style="width:41%;background:var(--info)"></div></div>
+        <div class="resource-value" style="color:var(--info)">41%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUDIT LOG -->
+  <div class="section-block" id="audit">
+    <div class="section-title">
+      <div class="section-title-left">📋 Journal d'audit récent</div>
+      <button class="btn btn-outline btn-sm">📥 Exporter CSV</button>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Heure</th>
+            <th>Utilisateur</th>
+            <th>Action</th>
+            <th>Ressource</th>
+            <th>IP</th>
+            <th>Résultat</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">14:38:22</td>
+            <td><strong>Konan Yao</strong><br><span style="font-size:11px;color:var(--text-2)">SUPER_ADMIN</span></td>
+            <td style="font-size:12px">Modification rôle</td>
+            <td style="font-size:12px">user#0014 → AGENT</td>
+            <td style="font-size:11px;color:var(--text-2)">41.202.187.12</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">14:22:05</td>
+            <td><strong>Aminata Koné</strong><br><span style="font-size:11px;color:var(--text-2)">NETWORK_ADMIN</span></td>
+            <td style="font-size:12px">Export rapport</td>
+            <td style="font-size:12px">rapport_juillet_2026.pdf</td>
+            <td style="font-size:11px;color:var(--text-2)">41.202.187.45</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">13:58:11</td>
+            <td><strong>Koffi Asséa</strong><br><span style="font-size:11px;color:var(--text-2)">AGENT</span></td>
+            <td style="font-size:12px">Connexion</td>
+            <td style="font-size:12px">session#8821</td>
+            <td style="font-size:11px;color:var(--text-2)">197.210.44.88</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">13:41:30</td>
+            <td><strong>Inconnu</strong><br><span style="font-size:11px;color:var(--danger)">Tentative externe</span></td>
+            <td style="font-size:12px">Connexion échouée</td>
+            <td style="font-size:12px">auth/login</td>
+            <td style="font-size:11px;color:var(--danger)">92.38.128.4 ⚠️</td>
+            <td><span class="audit-result-fail">✗ Échec</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">13:15:44</td>
+            <td><strong>Cécile Ahou</strong><br><span style="font-size:11px;color:var(--text-2)">ACCOUNTANT</span></td>
+            <td style="font-size:12px">Clôture comptable</td>
+            <td style="font-size:12px">periode#2026-07</td>
+            <td style="font-size:11px;color:var(--text-2)">41.202.211.22</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">12:50:08</td>
+            <td><strong>Raïssa Dembélé</strong><br><span style="font-size:11px;color:var(--text-2)">AGENCY_MANAGER</span></td>
+            <td style="font-size:12px">Création agent</td>
+            <td style="font-size:12px">agent#AGT-0047</td>
+            <td style="font-size:11px;color:var(--text-2)">41.202.199.67</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">12:33:17</td>
+            <td><strong>Konan Yao</strong><br><span style="font-size:11px;color:var(--text-2)">SUPER_ADMIN</span></td>
+            <td style="font-size:12px">Config opérateur</td>
+            <td style="font-size:12px">Moov Money — seuil float</td>
+            <td style="font-size:11px;color:var(--text-2)">41.202.187.12</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">11:48:52</td>
+            <td><strong>Youssouf Coulibaly</strong><br><span style="font-size:11px;color:var(--text-2)">AUDITOR</span></td>
+            <td style="font-size:12px">Export audit</td>
+            <td style="font-size:12px">audit_log_2026-07.csv</td>
+            <td style="font-size:11px;color:var(--text-2)">41.202.178.33</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">11:20:00</td>
+            <td><strong>Système</strong><br><span style="font-size:11px;color:var(--text-2)">AUTO</span></td>
+            <td style="font-size:12px">Rapport automatique</td>
+            <td style="font-size:12px">rapport_journalier 06:00</td>
+            <td style="font-size:11px;color:var(--text-2)">127.0.0.1</td>
+            <td><span class="audit-result-ok">✓ Succès</span></td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--text-2)">10:55:39</td>
+            <td><strong>Inconnu</strong><br><span style="font-size:11px;color:var(--danger)">Tentative externe</span></td>
+            <td style="font-size:12px">Connexion échouée</td>
+            <td style="font-size:12px">auth/login</td>
+            <td style="font-size:11px;color:var(--danger)">92.38.128.4 ⚠️</td>
+            <td><span class="audit-result-fail">✗ Échec (x3)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- MODAL NOUVEL UTILISATEUR -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">👤 Nouvel utilisateur</div>
+      <button class="modal-close" onclick="closeModal('modal-user')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Prénom</label>
+          <input class="form-input" type="text" placeholder="Ex: Aminata">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom</label>
+          <input class="form-input" type="text" placeholder="Ex: Koné">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" placeholder="prenom.nom@gestmoney.ci">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Téléphone</label>
+        <input class="form-input" type="tel" placeholder="+225 07 00 00 00 00">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rôle</label>
+          <select class="form-input">
+            <option>SUPER_ADMIN</option>
+            <option>NETWORK_ADMIN</option>
+            <option selected>AGENCY_MANAGER</option>
+            <option>AGENT</option>
+            <option>ACCOUNTANT</option>
+            <option>AUDITOR</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Agence</label>
+          <select class="form-input">
+            <option>Siège — Abidjan</option>
+            <option>Agence Plateau</option>
+            <option>Agence Cocody</option>
+            <option>Agence Bouaké Centre</option>
+            <option>Agence San-Pédro Port</option>
+            <option>Agence Yamoussoukro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe temporaire</label>
+        <input class="form-input" type="password" placeholder="Généré automatiquement" disabled value="••••••••••">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-user')">Annuler</button>
+      <button class="btn btn-primary">✅ Créer l'utilisateur</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const now = new Date();
+document.getElementById('topbar-date').textContent =
+  days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// Smooth scroll for sidebar links
+document.querySelectorAll('.sidebar-item[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('.sidebar-item').forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

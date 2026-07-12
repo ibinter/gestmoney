@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Gestion du Float</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #F5B800; --primary-dark: #D9A200; --primary-light: #FFF8E1;
+  --dark: #1A1D2E; --dark-2: #252840;
+  --bg: #F0F2F7; --white: #FFFFFF;
+  --text: #1A1D2E; --text-2: #6B7280;
+  --success: #22C55E; --danger: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+  --border: #E5E7EB;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 16px; --topbar-h: 64px;
+}
+html { font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* TOPBAR */
+.topbar { position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h); background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.topbar-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(245,184,0,0.35); }
+.topbar-name { font-size: 18px; font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
+.topbar-name span { color: var(--primary); }
+.topbar-search { flex: 1; max-width: 420px; position: relative; }
+.topbar-search input { width: 100%; padding: 9px 16px 9px 40px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Inter', sans-serif; background: var(--bg); outline: none; }
+.topbar-search input:focus { border-color: var(--primary); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.notif-btn { position: relative; width: 38px; height: 38px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+.notif-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; background: var(--danger); border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--white); }
+.profile-btn { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; }
+.profile-avatar { width: 28px; height: 28px; background: var(--dark); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--primary); font-weight: 700; }
+.profile-info { font-size: 12px; line-height: 1.3; }
+.profile-name { font-weight: 600; color: var(--text); }
+.profile-agency { color: var(--text-2); }
+
+/* MAIN */
+.main { padding: calc(var(--topbar-h) + 28px) 28px 40px; }
+
+/* BREADCRUMB */
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-bottom: 20px; }
+.breadcrumb a { color: var(--text-2); text-decoration: none; }
+.breadcrumb a:hover { color: var(--primary); }
+.breadcrumb span { color: var(--text); font-weight: 500; }
+
+/* PAGE HEADER */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+.page-sub { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+.page-actions { display: flex; gap: 8px; }
+.btn { padding: 9px 16px; font-size: 13px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary-dark); }
+.btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
+
+/* ALERT BANNER */
+.alert-banner { background: linear-gradient(135deg, #FEF2F2, #FFF1F1); border: 1.5px solid rgba(239,68,68,0.3); border-radius: var(--radius); padding: 14px 20px; display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+.alert-icon { font-size: 24px; flex-shrink: 0; }
+.alert-content { flex: 1; }
+.alert-title { font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 2px; }
+.alert-desc { font-size: 12px; color: #7f1d1d; line-height: 1.5; }
+.alert-actions { display: flex; gap: 8px; }
+.btn-danger-solid { background: var(--danger); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; }
+
+/* OPERATOR GRID */
+.op-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+
+.op-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 20px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+.op-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.op-card.critical { border-color: var(--danger); background: linear-gradient(135deg, #fff, #fff5f5); }
+.op-card.warning-card { border-color: var(--warning); }
+.op-card.ok-card { border-color: transparent; }
+.op-card.selected-op { border-color: var(--primary); box-shadow: 0 4px 20px rgba(245,184,0,0.25); }
+
+.op-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.op-brand { display: flex; align-items: center; gap: 10px; }
+.op-logo-circle { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0; }
+.op-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.op-sub { font-size: 11px; color: var(--text-2); }
+.op-status-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px; }
+.badge-ok { background: rgba(34,197,94,0.1); color: #16a34a; }
+.badge-warn { background: rgba(245,158,11,0.1); color: #d97706; }
+.badge-crit { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+.gauge-wrap { margin-bottom: 14px; }
+.gauge-track { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; margin-bottom: 6px; }
+.gauge-fill { height: 100%; border-radius: 5px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+.gauge-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); }
+
+.op-amount { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+.op-amount.critical-amount { color: var(--danger); }
+.op-threshold { font-size: 11px; color: var(--text-2); }
+
+.op-action { width: 100%; padding: 8px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--text); transition: all 0.15s; margin-top: 12px; }
+.op-action:hover { border-color: var(--primary); color: var(--primary-dark); background: var(--primary-light); }
+.op-action.action-crit { border-color: var(--danger); color: var(--danger); background: rgba(239,68,68,0.06); }
+.op-action.action-crit:hover { background: var(--danger); color: #fff; }
+
+/* TWO COLUMN LAYOUT */
+.two-col { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+
+/* SECTION CARD */
+.section-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+.section-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.section-title { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.section-sub { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 500px; }
+th { padding: 10px 14px; font-size: 10px; font-weight: 700; color: var(--text-2); text-align: left; letter-spacing: 0.5px; text-transform: uppercase; background: var(--bg); border-bottom: 1px solid var(--border); }
+td { padding: 12px 14px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(245,184,0,0.025); }
+
+.badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-in { background: rgba(34,197,94,0.1); color: #16a34a; }
+.badge-out { background: rgba(239,68,68,0.1); color: #dc2626; }
+.badge-reapp { background: rgba(59,130,246,0.1); color: #2563eb; }
+
+.status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.pill-done { background: rgba(34,197,94,0.1); color: #16a34a; }
+.pill-pend { background: rgba(245,158,11,0.1); color: #d97706; }
+.pill-proc { background: rgba(59,130,246,0.1); color: #2563eb; }
+
+.amount-pos { color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; }
+.amount-neg { color: var(--danger); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* REAPP CARD */
+.reapp-list { display: flex; flex-direction: column; }
+.reapp-item { padding: 14px 18px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.reapp-item:last-child { border-bottom: none; }
+.reapp-item:hover { background: var(--bg); }
+.reapp-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.reapp-op { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.reapp-dot { width: 10px; height: 10px; border-radius: 50%; }
+.reapp-amount { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.reapp-meta { font-size: 11px; color: var(--text-2); display: flex; gap: 12px; }
+.reapp-actions { display: flex; gap: 6px; margin-top: 8px; }
+.reapp-btn { padding: 5px 12px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.reapp-btn-confirm { background: var(--success); color: #fff; }
+.reapp-btn-confirm:hover { filter: brightness(1.1); }
+.reapp-btn-reject { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+.reapp-btn-reject:hover { background: var(--danger); color: #fff; }
+
+/* Threshold settings */
+.threshold-row { display: flex; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border); gap: 12px; }
+.threshold-row:last-child { border-bottom: none; }
+.threshold-op { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; flex: 1; }
+.threshold-input { width: 130px; padding: 6px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-family: 'Inter', sans-serif; outline: none; font-variant-numeric: tabular-nums; }
+.threshold-input:focus { border-color: var(--primary); }
+.threshold-unit { font-size: 11px; color: var(--text-2); }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border-radius: var(--radius); width: 460px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
+.modal-head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-2); }
+.modal-body { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.form-group input, .form-group select, .form-group textarea { padding: 10px 13px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(245,184,0,0.12); }
+.modal-foot { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 1100px) {
+  .op-grid { grid-template-columns: repeat(3, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .op-grid { grid-template-columns: repeat(2, 1fr); }
+  .main { padding: calc(var(--topbar-h) + 16px) 16px 40px; }
+  .topbar-search { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Rechercher…">
+  </div>
+  <div class="topbar-right">
+    <div class="notif-btn">🔔<span class="notif-badge">3</span></div>
+    <div class="profile-btn">
+      <div class="profile-avatar">KY</div>
+      <div class="profile-info">
+        <div class="profile-name">Konan Yao</div>
+        <div class="profile-agency">Agence Plateau</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="index.html">🏠 Accueil</a>
+    <span>›</span>
+    <span>Float opérateurs</span>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">🏦 Float opérateurs</div>
+      <div class="page-sub">Niveaux en temps réel — Mis à jour à 14:35 · Jeudi 10 juillet 2026</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline btn-sm">🔔 Seuils d'alerte</button>
+      <button class="btn btn-primary btn-sm" onclick="openReappModal()">+ Réapprovisionnement</button>
+    </div>
+  </div>
+
+  <!-- CRITICAL ALERT -->
+  <div class="alert-banner" id="mtn-alert">
+    <div class="alert-icon">🚨</div>
+    <div class="alert-content">
+      <div class="alert-title">Float MTN MoMo — Niveau critique</div>
+      <div class="alert-desc">Solde actuel : <strong>12 000 XOF</strong> — Seuil minimum : 100 000 XOF. Des transactions MTN risquent d'être rejetées. L'IA recommande un réapprovisionnement de <strong>500 000 XOF avant 18h00</strong>.</div>
+    </div>
+    <div class="alert-actions">
+      <button class="btn-danger-solid" onclick="openReappModal('MTN MoMo')">Réapprovisionner MTN</button>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('mtn-alert').style.display='none'">Ignorer</button>
+    </div>
+  </div>
+
+  <!-- OPERATOR CARDS -->
+  <div class="op-grid">
+
+    <!-- Orange -->
+    <div class="op-card ok-card" onclick="selectOp(this)">
+      <div class="op-header">
+        <div class="op-brand">
+          <div class="op-logo-circle" style="background:#FF6B00">O</div>
+          <div>
+            <div class="op-name">Orange Money</div>
+            <div class="op-sub">CI-OCI-2024</div>
+          </div>
+        </div>
+        <span class="op-status-badge badge-ok">✓ OK</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-fill" style="width:82%;background:linear-gradient(90deg,#FF6B00,#FF8C38)"></div>
+        </div>
+        <div class="gauge-labels"><span>0</span><span>82%</span><span>1,5M max</span></div>
+      </div>
+      <div class="op-amount">1 200 000 XOF</div>
+      <div class="op-threshold">Seuil min : 200 000 XOF · Marge : OK</div>
+      <button class="op-action" onclick="event.stopPropagation();openReappModal('Orange Money')">+ Réapprovisionner</button>
+    </div>
+
+    <!-- MTN CRITICAL -->
+    <div class="op-card critical" onclick="selectOp(this)">
+      <div class="op-header">
+        <div class="op-brand">
+          <div class="op-logo-circle" style="background:#FFCC00;color:#1A1D2E">M</div>
+          <div>
+            <div class="op-name">MTN MoMo</div>
+            <div class="op-sub">CI-MTN-0093</div>
+          </div>
+        </div>
+        <span class="op-status-badge badge-crit">⚠ Critique</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-fill" style="width:6%;background:var(--danger)"></div>
+        </div>
+        <div class="gauge-labels"><span>0</span><span style="color:var(--danger);font-weight:600">6%</span><span>200K max</span></div>
+      </div>
+      <div class="op-amount critical-amount">12 000 XOF</div>
+      <div class="op-threshold" style="color:var(--danger)">Seuil min : 100 000 XOF · <strong>Insuffisant !</strong></div>
+      <button class="op-action action-crit" onclick="event.stopPropagation();openReappModal('MTN MoMo')">⚠ Réapprovisionner d'urgence</button>
+    </div>
+
+    <!-- Wave -->
+    <div class="op-card ok-card" onclick="selectOp(this)">
+      <div class="op-header">
+        <div class="op-brand">
+          <div class="op-logo-circle" style="background:#1DA7E8">W</div>
+          <div>
+            <div class="op-name">Wave</div>
+            <div class="op-sub">CI-WAV-0441</div>
+          </div>
+        </div>
+        <span class="op-status-badge badge-ok">✓ OK</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-fill" style="width:56%;background:linear-gradient(90deg,#1DA7E8,#39B8F5)"></div>
+        </div>
+        <div class="gauge-labels"><span>0</span><span>56%</span><span>500K max</span></div>
+      </div>
+      <div class="op-amount">280 000 XOF</div>
+      <div class="op-threshold">Seuil min : 50 000 XOF · Marge : OK</div>
+      <button class="op-action" onclick="event.stopPropagation();openReappModal('Wave')">+ Réapprovisionner</button>
+    </div>
+
+    <!-- Moov -->
+    <div class="op-card warning-card" onclick="selectOp(this)">
+      <div class="op-header">
+        <div class="op-brand">
+          <div class="op-logo-circle" style="background:#00A651">Mo</div>
+          <div>
+            <div class="op-name">Moov Money</div>
+            <div class="op-sub">CI-MOV-0218</div>
+          </div>
+        </div>
+        <span class="op-status-badge badge-warn">⚡ Faible</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-fill" style="width:24%;background:var(--warning)"></div>
+        </div>
+        <div class="gauge-labels"><span>0</span><span style="color:var(--warning)">24%</span><span>300K max</span></div>
+      </div>
+      <div class="op-amount" style="color:var(--warning)">72 000 XOF</div>
+      <div class="op-threshold" style="color:var(--warning)">Seuil min : 50 000 XOF · Surveiller</div>
+      <button class="op-action" onclick="event.stopPropagation();openReappModal('Moov Money')">+ Réapprovisionner</button>
+    </div>
+
+    <!-- Airtel -->
+    <div class="op-card ok-card" onclick="selectOp(this)">
+      <div class="op-header">
+        <div class="op-brand">
+          <div class="op-logo-circle" style="background:#E40000">A</div>
+          <div>
+            <div class="op-name">Airtel Money</div>
+            <div class="op-sub">CI-AIR-0055</div>
+          </div>
+        </div>
+        <span class="op-status-badge badge-ok">✓ OK</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-fill" style="width:71%;background:linear-gradient(90deg,#E40000,#FF3333)"></div>
+        </div>
+        <div class="gauge-labels"><span>0</span><span>71%</span><span>400K max</span></div>
+      </div>
+      <div class="op-amount">284 000 XOF</div>
+      <div class="op-threshold">Seuil min : 50 000 XOF · Marge : OK</div>
+      <button class="op-action" onclick="event.stopPropagation();openReappModal('Airtel Money')">+ Réapprovisionner</button>
+    </div>
+
+  </div><!-- /op-grid -->
+
+  <!-- TWO COLUMN -->
+  <div class="two-col">
+
+    <!-- LEFT: Movements table -->
+    <div class="section-card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">📋 Mouvements du jour</div>
+          <div class="section-sub">Historique des entrées et sorties de float — 10/07/2026</div>
+        </div>
+        <button class="btn btn-outline btn-sm">📥 Exporter</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Heure</th>
+              <th>Opérateur</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th>Montant</th>
+              <th>Agent</th>
+              <th>Solde après</th>
+            </tr>
+          </thead>
+          <tbody id="movements-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT: Pending reapps + thresholds -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Pending reapps -->
+      <div class="section-card">
+        <div class="section-head">
+          <div>
+            <div class="section-title">🔄 Demandes en cours</div>
+            <div class="section-sub">Réapprovisionnements à valider</div>
+          </div>
+          <span style="background:rgba(245,184,0,0.15);color:var(--primary-dark);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">2 en attente</span>
+        </div>
+        <div class="reapp-list">
+
+          <div class="reapp-item">
+            <div class="reapp-top">
+              <div class="reapp-op">
+                <span class="reapp-dot" style="background:#FFCC00"></span>
+                MTN MoMo
+              </div>
+              <span class="status-pill pill-pend">⏳ En attente</span>
+            </div>
+            <div class="reapp-amount" style="color:var(--danger)">500 000 XOF</div>
+            <div class="reapp-meta">
+              <span>📅 Demandé à 13:45</span>
+              <span>👤 Konan Yao</span>
+              <span>🔔 Urgent</span>
+            </div>
+            <div class="reapp-actions">
+              <button class="reapp-btn reapp-btn-confirm" onclick="confirmReapp(this)">✓ Confirmer</button>
+              <button class="reapp-btn reapp-btn-reject" onclick="rejectReapp(this)">✕ Rejeter</button>
+            </div>
+          </div>
+
+          <div class="reapp-item">
+            <div class="reapp-top">
+              <div class="reapp-op">
+                <span class="reapp-dot" style="background:#00A651"></span>
+                Moov Money
+              </div>
+              <span class="status-pill pill-proc">↻ En traitement</span>
+            </div>
+            <div class="reapp-amount">150 000 XOF</div>
+            <div class="reapp-meta">
+              <span>📅 Demandé à 11:20</span>
+              <span>👤 Aminata Koné</span>
+            </div>
+            <div class="reapp-actions">
+              <button class="reapp-btn" style="background:var(--bg);color:var(--text-2);cursor:default">Traitement en cours…</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Thresholds -->
+      <div class="section-card">
+        <div class="section-head">
+          <div>
+            <div class="section-title">🔔 Seuils d'alerte</div>
+            <div class="section-sub">Montants minimaux déclenchant une alerte</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveThresholds()">Enregistrer</button>
+        </div>
+        <div id="threshold-list">
+          <div class="threshold-row">
+            <div class="threshold-op"><span style="width:10px;height:10px;border-radius:50%;background:#FF6B00;display:inline-block"></span>Orange Money</div>
+            <input class="threshold-input" type="number" value="200000">
+            <span class="threshold-unit">XOF</span>
+          </div>
+          <div class="threshold-row">
+            <div class="threshold-op"><span style="width:10px;height:10px;border-radius:50%;background:#FFCC00;display:inline-block"></span>MTN MoMo</div>
+            <input class="threshold-input" type="number" value="100000">
+            <span class="threshold-unit">XOF</span>
+          </div>
+          <div class="threshold-row">
+            <div class="threshold-op"><span style="width:10px;height:10px;border-radius:50%;background:#1DA7E8;display:inline-block"></span>Wave</div>
+            <input class="threshold-input" type="number" value="50000">
+            <span class="threshold-unit">XOF</span>
+          </div>
+          <div class="threshold-row">
+            <div class="threshold-op"><span style="width:10px;height:10px;border-radius:50%;background:#00A651;display:inline-block"></span>Moov Money</div>
+            <input class="threshold-input" type="number" value="50000">
+            <span class="threshold-unit">XOF</span>
+          </div>
+          <div class="threshold-row">
+            <div class="threshold-op"><span style="width:10px;height:10px;border-radius:50%;background:#E40000;display:inline-block"></span>Airtel Money</div>
+            <input class="threshold-input" type="number" value="50000">
+            <span class="threshold-unit">XOF</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /right col -->
+  </div><!-- /two-col -->
+
+</div><!-- /main -->
+
+<!-- REAPP MODAL -->
+<div class="modal-overlay" id="reapp-modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div class="modal-title">Demande de réapprovisionnement</div>
+      <button class="modal-close" onclick="document.getElementById('reapp-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Opérateur</label>
+        <select id="modal-op">
+          <option>Orange Money</option>
+          <option>MTN MoMo</option>
+          <option>Wave</option>
+          <option>Moov Money</option>
+          <option>Airtel Money</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Montant à réapprovisionner (XOF)</label>
+        <input type="number" id="modal-amount" placeholder="ex: 500000" min="10000">
+      </div>
+      <div class="form-group">
+        <label>Référence de virement</label>
+        <input type="text" placeholder="REF-2026-XXXX">
+      </div>
+      <div class="form-group">
+        <label>Motif / Priorité</label>
+        <select>
+          <option>Urgent — niveau critique</option>
+          <option>Normal — réapprovisionnement préventif</option>
+          <option>Planifié — rotation mensuelle</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Commentaire</label>
+        <textarea rows="2" placeholder="Informations complémentaires…" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="document.getElementById('reapp-modal').classList.remove('open')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitReapp()">Envoyer la demande</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Movements data
+const movements = [
+  { time:'14:28', op:'MTN', opColor:'#FFCC00', type:'out', desc:'Retrait client — Mariam Bamba', amount:-50000, agent:'Koffi Asséa', balance:12000 },
+  { time:'13:58', op:'Orange', opColor:'#FF6B00', type:'out', desc:'Cash Out — Fatoumata Diallo', amount:-200000, agent:'Youssouf Coulibaly', balance:1200000 },
+  { time:'13:15', op:'Wave', opColor:'#1DA7E8', type:'in', desc:'Cash In — Ibrahim Sylla', amount:+120000, agent:'Raïssa Dembélé', balance:280000 },
+  { time:'12:45', op:'Orange', opColor:'#FF6B00', type:'in', desc:'Dépôt — Djibril Touré', amount:+75000, agent:'Aminata Koné', balance:1400000 },
+  { time:'11:30', op:'Moov', opColor:'#00A651', type:'reapp', desc:'Réapprovisionnement', amount:+150000, agent:'Système', balance:222000 },
+  { time:'11:20', op:'MTN', opColor:'#FFCC00', type:'out', desc:'Retrait client — Kadidjatou O.', amount:-95000, agent:'Koffi Asséa', balance:62000 },
+  { time:'10:05', op:'Airtel', opColor:'#E40000', type:'in', desc:'Cash In — Ali Konaté', amount:+300000, agent:'Jean-Marc Gbagbo', balance:284000 },
+  { time:'09:22', op:'Wave', opColor:'#1DA7E8', type:'out', desc:'Cash Out — Rokhaya Mbaye', amount:-45000, agent:'Raïssa Dembélé', balance:160000 },
+  { time:'08:50', op:'Orange', opColor:'#FF6B00', type:'out', desc:'Retrait — Oumar Traoré', amount:-180000, agent:'Fatou Sidibé', balance:1325000 },
+  { time:'07:00', op:'MTN', opColor:'#FFCC00', type:'reapp', desc:'Réapprovisionnement matinal', amount:+500000, agent:'Superviseur', balance:157000 },
+];
+
+function renderMovements() {
+  const tbody = document.getElementById('movements-body');
+  tbody.innerHTML = movements.map(m => {
+    const typeBadge = m.type === 'in'
+      ? '<span class="badge badge-in">Entrée</span>'
+      : m.type === 'out'
+      ? '<span class="badge badge-out">Sortie</span>'
+      : '<span class="badge badge-reapp">Réappr.</span>';
+    const amtClass = m.amount >= 0 ? 'amount-pos' : 'amount-neg';
+    const amtStr = (m.amount >= 0 ? '+' : '') + m.amount.toLocaleString('fr-FR') + ' XOF';
+    return `<tr>
+      <td style="color:var(--text-2);font-size:12px">${m.time}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:${m.opColor};display:inline-block"></span>${m.op}</span></td>
+      <td>${typeBadge}</td>
+      <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis">${m.desc}</td>
+      <td class="${amtClass}">${amtStr}</td>
+      <td style="font-size:12px;color:var(--text-2)">${m.agent}</td>
+      <td style="font-variant-numeric:tabular-nums;font-weight:500">${m.balance.toLocaleString('fr-FR')} XOF</td>
+    </tr>`;
+  }).join('');
+}
+
+function selectOp(card) {
+  document.querySelectorAll('.op-card').forEach(c => c.classList.remove('selected-op'));
+  card.classList.add('selected-op');
+}
+
+function openReappModal(op) {
+  if (op) {
+    const sel = document.getElementById('modal-op');
+    for (let o of sel.options) { if (o.value === op) { sel.value = op; break; } }
+  }
+  document.getElementById('reapp-modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('reapp-modal')) {
+    document.getElementById('reapp-modal').classList.remove('open');
+  }
+}
+
+function submitReapp() {
+  document.getElementById('reapp-modal').classList.remove('open');
+  notify('✅ Demande de réapprovisionnement envoyée — en attente de validation');
+}
+
+function confirmReapp(btn) {
+  const item = btn.closest('.reapp-item');
+  item.style.opacity = '0.5';
+  setTimeout(() => {
+    item.innerHTML = '<div style="padding:8px 0;font-size:12px;color:var(--success);display:flex;align-items:center;gap:8px">✅ Réapprovisionnement confirmé et traité</div>';
+    item.style.opacity = '1';
+  }, 400);
+  notify('✅ Réapprovisionnement MTN MoMo confirmé — solde mis à jour');
+}
+
+function rejectReapp(btn) {
+  const item = btn.closest('.reapp-item');
+  item.querySelector('.reapp-actions').innerHTML = '<span style="font-size:12px;color:var(--danger)">✕ Demande rejetée</span>';
+}
+
+function saveThresholds() {
+  notify('✅ Seuils d\'alerte enregistrés avec succès');
+}
+
+function notify(msg) {
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1A1D2E;color:#fff;padding:14px 20px;border-radius:12px;font-size:13px;z-index:300;border-left:4px solid #22C55E;box-shadow:0 4px 20px rgba(0,0,0,0.2);max-width:380px';
+  bar.textContent = msg;
+  document.body.appendChild(bar);
+  setTimeout(() => bar.remove(), 3000);
+}
+
+renderMovements();
+</script>
+</body>
+</html>

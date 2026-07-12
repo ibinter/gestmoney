@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — IA & Détection de Fraude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#F5B800;--primary-dark:#D9A200;--primary-light:#FFF8E1;
+  --dark:#1A1D2E;--dark-2:#252840;--bg:#F0F2F7;--white:#FFFFFF;
+  --text:#1A1D2E;--text-2:#6B7280;--success:#22C55E;--danger:#EF4444;
+  --warning:#F59E0B;--info:#3B82F6;--border:#E5E7EB;
+  --card-shadow:0 2px 12px rgba(0,0,0,0.08);--radius:16px;
+  --sidebar-w:240px;--topbar-h:64px;
+}
+html{font-family:'Inter',sans-serif}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar-h);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;z-index:100;box-shadow:0 1px 8px rgba(0,0,0,0.06)}
+.topbar-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.topbar-icon{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(245,184,0,0.35)}
+.topbar-name{font-size:18px;font-weight:800;color:var(--dark);letter-spacing:-.5px}
+.topbar-name span{color:var(--primary)}
+.topbar-search{flex:1;max-width:420px;position:relative}
+.topbar-search input{width:100%;padding:9px 16px 9px 40px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);outline:none}
+.topbar-search .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-2)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.topbar-date{font-size:12px;color:var(--text-2);white-space:nowrap}
+.notif-btn{position:relative;width:38px;height:38px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.notif-badge{position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:var(--danger);border-radius:50%;font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;border:2px solid var(--white)}
+.profile-btn{display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;cursor:pointer}
+.profile-avatar{width:28px;height:28px;background:var(--dark);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--primary);font-weight:700}
+.profile-info{font-size:12px;line-height:1.3}
+.profile-name{font-weight:600}
+.profile-agency{color:var(--text-2)}
+.layout{padding-top:var(--topbar-h);display:flex;min-height:100vh}
+.sidebar{position:fixed;top:var(--topbar-h);left:0;width:var(--sidebar-w);height:calc(100vh - var(--topbar-h));background:var(--dark);z-index:90;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-context{padding:16px 20px 8px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3);border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:8px}
+.sidebar-section-title{padding:10px 20px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.2)}
+.sidebar-item{display:flex;align-items:center;gap:12px;padding:11px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.65);cursor:pointer;text-decoration:none;margin:1px 8px;border-radius:10px;transition:all .15s}
+.sidebar-item:hover{background:rgba(255,255,255,0.07);color:#fff}
+.sidebar-item.active{background:rgba(245,184,0,0.15);color:var(--primary)}
+.sidebar-item .si-icon{font-size:16px;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid rgba(255,255,255,0.07);font-size:12px;color:rgba(255,255,255,0.3);display:flex;gap:10px;align-items:center}
+.main{margin-left:var(--sidebar-w);flex:1;padding:28px 28px 40px;min-width:0}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.page-sub{font-size:13px;color:var(--text-2);margin-top:3px}
+.page-actions{display:flex;gap:10px}
+.btn{padding:9px 18px;font-size:13px;font-weight:600;border-radius:10px;border:none;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:var(--dark);box-shadow:0 2px 8px rgba(245,184,0,0.3)}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px)}
+.btn-outline{background:var(--white);color:var(--text);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger{background:var(--danger);color:#fff;border:none}
+.btn-danger:hover{opacity:.9}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:8px}
+/* AI HEADER BANNER */
+.ai-header{background:linear-gradient(135deg,var(--dark) 0%,#252840 100%);border-radius:var(--radius);padding:20px 24px;display:flex;align-items:center;gap:16px;margin-bottom:24px;border:1px solid rgba(245,184,0,0.25);flex-wrap:wrap}
+.ai-badge{background:rgba(245,184,0,0.15);border:1px solid rgba(245,184,0,0.3);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.ai-badge-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.ai-header-text{flex:1}
+.ai-header-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:4px}
+.ai-header-sub{font-size:13px;color:rgba(255,255,255,0.6)}
+.ai-header-stats{display:flex;gap:24px;flex-shrink:0}
+.ai-stat{text-align:center}
+.ai-stat-val{font-size:20px;font-weight:800;color:var(--primary)}
+.ai-stat-lbl{font-size:10px;color:rgba(255,255,255,0.5);font-weight:500;letter-spacing:.5px;text-transform:uppercase}
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:20px;position:relative;overflow:hidden}
+.kpi-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 var(--radius) 0 60px;opacity:.06}
+.kpi-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-2);margin-bottom:8px}
+.kpi-value{font-size:26px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.kpi-trend{font-size:12px;margin-top:4px}
+.kpi-icon{position:absolute;top:16px;right:16px;font-size:24px;opacity:.5}
+/* ALERTES */
+.section-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.table-wrap{background:var(--white);border-radius:var(--radius);box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:24px}
+table{width:100%;border-collapse:collapse}
+th{padding:12px 16px;font-size:11px;font-weight:700;color:var(--text-2);text-align:left;letter-spacing:.5px;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(245,184,0,0.03)}
+.niveau-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+.niv-critique{background:rgba(239,68,68,0.12);color:#b91c1c;animation:pulse-red .9s infinite alternate}
+@keyframes pulse-red{from{box-shadow:0 0 0 rgba(239,68,68,0)}to{box-shadow:0 0 6px rgba(239,68,68,0.5)}}
+.niv-eleve{background:rgba(245,158,11,0.12);color:#b45309}
+.niv-moyen{background:rgba(245,184,0,0.15);color:#92400e}
+.niv-faible{background:rgba(34,197,94,0.1);color:#15803d}
+.score-bar{height:6px;border-radius:3px;background:var(--border);width:80px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px}
+.action-btns{display:flex;gap:5px}
+.abtn{padding:4px 9px;font-size:11px;font-weight:600;border-radius:6px;border:1.5px solid;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap}
+.abtn-danger{border-color:var(--danger);color:var(--danger);background:rgba(239,68,68,0.05)}
+.abtn-danger:hover{background:var(--danger);color:#fff}
+.abtn-neutral{border-color:var(--border);color:var(--text-2);background:var(--white)}
+.abtn-neutral:hover{border-color:var(--info);color:var(--info)}
+.abtn-info{border-color:var(--info);color:var(--info);background:rgba(59,130,246,0.05)}
+.abtn-info:hover{background:var(--info);color:#fff}
+/* PRÉVISIONS FLOAT */
+.previsions-section{margin-bottom:24px}
+.chart-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:20px}
+.chart-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.chart-sub{font-size:12px;color:var(--text-2);margin-bottom:16px}
+/* INSIGHTS */
+.insights-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.insight-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:20px;border-left:4px solid var(--primary);display:flex;gap:14px}
+.insight-ico{font-size:28px;flex-shrink:0;margin-top:2px}
+.insight-num{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--primary);margin-bottom:4px}
+.insight-text{font-size:13px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:8px}
+.insight-action{font-size:12px;color:var(--info);cursor:pointer;font-weight:500}
+.insight-action:hover{text-decoration:underline}
+/* PERF MODEL */
+.perf-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:24px}
+.perf-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.perf-title{font-size:15px;font-weight:700}
+.perf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.perf-metric{text-align:center;padding:16px;background:var(--bg);border-radius:12px}
+.perf-val{font-size:22px;font-weight:800;color:var(--success);letter-spacing:-.5px}
+.perf-lbl{font-size:12px;color:var(--text-2);margin-top:4px;font-weight:500}
+.perf-sub{font-size:11px;color:var(--text-2);margin-top:2px}
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.insights-grid{grid-template-columns:1fr 1fr}.perf-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.sidebar{display:none}.main{margin-left:0;padding:16px}.insights-grid{grid-template-columns:1fr}.ai-header-stats{display:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search"><span class="si">🔍</span><input type="text" placeholder="Rechercher une alerte, un agent…"></div>
+  <div class="topbar-right">
+    <div class="topbar-date" id="topbar-date"></div>
+    <div class="notif-btn">🤖<span class="notif-badge" style="background:var(--danger)">7</span></div>
+    <div class="profile-btn"><div class="profile-avatar">KY</div><div class="profile-info"><div class="profile-name">Konan Yao</div><div class="profile-agency">Agence Plateau</div></div><span style="font-size:10px;color:var(--text-2)">▼</span></div>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <div class="sidebar-context">IA & FRAUDE</div>
+  <a class="sidebar-item active" href="ia-fraude.html"><span class="si-icon">🤖</span><span>Tableau de bord IA</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">🚨</span><span>Alertes fraude (7)</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">⚙️</span><span>Analyses en cours</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">📈</span><span>Prévisions float</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">🔗</span><span>Insights réseau</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">🎛️</span><span>Paramètres modèle</span></a>
+  <div class="sidebar-section-title">NAVIGATION</div>
+  <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span><span>Tableau de bord</span></a>
+  <a class="sidebar-item" href="comptabilite.html"><span class="si-icon">📒</span><span>Comptabilité</span></a>
+  <a class="sidebar-item" href="rapports.html"><span class="si-icon">📊</span><span>Rapports BI</span></a>
+  <a class="sidebar-item" href="clients.html"><span class="si-icon">👥</span><span>Clients</span></a>
+  <div class="sidebar-footer">🪙 GESTMONEY v2.4.1</div>
+</aside>
+
+<div class="layout">
+<main class="main">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Centre IA GESTMONEY</div>
+      <div class="page-sub">Surveillance en temps réel · Modèle v2.1 · Mis à jour hier à 23h00</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline btn-sm">📋 Journal d'activité</button>
+      <button class="btn btn-primary btn-sm">⚙️ Paramètres IA</button>
+    </div>
+  </div>
+
+  <!-- AI HEADER -->
+  <div class="ai-header">
+    <div class="ai-badge"><div class="ai-badge-dot"></div>IA Active — Modèle v2.1</div>
+    <div class="ai-header-text">
+      <div class="ai-header-title">🤖 Surveillance Anti-Fraude en Temps Réel</div>
+      <div class="ai-header-sub">Précision 98,4% · Taux de faux positifs 1,6% · Dernière analyse : il y a 2 min</div>
+    </div>
+    <div class="ai-header-stats">
+      <div class="ai-stat"><div class="ai-stat-val">98.4%</div><div class="ai-stat-lbl">Précision</div></div>
+      <div class="ai-stat"><div class="ai-stat-val">1 245</div><div class="ai-stat-lbl">Analysées</div></div>
+      <div class="ai-stat"><div class="ai-stat-val" style="color:var(--danger)">7</div><div class="ai-stat-lbl">Alertes</div></div>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon">⚡</div>
+      <div class="kpi-label">Transactions analysées</div>
+      <div class="kpi-value">1 245</div>
+      <div class="kpi-trend" style="color:var(--text-2)">Aujourd'hui · 09h00 – 14h32</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🚨</div>
+      <div class="kpi-label">Alertes fraude</div>
+      <div class="kpi-value" style="color:var(--danger)">7</div>
+      <div class="kpi-trend" style="color:var(--danger)">dont 2 critiques · Action requise</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Montants à risque</div>
+      <div class="kpi-value" style="color:var(--warning)">2,85M</div>
+      <div class="kpi-trend" style="color:var(--warning)">XOF · 7 transactions suspectes</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🎯</div>
+      <div class="kpi-label">Taux faux positifs</div>
+      <div class="kpi-value" style="color:var(--success)">1,6%</div>
+      <div class="kpi-trend" style="color:var(--success)">↓ En baisse vs 2,1% (M-1)</div>
+    </div>
+  </div>
+
+  <!-- ALERTES FRAUDE -->
+  <div class="section-title">
+    <span>🚨 Alertes Fraude Actives <span style="font-size:12px;background:var(--danger);color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px;font-weight:700">7</span></span>
+    <button class="btn btn-outline btn-sm">Tout marquer résolu</button>
+  </div>
+  <div class="table-wrap">
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Heure</th><th>Agent</th><th>Type de fraude</th><th>Montant</th>
+        <th>Score risque</th><th>Niveau</th><th>Raison</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="alertes-tbody"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- PRÉVISIONS FLOAT -->
+  <div class="section-title">📈 Prévisions Float — Prochaines 24h</div>
+  <div class="chart-card" style="margin-bottom:24px">
+    <div class="chart-title">Besoin float prévu vs Stock actuel</div>
+    <div class="chart-sub">Par opérateur · Mise à jour toutes les 30 min · ⚠️ MTN : risque de rupture prévu à 14h00</div>
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" width="100%">
+      <!-- Grid -->
+      <line x1="60" y1="10" x2="700" y2="10" stroke="#E5E7EB" stroke-width="1"/>
+      <line x1="60" y1="50" x2="700" y2="50" stroke="#E5E7EB" stroke-width="1"/>
+      <line x1="60" y1="90" x2="700" y2="90" stroke="#E5E7EB" stroke-width="1"/>
+      <line x1="60" y1="130" x2="700" y2="130" stroke="#E5E7EB" stroke-width="1"/>
+      <line x1="60" y1="165" x2="700" y2="165" stroke="#E5E7EB" stroke-width="1"/>
+      <!-- Y labels -->
+      <text x="0" y="13" font-size="9" fill="#6B7280" font-family="Inter">2,0M</text>
+      <text x="0" y="53" font-size="9" fill="#6B7280" font-family="Inter">1,5M</text>
+      <text x="0" y="93" font-size="9" fill="#6B7280" font-family="Inter">1,0M</text>
+      <text x="0" y="133" font-size="9" fill="#6B7280" font-family="Inter">0,5M</text>
+      <!-- Opérateurs: Orange, MTN, Wave, Moov — barres empilées besoin vs stock -->
+      <!-- Orange: besoin=1.2M stock=1.8M — OK -->
+      <rect x="70" y="70" width="50" height="95" rx="4" fill="#FF6B00" opacity="0.85"/>
+      <rect x="125" y="50" width="50" height="115" rx="4" fill="#FF6B00" opacity="0.3" stroke="#FF6B00" stroke-width="1.5" stroke-dasharray="4,2" fill-opacity="0.2"/>
+      <!-- MTN: besoin=1.6M stock=0.4M — CRITIQUE -->
+      <rect x="220" y="10" width="50" height="155" rx="4" fill="#FFCC00" opacity="0.85"/>
+      <rect x="275" y="130" width="50" height="35" rx="4" fill="#EF4444" opacity="0.8"/>
+      <!-- alert indicator -->
+      <rect x="260" y="2" width="80" height="20" rx="4" fill="#EF4444" opacity="0.1"/>
+      <text x="300" y="15" font-size="8" fill="#b91c1c" font-family="Inter" font-weight="700" text-anchor="middle">⚠️ RUPTURE 14h</text>
+      <!-- Wave: besoin=0.85M stock=1.1M — OK -->
+      <rect x="370" y="107" width="50" height="58" rx="4" fill="#1DA7E8" opacity="0.85"/>
+      <rect x="425" y="77" width="50" height="88" rx="4" fill="#1DA7E8" opacity="0.25" stroke="#1DA7E8" stroke-width="1.5" stroke-dasharray="4,2" fill-opacity="0.2"/>
+      <!-- Moov: besoin=0.4M stock=0.65M — OK -->
+      <rect x="520" y="130" width="50" height="35" rx="4" fill="#00A651" opacity="0.85"/>
+      <rect x="575" y="115" width="50" height="50" rx="4" fill="#00A651" opacity="0.25" stroke="#00A651" stroke-width="1.5" stroke-dasharray="4,2" fill-opacity="0.2"/>
+      <!-- X labels -->
+      <text x="95" y="185" font-size="9" fill="#1A1D2E" font-family="Inter" text-anchor="middle" font-weight="600">Orange</text>
+      <text x="95" y="195" font-size="8" fill="#6B7280" font-family="Inter" text-anchor="middle">1,2M / 1,8M</text>
+      <text x="245" y="185" font-size="9" fill="#b91c1c" font-family="Inter" text-anchor="middle" font-weight="700">MTN ⚠️</text>
+      <text x="245" y="195" font-size="8" fill="#b91c1c" font-family="Inter" text-anchor="middle">1,6M / 0,4M</text>
+      <text x="395" y="185" font-size="9" fill="#1A1D2E" font-family="Inter" text-anchor="middle" font-weight="600">Wave</text>
+      <text x="395" y="195" font-size="8" fill="#6B7280" font-family="Inter" text-anchor="middle">0,85M / 1,1M</text>
+      <text x="545" y="185" font-size="9" fill="#1A1D2E" font-family="Inter" text-anchor="middle" font-weight="600">Moov</text>
+      <text x="545" y="195" font-size="8" fill="#6B7280" font-family="Inter" text-anchor="middle">0,4M / 0,65M</text>
+      <!-- Legend -->
+      <rect x="600" y="25" width="12" height="10" rx="2" fill="#6B7280" opacity="0.6"/>
+      <text x="616" y="34" font-size="8" fill="#6B7280" font-family="Inter">Besoin prévu</text>
+      <rect x="600" y="45" width="12" height="10" rx="2" fill="#6B7280" opacity="0.2" stroke="#6B7280" stroke-width="1"/>
+      <text x="616" y="54" font-size="8" fill="#6B7280" font-family="Inter">Stock actuel</text>
+    </svg>
+    <div style="margin-top:12px;padding:12px 16px;background:rgba(239,68,68,0.08);border-radius:10px;border-left:4px solid var(--danger);font-size:13px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">⚠️</span>
+      <div><strong style="color:var(--danger)">MTN MoMo — Risque de rupture détecté à 14h00</strong><br><span style="color:var(--text-2);font-size:12px">Stock actuel : 400 000 XOF · Besoin estimé : 1 600 000 XOF · Déficit prévu : 1 200 000 XOF</span></div>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto;flex-shrink:0">🔁 Réapprovisionner</button>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="section-title">💡 Insights IA — Recommandations du moteur</div>
+  <div class="insights-grid">
+    <div class="insight-card" style="border-left-color:var(--danger)">
+      <div class="insight-ico">⚠️</div>
+      <div>
+        <div class="insight-num" style="color:var(--danger)">Recommandation #1 — Urgent</div>
+        <div class="insight-text">Réapprovisionner MTN MoMo avant 14h00 — risque de rupture de float détecté par le modèle prédictif</div>
+        <div style="font-size:11px;color:var(--text-2);margin-bottom:8px">Confiance : 94% · Basé sur 30 jours d'historique</div>
+        <span class="insight-action" onclick="alert('Redirection vers le module Float…')">→ Aller au module Float</span>
+      </div>
+    </div>
+    <div class="insight-card" style="border-left-color:var(--success)">
+      <div class="insight-ico">🌟</div>
+      <div>
+        <div class="insight-num" style="color:var(--success)">Recommandation #2 — Valorisation</div>
+        <div class="insight-text">Agent Kofi Asséa : performances 23% au-dessus de la moyenne sur 30 jours — envisager une promotion ou prime</div>
+        <div style="font-size:11px;color:var(--text-2);margin-bottom:8px">Confiance : 88% · Agence Cocody</div>
+        <span class="insight-action">→ Voir le profil de l'agent</span>
+      </div>
+    </div>
+    <div class="insight-card" style="border-left-color:var(--info)">
+      <div class="insight-ico">📊</div>
+      <div>
+        <div class="insight-num" style="color:var(--info)">Recommandation #3 — Anticipation</div>
+        <div class="insight-text">Agence Plateau : pic d'activité prévu ce samedi — prévoir float supplémentaire +40% toutes agences</div>
+        <div style="font-size:11px;color:var(--text-2);margin-bottom:8px">Confiance : 91% · Basé sur tendances historiques</div>
+        <span class="insight-action">→ Planifier le réapprovisionnement</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERFORMANCE MODELE -->
+  <div class="perf-card">
+    <div class="perf-header">
+      <div>
+        <div class="perf-title">⚙️ Performance du Modèle IA</div>
+        <div style="font-size:12px;color:var(--text-2);margin-top:2px">Dernière mise à jour : hier à 23h00 · Données d'entraînement : 248 000 transactions</div>
+      </div>
+      <button class="btn btn-outline btn-sm">🔄 Ré-entraîner le modèle</button>
+    </div>
+    <div class="perf-grid">
+      <div class="perf-metric">
+        <div class="perf-val">98,4%</div>
+        <div class="perf-lbl">Précision</div>
+        <div class="perf-sub">↑ +0,3% vs v2.0</div>
+      </div>
+      <div class="perf-metric">
+        <div class="perf-val">96,1%</div>
+        <div class="perf-lbl">Rappel</div>
+        <div class="perf-sub">↑ +1,1% vs v2.0</div>
+      </div>
+      <div class="perf-metric">
+        <div class="perf-val">97,2%</div>
+        <div class="perf-lbl">F1-Score</div>
+        <div class="perf-sub">Score composite</div>
+      </div>
+      <div class="perf-metric">
+        <div class="perf-val">1,6%</div>
+        <div class="perf-lbl">Faux positifs</div>
+        <div class="perf-sub" style="color:var(--success)">↓ En amélioration</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+const days=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const months=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const now=new Date();
+document.getElementById('topbar-date').textContent=days[now.getDay()]+' '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
+
+const alertes=[
+  {heure:'03:14',agent:'Awa Sanogo',agence:'Ag. Bouaké',type:'Transaction nocturne',montant:850000,score:97,niveau:'CRITIQUE',raison:'Heure inhabituelle (03h14) + montant ×12 moy.'},
+  {heure:'09:47',agent:'Moussa Diallo',agence:'Ag. Plateau',type:'Vitesse excessive',montant:420000,score:92,niveau:'CRITIQUE',raison:'20 transactions en 45 min — limite 5/h dépassée'},
+  {heure:'11:22',agent:'Binta Coulibaly',agence:'Ag. Cocody',type:'Montant anormal',montant:1200000,score:85,niveau:'ÉLEVÉ',raison:'Montant 8× supérieur à la moyenne habituelle'},
+  {heure:'12:05',agent:'Zakaria Traoré',agence:'Ag. San-Pédro',type:'Doublon suspect',montant:75000,score:78,niveau:'ÉLEVÉ',raison:'Transaction identique × 3 sur même compte client'},
+  {heure:'13:18',agent:'Esther Koné',agence:'Ag. Yamoussoukro',type:'Compte non vérifié',montant:300000,score:71,niveau:'MOYEN',raison:'Client sans vérification KYC depuis 90 jours'},
+  {heure:'13:44',agent:'Victor Ouédraogo',agence:'Ag. Bouaké',type:'Réseau anormal',montant:185000,score:65,niveau:'MOYEN',raison:'Connexion depuis IP non enregistrée + horaire suspect'},
+  {heure:'14:02',agent:'Sali Kaboré',agence:'Ag. Plateau',type:'Pattern inhabituel',montant:60000,score:61,niveau:'FAIBLE',raison:'Séquence dépôt-retrait immédiat × 5 — structuration'},
+];
+
+const niveauClass={CRITIQUE:'niv-critique',ÉLEVÉ:'niv-eleve',MOYEN:'niv-moyen',FAIBLE:'niv-faible'};
+const niveauDot={CRITIQUE:'🔴',ÉLEVÉ:'🟠',MOYEN:'🟡',FAIBLE:'🟢'};
+const scoreColor=s=>s>=90?'#b91c1c':s>=75?'#b45309':s>=60?'#92400e':'#15803d';
+
+const tbody=document.getElementById('alertes-tbody');
+alertes.forEach((a,i)=>{
+  const sc=a.score;
+  tbody.innerHTML+=`<tr>
+    <td style="font-family:monospace;font-size:12px;color:var(--text-2)">${a.heure}</td>
+    <td><div style="font-weight:600">${a.agent}</div><div style="font-size:11px;color:var(--text-2)">${a.agence}</div></td>
+    <td style="font-weight:500">${a.type}</td>
+    <td style="font-weight:700;color:var(--danger);font-variant-numeric:tabular-nums">${a.montant.toLocaleString('fr-FR')} XOF</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="score-bar"><div class="score-fill" style="width:${sc}%;background:${scoreColor(sc)}"></div></div>
+        <span style="font-weight:700;font-size:13px;color:${scoreColor(sc)}">${sc}/100</span>
+      </div>
+    </td>
+    <td><span class="niveau-badge ${niveauClass[a.niveau]}">${niveauDot[a.niveau]} ${a.niveau}</span></td>
+    <td style="font-size:12px;color:var(--text-2);max-width:240px;white-space:normal">${a.raison}</td>
+    <td>
+      <div class="action-btns">
+        <button class="abtn abtn-danger" onclick="bloquerAgent(this,'${a.agent}')">🚫 Bloquer</button>
+        <button class="abtn abtn-neutral" onclick="ignorerAlerte(this)">✕ Ignorer</button>
+        <button class="abtn abtn-info">🔍 Enquêter</button>
+      </div>
+    </td>
+  </tr>`;
+});
+
+function bloquerAgent(btn,nom){
+  if(confirm(`Bloquer définitivement l'agent ${nom} ?`)){
+    btn.closest('tr').style.opacity='0.4';
+    showToast(`🚫 Agent ${nom} bloqué avec succès`,'var(--danger)');
+  }
+}
+function ignorerAlerte(btn){
+  btn.closest('tr').style.opacity='0.4';
+  showToast('✅ Alerte ignorée et archivée','var(--success)');
+}
+function showToast(msg,color){
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;bottom:24px;right:24px;background:${color||'var(--dark)'};color:#fff;padding:14px 20px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999`;
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3500);
+}
+</script>
+</body>
+</html>

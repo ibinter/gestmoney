@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Comptabilité SYSCOHADA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #F5B800; --primary-dark: #D9A200; --primary-light: #FFF8E1;
+  --dark: #1A1D2E; --dark-2: #252840; --bg: #F0F2F7; --white: #FFFFFF;
+  --text: #1A1D2E; --text-2: #6B7280; --success: #22C55E; --danger: #EF4444;
+  --warning: #F59E0B; --info: #3B82F6; --border: #E5E7EB;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.08); --radius: 16px;
+  --sidebar-w: 240px; --topbar-h: 64px;
+}
+html { font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+  background: var(--white); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 16px;
+  z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.topbar-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 8px rgba(245,184,0,0.35); }
+.topbar-name { font-size: 18px; font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
+.topbar-name span { color: var(--primary); }
+.topbar-search { flex: 1; max-width: 420px; position: relative; }
+.topbar-search input { width: 100%; padding: 9px 16px 9px 40px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.2s; }
+.topbar-search input:focus { border-color: var(--primary); }
+.topbar-search .si { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.topbar-date { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.notif-btn { position: relative; width: 38px; height: 38px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+.notif-btn:hover { background: var(--primary-light); border-color: var(--primary); }
+.notif-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; background: var(--danger); border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--white); }
+.profile-btn { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; }
+.profile-btn:hover { border-color: var(--primary); }
+.profile-avatar { width: 28px; height: 28px; background: var(--dark); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--primary); font-weight: 700; }
+.profile-info { font-size: 12px; line-height: 1.3; }
+.profile-name { font-weight: 600; }
+.profile-agency { color: var(--text-2); }
+
+/* LAYOUT */
+.layout { padding-top: var(--topbar-h); display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { position: fixed; top: var(--topbar-h); left: 0; width: var(--sidebar-w); height: calc(100vh - var(--topbar-h)); background: var(--dark); z-index: 90; display: flex; flex-direction: column; overflow-y: auto; }
+.sidebar-context { padding: 16px 20px 8px; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 8px; }
+.sidebar-section-title { padding: 10px 20px 4px; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+.sidebar-item { display: flex; align-items: center; gap: 12px; padding: 11px 20px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65); cursor: pointer; text-decoration: none; margin: 1px 8px; border-radius: 10px; transition: all 0.15s; }
+.sidebar-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.sidebar-item.active { background: rgba(245,184,0,0.15); color: var(--primary); }
+.sidebar-item .si-icon { font-size: 16px; flex-shrink: 0; }
+.sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.07); font-size: 12px; color: rgba(255,255,255,0.3); display: flex; gap: 10px; align-items: center; }
+
+/* MAIN */
+.main { margin-left: var(--sidebar-w); flex: 1; padding: 28px 28px 40px; min-width: 0; }
+
+/* PAGE HEADER */
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.page-sub { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+.page-actions { display: flex; gap: 10px; }
+
+/* BUTTONS */
+.btn { padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-outline { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-sm { padding: 7px 13px; font-size: 12px; border-radius: 8px; }
+.btn-danger { background: var(--danger); color: #fff; }
+
+/* KPI CARDS */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 20px; }
+.kpi-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2); margin-bottom: 8px; }
+.kpi-value { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.kpi-trend { font-size: 12px; font-weight: 600; margin-top: 4px; }
+.trend-up { color: var(--success); }
+.trend-neutral { color: var(--text-2); }
+.kpi-icon { font-size: 28px; margin-bottom: 8px; }
+
+/* TABS */
+.tabs-bar { display: flex; gap: 4px; background: var(--white); border-radius: var(--radius); padding: 6px; box-shadow: var(--card-shadow); margin-bottom: 20px; }
+.tab-btn { padding: 9px 20px; font-size: 13px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-radius: 10px; color: var(--text-2); font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.tab-btn.active { background: var(--primary); color: var(--dark); box-shadow: 0 2px 8px rgba(245,184,0,0.3); }
+.tab-btn:hover:not(.active) { background: var(--bg); color: var(--text); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* TABLE */
+.table-wrap { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+.table-toolbar { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.table-toolbar select, .table-toolbar input[type="date"] {
+  padding: 7px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--bg); outline: none; cursor: pointer;
+}
+.table-toolbar select:focus, .table-toolbar input:focus { border-color: var(--primary); }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 12px 16px; font-size: 11px; font-weight: 700; color: var(--text-2); text-align: left; letter-spacing: 0.5px; text-transform: uppercase; background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 13px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(245,184,0,0.03); }
+.total-row td { background: var(--primary-light); font-weight: 700; border-top: 2px solid var(--primary); }
+.debit-col { color: var(--danger); font-weight: 600; font-variant-numeric: tabular-nums; }
+.credit-col { color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; }
+.solde-pos { color: var(--success); font-weight: 600; }
+.solde-neg { color: var(--danger); font-weight: 600; }
+.source-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; background: rgba(59,130,246,0.1); color: var(--info); }
+.section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+
+/* BALANCE TABLE */
+.balance-check { display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: rgba(34,197,94,0.08); border-top: 2px solid var(--success); font-weight: 700; color: #16a34a; font-size: 13px; }
+
+/* COMPTE DE RESULTAT */
+.cr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.cr-col { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+.cr-header { padding: 16px 20px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.cr-header-produits { background: rgba(34,197,94,0.1); color: #16a34a; border-bottom: 2px solid var(--success); }
+.cr-header-charges { background: rgba(239,68,68,0.1); color: #dc2626; border-bottom: 2px solid var(--danger); }
+.cr-row { display: flex; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.cr-row:hover { background: var(--bg); }
+.cr-row-account { color: var(--text-2); font-size: 12px; }
+.cr-total { display: flex; justify-content: space-between; padding: 14px 20px; font-weight: 700; font-size: 14px; }
+.cr-total-produits { background: rgba(34,197,94,0.08); color: #16a34a; }
+.cr-total-charges { background: rgba(239,68,68,0.08); color: #dc2626; }
+.resultat-net { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 24px; margin-top: 20px; display: flex; align-items: center; justify-content: space-between; border: 2px solid var(--success); }
+.resultat-label { font-size: 14px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 1px; }
+.resultat-value { font-size: 32px; font-weight: 800; color: var(--success); letter-spacing: -1px; }
+.resultat-sub { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+/* BILAN */
+.bilan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.bilan-col { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+.bilan-header { padding: 16px 20px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.bilan-actif .bilan-header { background: rgba(59,130,246,0.1); color: #2563eb; border-bottom: 2px solid var(--info); }
+.bilan-passif .bilan-header { background: rgba(168,85,247,0.1); color: #7c3aed; border-bottom: 2px solid #a855f7; }
+.bilan-section { padding: 10px 20px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-2); background: var(--bg); border-bottom: 1px solid var(--border); }
+.bilan-row { display: flex; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bilan-row:hover { background: rgba(245,184,0,0.03); }
+.bilan-total { display: flex; justify-content: space-between; padding: 14px 20px; font-weight: 700; font-size: 14px; border-top: 2px solid var(--border); }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border-radius: var(--radius); box-shadow: 0 20px 60px rgba(0,0,0,0.2); width: 640px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { width: 32px; height: 32px; border-radius: 8px; border: none; background: var(--bg); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.modal-body { padding: 24px; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-control { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; transition: border-color 0.2s; }
+.form-control:focus { border-color: var(--primary); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ecriture-lines { border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+.ecriture-line { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); align-items: center; }
+.ecriture-line:last-child { border-bottom: none; }
+.ecriture-line input { padding: 6px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-family: 'Inter', sans-serif; outline: none; }
+.ecriture-line input:focus { border-color: var(--primary); }
+.ecriture-header { background: var(--bg); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); }
+.add-line-btn { padding: 7px 14px; font-size: 12px; border: 1.5px dashed var(--border); border-radius: 8px; background: transparent; cursor: pointer; color: var(--text-2); font-family: 'Inter', sans-serif; transition: all 0.15s; width: 100%; }
+.add-line-btn:hover { border-color: var(--primary); color: var(--primary); }
+.eq-check { display: flex; justify-content: space-between; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 12px; margin-bottom: 16px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+@media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) { .sidebar { display: none; } .main { margin-left: 0; padding: 16px; } .cr-grid, .bilan-grid { grid-template-columns: 1fr; } .form-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search">
+    <span class="si">🔍</span>
+    <input type="text" placeholder="Rechercher un compte, une écriture…">
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-date" id="topbar-date"></div>
+    <div class="notif-btn">🔔<span class="notif-badge">3</span></div>
+    <div class="profile-btn">
+      <div class="profile-avatar">KY</div>
+      <div class="profile-info"><div class="profile-name">Konan Yao</div><div class="profile-agency">Agence Plateau</div></div>
+      <span style="font-size:10px;color:var(--text-2)">▼</span>
+    </div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-context">COMPTABILITÉ</div>
+  <a class="sidebar-item active" href="comptabilite.html"><span class="si-icon">📊</span><span>Plan comptable</span></a>
+  <a class="sidebar-item" href="#" onclick="showTab('grandlivre');return false"><span class="si-icon">📒</span><span>Grand livre</span></a>
+  <a class="sidebar-item" href="#" onclick="showTab('balance');return false"><span class="si-icon">⚖️</span><span>Balance de vérification</span></a>
+  <a class="sidebar-item" href="#" onclick="showTab('resultat');return false"><span class="si-icon">📈</span><span>Compte de résultat</span></a>
+  <a class="sidebar-item" href="#" onclick="showTab('bilan');return false"><span class="si-icon">🏛️</span><span>Bilan</span></a>
+  <div class="sidebar-section-title">AVANCÉ</div>
+  <a class="sidebar-item" href="#"><span class="si-icon">🔗</span><span>Rapprochement</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">📅</span><span>Exercices fiscaux</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">⚙️</span><span>Écritures automatiques</span></a>
+  <div class="sidebar-section-title">NAVIGATION</div>
+  <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span><span>Tableau de bord</span></a>
+  <a class="sidebar-item" href="rapports.html"><span class="si-icon">📋</span><span>Rapports BI</span></a>
+  <div class="sidebar-footer">🪙 GESTMONEY v2.4.1</div>
+</aside>
+
+<!-- LAYOUT -->
+<div class="layout">
+<main class="main">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Comptabilité SYSCOHADA</div>
+      <div class="page-sub">Tableau de bord comptable — Exercice 2026 · Juillet</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline btn-sm">📥 Exporter</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal()">+ Nouvelle écriture</button>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon">📈</div>
+      <div class="kpi-label">Produits du mois</div>
+      <div class="kpi-value" style="color:var(--success)">47 200 000</div>
+      <div class="kpi-trend trend-up">↑ +8,3% vs mois précédent</div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:2px">XOF</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">📉</div>
+      <div class="kpi-label">Charges du mois</div>
+      <div class="kpi-value" style="color:var(--danger)">28 500 000</div>
+      <div class="kpi-trend" style="color:var(--text-2)">→ Stable vs mois précédent</div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:2px">XOF</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-label">Résultat net</div>
+      <div class="kpi-value" style="color:var(--success)">18 700 000</div>
+      <div class="kpi-trend trend-up">↑ Bénéfice — marge 39,6%</div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:2px">XOF</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🏦</div>
+      <div class="kpi-label">Float total (571)</div>
+      <div class="kpi-value">12 400 000</div>
+      <div class="kpi-trend trend-neutral">Toutes agences confondues</div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:2px">XOF</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="showTab('grandlivre')" id="tab-grandlivre">Grand Livre</button>
+    <button class="tab-btn" onclick="showTab('balance')" id="tab-balance">Balance</button>
+    <button class="tab-btn" onclick="showTab('resultat')" id="tab-resultat">Compte de Résultat</button>
+    <button class="tab-btn" onclick="showTab('bilan')" id="tab-bilan">Bilan</button>
+  </div>
+
+  <!-- GRAND LIVRE -->
+  <div class="tab-panel active" id="panel-grandlivre">
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <select id="compte-select">
+          <option value="">Tous les comptes</option>
+          <option value="571">571 — Caisse</option>
+          <option value="706">706 — Commissions</option>
+          <option value="401">401 — Fournisseurs</option>
+          <option value="411">411 — Clients</option>
+          <option value="521">521 — Banque</option>
+          <option value="4611">4611 — Orange Money</option>
+          <option value="4612">4612 — MTN MoMo</option>
+          <option value="4613">4613 — Wave</option>
+        </select>
+        <input type="date" value="2026-07-01">
+        <input type="date" value="2026-07-10">
+        <button class="btn btn-outline btn-sm">🔍 Filtrer</button>
+        <button class="btn btn-outline btn-sm" style="margin-left:auto">📥 Exporter</button>
+      </div>
+      <div style="overflow-x:auto">
+      <table id="gl-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Référence</th><th>Libellé</th><th>Compte</th>
+            <th>Débit (XOF)</th><th>Crédit (XOF)</th><th>Solde (XOF)</th><th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="gl-tbody"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- BALANCE -->
+  <div class="tab-panel" id="panel-balance">
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <span style="font-size:13px;font-weight:600">Balance générale — Exercice 2026 · Période : Janvier–Juillet</span>
+        <button class="btn btn-outline btn-sm" style="margin-left:auto">📥 Exporter Excel</button>
+      </div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>N° Compte</th><th>Libellé</th><th>Total Débit</th><th>Total Crédit</th><th>Solde Débiteur</th><th>Solde Créditeur</th>
+          </tr>
+        </thead>
+        <tbody id="balance-tbody"></tbody>
+        <tfoot id="balance-tfoot"></tfoot>
+      </table>
+      </div>
+      <div class="balance-check" id="balance-check"></div>
+    </div>
+  </div>
+
+  <!-- COMPTE DE RESULTAT -->
+  <div class="tab-panel" id="panel-resultat">
+    <div class="cr-grid">
+      <div class="cr-col">
+        <div class="cr-header cr-header-produits">📈 Produits — Classe 7</div>
+        <div id="cr-produits"></div>
+        <div class="cr-total cr-total-produits"><span>TOTAL PRODUITS</span><span>47 200 000 XOF</span></div>
+      </div>
+      <div class="cr-col">
+        <div class="cr-header cr-header-charges">📉 Charges — Classe 6</div>
+        <div id="cr-charges"></div>
+        <div class="cr-total cr-total-charges"><span>TOTAL CHARGES</span><span>28 500 000 XOF</span></div>
+      </div>
+    </div>
+    <div class="resultat-net">
+      <div>
+        <div class="resultat-label">Résultat Net de l'exercice</div>
+        <div class="resultat-sub">Juillet 2026 — IBIG SOFT Côte d'Ivoire</div>
+      </div>
+      <div style="text-align:right">
+        <div class="resultat-value">+ 18 700 000 XOF</div>
+        <div class="resultat-sub" style="color:var(--success)">✅ Exercice bénéficiaire — Marge nette : 39,6%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILAN -->
+  <div class="tab-panel" id="panel-bilan">
+    <div class="bilan-grid">
+      <div class="bilan-col bilan-actif">
+        <div class="bilan-header">ACTIF</div>
+        <div id="bilan-actif"></div>
+        <div class="bilan-total"><span>TOTAL ACTIF</span><span style="color:var(--info)">58 350 000 XOF</span></div>
+      </div>
+      <div class="bilan-col bilan-passif">
+        <div class="bilan-header">PASSIF</div>
+        <div id="bilan-passif"></div>
+        <div class="bilan-total"><span>TOTAL PASSIF</span><span style="color:#7c3aed">58 350 000 XOF</span></div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:12px;font-size:12px;color:var(--text-2);background:var(--white);border-radius:10px;margin-top:12px;box-shadow:var(--card-shadow)">
+      ✅ <strong>Bilan équilibré</strong> — Actif = Passif = 58 350 000 XOF · Au 10/07/2026
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- MODAL NOUVELLE ÉCRITURE -->
+<div class="modal-overlay" id="modal-ecriture">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📝 Nouvelle écriture comptable</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date de l'écriture</label>
+          <input type="date" class="form-control" value="2026-07-10">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Référence pièce</label>
+          <input type="text" class="form-control" placeholder="Ex: FAC-2026-0147">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Journal</label>
+        <select class="form-control">
+          <option>Journal de Caisse (JC)</option>
+          <option>Journal de Banque (JB)</option>
+          <option>Journal des Achats (JA)</option>
+          <option>Journal des Ventes (JV)</option>
+          <option>Journal des Opérations Diverses (JOD)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Libellé général</label>
+        <input type="text" class="form-control" placeholder="Ex: Commission Orange Money — Juillet 2026">
+      </div>
+      <label class="form-label">Lignes d'écriture (partie double)</label>
+      <div class="ecriture-lines" id="ecriture-lines">
+        <div class="ecriture-line ecriture-header">
+          <span>Compte</span><span>Débit (XOF)</span><span>Crédit (XOF)</span><span></span>
+        </div>
+        <div class="ecriture-line">
+          <select style="padding:6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:Inter,sans-serif">
+            <option>571 — Caisse</option><option>706 — Commissions</option><option>401 — Fournisseurs</option><option>411 — Clients</option><option>4611 — Orange Money</option>
+          </select>
+          <input type="number" placeholder="0">
+          <input type="number" placeholder="0">
+          <button onclick="removeLine(this)" style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:16px">×</button>
+        </div>
+        <div class="ecriture-line">
+          <select style="padding:6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:Inter,sans-serif">
+            <option>706 — Commissions</option><option>571 — Caisse</option><option>401 — Fournisseurs</option><option>521 — Banque</option>
+          </select>
+          <input type="number" placeholder="0">
+          <input type="number" placeholder="0">
+          <button onclick="removeLine(this)" style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:16px">×</button>
+        </div>
+      </div>
+      <button class="add-line-btn" onclick="addLine()">+ Ajouter une ligne</button>
+      <div class="eq-check">
+        <span>Total Débit : <strong id="total-debit">0 XOF</strong></span>
+        <span id="eq-status" style="color:var(--text-2)">⚖️ En attente de saisie</span>
+        <span>Total Crédit : <strong id="total-credit">0 XOF</strong></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-outline">Enregistrer brouillon</button>
+      <button class="btn btn-primary">✅ Valider l'écriture</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Date
+const days=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const months=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const now=new Date();
+document.getElementById('topbar-date').textContent=days[now.getDay()]+' '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
+
+// Grand Livre data
+const glData = [
+  {date:'01/07/2026',ref:'JC-001',lib:'Solde initial caisse',compte:'571',debit:2500000,credit:0,source:'OUV'},
+  {date:'01/07/2026',ref:'JV-001',lib:'Commissions Orange Money',compte:'706',debit:0,credit:850000,source:'AUTO'},
+  {date:'02/07/2026',ref:'JC-002',lib:'Dépôt client Djibril Touré',compte:'571',debit:75000,credit:0,source:'TRANS'},
+  {date:'02/07/2026',ref:'JV-002',lib:'Commissions MTN MoMo',compte:'706',debit:0,credit:420000,source:'AUTO'},
+  {date:'03/07/2026',ref:'JC-003',lib:'Réapprovisionnement MTN',compte:'4612',debit:500000,credit:0,source:'FLOAT'},
+  {date:'03/07/2026',ref:'JB-001',lib:'Virement fournisseur',compte:'521',debit:0,credit:300000,source:'BANQ'},
+  {date:'04/07/2026',ref:'JA-001',lib:'Achat fournitures',compte:'601',debit:45000,credit:0,source:'ACHAT'},
+  {date:'05/07/2026',ref:'JV-003',lib:'Commissions Wave',compte:'706',debit:0,credit:210000,source:'AUTO'},
+  {date:'06/07/2026',ref:'JC-004',lib:'Retrait client Mariam Bamba',compte:'571',debit:0,credit:50000,source:'TRANS'},
+  {date:'07/07/2026',ref:'JOD-001',lib:'Régularisation écart',compte:'471',debit:5000,credit:0,source:'OD'},
+  {date:'08/07/2026',ref:'JV-004',lib:'Commissions Moov Money',compte:'706',debit:0,credit:95000,source:'AUTO'},
+  {date:'09/07/2026',ref:'JC-005',lib:'Cash In Ibrahim Sylla',compte:'4613',debit:120000,credit:0,source:'TRANS'},
+  {date:'10/07/2026',ref:'JB-002',lib:'Chèque loyer agence',compte:'614',debit:180000,credit:0,source:'BANQ'},
+  {date:'10/07/2026',ref:'JV-005',lib:'Commissions journalières',compte:'706',debit:0,credit:320000,source:'AUTO'},
+];
+
+let solde = 0;
+const glTbody = document.getElementById('gl-tbody');
+glData.forEach(r => {
+  solde += r.debit - r.credit;
+  const srcColors = {AUTO:'rgba(59,130,246,0.1)',TRANS:'rgba(34,197,94,0.1)',FLOAT:'rgba(245,184,0,0.15)',BANQ:'rgba(168,85,247,0.1)',OUV:'rgba(107,114,128,0.1)',OD:'rgba(239,68,68,0.1)',ACHAT:'rgba(245,158,11,0.1)'};
+  const srcTextColors = {AUTO:'var(--info)',TRANS:'var(--success)',FLOAT:'var(--primary)',BANQ:'#7c3aed',OUV:'var(--text-2)',OD:'var(--danger)',ACHAT:'var(--warning)'};
+  glTbody.innerHTML += `<tr>
+    <td style="color:var(--text-2);font-size:12px">${r.date}</td>
+    <td style="font-size:12px;font-family:monospace">${r.ref}</td>
+    <td>${r.lib}</td>
+    <td style="font-size:12px;color:var(--text-2)">${r.compte}</td>
+    <td class="debit-col">${r.debit>0?r.debit.toLocaleString('fr-FR')+'':''}</td>
+    <td class="credit-col">${r.credit>0?r.credit.toLocaleString('fr-FR')+'':''}</td>
+    <td class="${solde>=0?'solde-pos':'solde-neg'}">${solde.toLocaleString('fr-FR')}</td>
+    <td><span class="source-badge" style="background:${srcColors[r.source]||'rgba(59,130,246,0.1)'};color:${srcTextColors[r.source]||'var(--info)'}">${r.source}</span></td>
+  </tr>`;
+});
+glTbody.innerHTML += `<tr class="total-row"><td colspan="4"><strong>SOLDE FINAL</strong></td><td class="debit-col"><strong>3 425 000</strong></td><td class="credit-col"><strong>1 995 000</strong></td><td style="font-weight:700;color:var(--success)">1 430 000</td><td></td></tr>`;
+
+// Balance data
+const balanceData = [
+  {num:'101',lib:'Capital social',td:0,tc:10000000},
+  {num:'401',lib:'Fournisseurs',td:300000,tc:450000},
+  {num:'411',lib:'Clients',td:2150000,tc:1800000},
+  {num:'471',lib:'Comptes de régularisation',td:5000,tc:0},
+  {num:'521',lib:'Banque principale',td:8500000,tc:3200000},
+  {num:'571',lib:'Caisse agences',td:3425000,tc:1995000},
+  {num:'601',lib:'Achats de marchandises',td:8200000,tc:0},
+  {num:'606',lib:'Achats non stockés',td:650000,tc:0},
+  {num:'614',lib:'Charges locatives',td:1080000,tc:0},
+  {num:'641',lib:'Rémunérations du personnel',td:6200000,tc:0},
+  {num:'661',lib:'Intérêts bancaires',td:180000,tc:0},
+  {num:'4611',lib:'Float Orange Money',td:3500000,tc:1200000},
+  {num:'4612',lib:'Float MTN MoMo',td:1200000,tc:512000},
+  {num:'4613',lib:'Float Wave',td:980000,tc:420000},
+  {num:'706',lib:'Commissions & produits',td:850000,tc:13250000},
+];
+const balTbody = document.getElementById('balance-tbody');
+let sumTD=0,sumTC=0,sumSD=0,sumSC=0;
+balanceData.forEach(r=>{
+  const sd=Math.max(0,r.td-r.tc), sc=Math.max(0,r.tc-r.td);
+  sumTD+=r.td; sumTC+=r.tc; sumSD+=sd; sumSC+=sc;
+  balTbody.innerHTML+=`<tr>
+    <td style="font-family:monospace;font-size:12px">${r.num}</td>
+    <td>${r.lib}</td>
+    <td style="font-variant-numeric:tabular-nums">${r.td.toLocaleString('fr-FR')}</td>
+    <td style="font-variant-numeric:tabular-nums">${r.tc.toLocaleString('fr-FR')}</td>
+    <td class="${sd>0?'debit-col':''}">${sd>0?sd.toLocaleString('fr-FR'):''}</td>
+    <td class="${sc>0?'credit-col':''}">${sc>0?sc.toLocaleString('fr-FR'):''}</td>
+  </tr>`;
+});
+document.getElementById('balance-tfoot').innerHTML=`<tr style="font-weight:700;background:var(--bg)">
+  <td colspan="2"><strong>TOTAUX</strong></td>
+  <td style="font-variant-numeric:tabular-nums">${sumTD.toLocaleString('fr-FR')}</td>
+  <td style="font-variant-numeric:tabular-nums">${sumTC.toLocaleString('fr-FR')}</td>
+  <td class="debit-col">${sumSD.toLocaleString('fr-FR')}</td>
+  <td class="credit-col">${sumSC.toLocaleString('fr-FR')}</td>
+</tr>`;
+document.getElementById('balance-check').innerHTML=`✅ <strong>Balance équilibrée</strong> — Total Débit : ${sumTD.toLocaleString('fr-FR')} XOF = Total Crédit : ${sumTC.toLocaleString('fr-FR')} XOF`;
+
+// Compte de résultat
+const produits=[
+  {num:'706',lib:'Commissions Mobile Money',montant:32500000},
+  {num:'706',lib:'Frais de service & dossier',montant:8200000},
+  {num:'707',lib:'Ventes accessoires',montant:3800000},
+  {num:'758',lib:'Produits divers de gestion',montant:1500000},
+  {num:'776',lib:'Gains de change',montant:1200000},
+];
+const charges=[
+  {num:'601',lib:'Achats de marchandises',montant:8200000},
+  {num:'606',lib:'Achats non stockés',montant:650000},
+  {num:'614',lib:'Charges locatives agences',montant:1080000},
+  {num:'616',lib:'Assurances',montant:240000},
+  {num:'641',lib:'Rémunérations du personnel',montant:6200000},
+  {num:'646',lib:'Charges sociales',montant:1800000},
+  {num:'661',lib:'Intérêts bancaires',montant:180000},
+  {num:'681',lib:'Amortissements',montant:350000},
+  {num:'658',lib:'Charges diverses',montant:450000},
+  {num:'646',lib:'Formation & recrutement',montant:350000},
+];
+const crP=document.getElementById('cr-produits');
+const crC=document.getElementById('cr-charges');
+produits.forEach(r=>{ crP.innerHTML+=`<div class="cr-row"><span>${r.num} — ${r.lib}</span><span style="font-weight:600;font-variant-numeric:tabular-nums">${r.montant.toLocaleString('fr-FR')} XOF</span></div>`; });
+charges.forEach(r=>{ crC.innerHTML+=`<div class="cr-row"><span>${r.num} — ${r.lib}</span><span style="font-weight:600;font-variant-numeric:tabular-nums">${r.montant.toLocaleString('fr-FR')} XOF</span></div>`; });
+
+// Bilan
+const actifData = [
+  {section:'ACTIF IMMOBILISÉ',rows:[
+    {lib:'Matériel informatique (net)',montant:2800000},
+    {lib:'Mobilier & agencement (net)',montant:1200000},
+    {lib:'Dépôts & cautionnements',montant:500000},
+  ]},
+  {section:'ACTIF CIRCULANT',rows:[
+    {lib:'Clients & comptes rattachés',montant:350000},
+    {lib:'Autres créances',montant:120000},
+    {lib:'Float Orange Money (4611)',montant:2300000},
+    {lib:'Float MTN MoMo (4612)',montant:688000},
+    {lib:'Float Wave (4613)',montant:560000},
+    {lib:'Float Moov (4614)',montant:420000},
+    {lib:'Banque — Compte courant (521)',montant:5300000},
+    {lib:'Caisse agences (571)',montant:1430000},
+    {lib:'Charges constatées d\'avance',montant:80000},
+  ]},
+  {section:'TRÉSORERIE',rows:[
+    {lib:'Caisse siège',montant:950000},
+    {lib:'Valeurs en caisse',montant:152000},
+  ]},
+];
+const passifData = [
+  {section:'CAPITAUX PROPRES',rows:[
+    {lib:'Capital social',montant:10000000},
+    {lib:'Réserves légales',montant:1500000},
+    {lib:'Report à nouveau',montant:8200000},
+    {lib:'Résultat de l\'exercice',montant:18700000},
+  ]},
+  {section:'DETTES FINANCIÈRES',rows:[
+    {lib:'Emprunts moyen terme',montant:5200000},
+    {lib:'Comptes courants associés',montant:2500000},
+  ]},
+  {section:'DETTES D\'EXPLOITATION',rows:[
+    {lib:'Fournisseurs',montant:450000},
+    {lib:'Personnel & organismes soc.',montant:3200000},
+    {lib:'TVA à décaisser',montant:385000},
+    {lib:'Avances clients',montant:215000},
+    {lib:'Autres dettes',montant:0},
+  ]},
+];
+const bA=document.getElementById('bilan-actif'); const bP=document.getElementById('bilan-passif');
+actifData.forEach(sec=>{ bA.innerHTML+=`<div class="bilan-section">${sec.section}</div>`; sec.rows.forEach(r=>{ bA.innerHTML+=`<div class="bilan-row"><span>${r.lib}</span><span style="font-variant-numeric:tabular-nums">${r.montant.toLocaleString('fr-FR')} XOF</span></div>`; }); });
+passifData.forEach(sec=>{ bP.innerHTML+=`<div class="bilan-section">${sec.section}</div>`; sec.rows.forEach(r=>{ bP.innerHTML+=`<div class="bilan-row"><span>${r.lib}</span><span style="font-variant-numeric:tabular-nums">${r.montant.toLocaleString('fr-FR')} XOF</span></div>`; }); });
+
+// Tabs
+function showTab(t) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+}
+
+// Modal
+function openModal() { document.getElementById('modal-ecriture').classList.add('open'); }
+function closeModal() { document.getElementById('modal-ecriture').classList.remove('open'); }
+document.getElementById('modal-ecriture').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
+
+function addLine() {
+  const lines=document.getElementById('ecriture-lines');
+  const div=document.createElement('div');
+  div.className='ecriture-line';
+  div.innerHTML=`<select style="padding:6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:Inter,sans-serif"><option>571 — Caisse</option><option>706 — Commissions</option><option>401 — Fournisseurs</option><option>521 — Banque</option></select><input type="number" placeholder="0"><input type="number" placeholder="0"><button onclick="removeLine(this)" style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:16px">×</button>`;
+  lines.appendChild(div);
+}
+function removeLine(btn) { btn.closest('.ecriture-line').remove(); }
+</script>
+</body>
+</html>

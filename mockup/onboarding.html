@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Configuration initiale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --gold: #F5B800;
+  --gold-dark: #C99600;
+  --gold-light: rgba(245,184,0,0.10);
+  --bg: #F7F8FC;
+  --surface: #FFFFFF;
+  --text-primary: #111520;
+  --text-secondary: #6B7488;
+  --text-placeholder: #A0A8BE;
+  --border: #E4E7F0;
+  --border-focus: #F5B800;
+  --input-bg: #F7F8FC;
+  --success: #22C55E;
+  --success-light: rgba(34,197,94,0.10);
+  --danger: #EF4444;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.06);
+  --shadow-lg: 0 8px 32px rgba(15,17,23,0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F1117;
+    --surface: #161A26;
+    --text-primary: #ECEEF5;
+    --text-secondary: #8890AA;
+    --text-placeholder: #5A6280;
+    --border: #252B3E;
+    --input-bg: #1A1F30;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0F1117;
+  --surface: #161A26;
+  --text-primary: #ECEEF5;
+  --text-secondary: #8890AA;
+  --text-placeholder: #5A6280;
+  --border: #252B3E;
+  --input-bg: #1A1F30;
+}
+
+:root[data-theme="light"] {
+  --bg: #F7F8FC;
+  --surface: #FFFFFF;
+  --text-primary: #111520;
+  --text-secondary: #6B7488;
+  --text-placeholder: #A0A8BE;
+  --border: #E4E7F0;
+  --input-bg: #F7F8FC;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--gold);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.logo-text {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.header-right {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── STEPPER ── */
+.stepper-wrap {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 24px 40px;
+}
+
+.stepper-bar {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.steps-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.step-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  position: relative;
+  top: -18px;
+  z-index: 0;
+  transition: background 0.3s;
+}
+
+.step-connector.done { background: var(--gold); }
+
+.step-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text-placeholder);
+  transition: all 0.3s;
+  position: relative;
+  z-index: 1;
+}
+
+.step.done .step-circle {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #111520;
+}
+
+.step.active .step-circle {
+  background: var(--surface);
+  border-color: var(--gold);
+  color: var(--gold-dark);
+  box-shadow: 0 0 0 4px var(--gold-light);
+}
+
+.step-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-placeholder);
+  margin-top: 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.step.done .step-label { color: var(--text-secondary); }
+.step.active .step-label { color: var(--gold-dark); font-weight: 600; }
+
+/* ── MAIN CONTENT ── */
+.main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 40px 80px;
+}
+
+.page-header {
+  margin-bottom: 32px;
+}
+
+.step-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold-dark);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+
+.page-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── SPLIT CONTENT ── */
+.split {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* ── FORM CARD ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--gold-light);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(245,184,0,0.12);
+  background: var(--surface);
+}
+
+.form-group input::placeholder { color: var(--text-placeholder); }
+
+.select-wrapper {
+  position: relative;
+}
+
+.select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--text-secondary);
+  margin-top: 3px;
+  pointer-events: none;
+}
+
+.btn-add {
+  width: 100%;
+  padding: 11px;
+  background: var(--gold);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #111520;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.btn-add:hover {
+  background: #FFCA1A;
+  box-shadow: 0 4px 16px rgba(245,184,0,0.3);
+}
+
+.btn-add:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+/* ── AGENCIES LIST CARD ── */
+.agencies-list { display: flex; flex-direction: column; gap: 10px; }
+
+.agency-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  animation: slideIn 0.3s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.agency-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--gold-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.agency-info { flex: 1; min-width: 0; }
+
+.agency-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agency-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.agency-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--gold-light);
+  color: var(--gold-dark);
+}
+
+.agency-delete {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-placeholder);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.agency-delete:hover {
+  border-color: #EF4444;
+  color: #EF4444;
+  background: rgba(239,68,68,0.06);
+}
+
+.agency-delete:focus-visible { outline: 2px solid #EF4444; outline-offset: 2px; }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  display: block;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.empty-sub {
+  font-size: 12px;
+  color: var(--text-placeholder);
+}
+
+/* Count badge */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--gold);
+  color: #111520;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── FOOTER NAV ── */
+.footer-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 50;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-prev {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-prev:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.btn-skip {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn-skip:hover { color: var(--text-secondary); }
+
+.btn-next {
+  padding: 10px 24px;
+  background: var(--gold);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #111520;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-next:hover {
+  background: #FFCA1A;
+  box-shadow: 0 4px 16px rgba(245,184,0,0.3);
+}
+
+.btn-next:focus-visible,
+.btn-prev:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+/* Progress note */
+.progress-note {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  text-align: center;
+}
+
+.progress-note strong { color: var(--text-secondary); }
+
+@media (max-width: 680px) {
+  .stepper-wrap { padding: 16px 20px; }
+  .step-label { display: none; }
+  .main { padding: 24px 20px 80px; }
+  .split { grid-template-columns: 1fr; }
+  .footer-nav { padding: 12px 20px; }
+  .header { padding: 0 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agency-item { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🪙</div>
+    <span class="logo-text">GESTMONEY</span>
+  </div>
+  <div class="header-right">Configuration de votre espace · Étape 3 sur 5</div>
+</div>
+
+<!-- STEPPER -->
+<div class="stepper-wrap">
+  <div class="stepper-bar">
+    <div class="steps-row">
+
+      <div class="step done">
+        <div class="step-circle">✓</div>
+        <div class="step-label">Infos réseau</div>
+      </div>
+
+      <div class="step-connector done"></div>
+
+      <div class="step done">
+        <div class="step-circle">✓</div>
+        <div class="step-label">Opérateurs</div>
+      </div>
+
+      <div class="step-connector done"></div>
+
+      <div class="step active">
+        <div class="step-circle">3</div>
+        <div class="step-label">Agents &amp; Agences</div>
+      </div>
+
+      <div class="step-connector"></div>
+
+      <div class="step">
+        <div class="step-circle">4</div>
+        <div class="step-label">Paramètres financiers</div>
+      </div>
+
+      <div class="step-connector"></div>
+
+      <div class="step">
+        <div class="step-circle">5</div>
+        <div class="step-label">Finalisation</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <div class="step-eyebrow">Étape 3 sur 5</div>
+    <h1 class="page-title">Agents &amp; Agences</h1>
+    <p class="page-desc">Créez vos premières agences et affectez-y des responsables. Vous pourrez ajouter des agents individuels après la configuration.</p>
+  </div>
+
+  <div class="split">
+    <!-- LEFT: Form -->
+    <div class="card">
+      <div class="card-title">
+        <div class="card-title-icon">🏢</div>
+        Nouvelle agence
+      </div>
+
+      <form id="agencyForm" novalidate>
+        <div class="form-group">
+          <label for="agencyName">Nom de l'agence *</label>
+          <input type="text" id="agencyName" placeholder="Ex: Agence Plateau Centre" required>
+        </div>
+
+        <div class="form-group">
+          <label for="agencyCity">Ville *</label>
+          <div class="select-wrapper">
+            <select id="agencyCity" required>
+              <option value="">Sélectionner une ville...</option>
+              <option>Abidjan</option>
+              <option>Yamoussoukro</option>
+              <option>Bouaké</option>
+              <option>Daloa</option>
+              <option>Korhogo</option>
+              <option>San-Pédro</option>
+              <option>Man</option>
+              <option>Gagnoa</option>
+              <option>Abengourou</option>
+              <option>Divo</option>
+              <option>Soubré</option>
+              <option>Bondoukou</option>
+              <option>Agboville</option>
+              <option>Ferkessédougou</option>
+              <option>Odienné</option>
+              <option>Séguéla</option>
+              <option>Touba</option>
+              <option>Boundiali</option>
+              <option>Dimbokro</option>
+              <option>Tiassalé</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="agencyManager">Email du responsable *</label>
+          <input type="email" id="agencyManager" placeholder="responsable@exemple.com" required>
+        </div>
+
+        <button type="submit" class="btn-add">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+          </svg>
+          Ajouter cette agence
+        </button>
+      </form>
+    </div>
+
+    <!-- RIGHT: List -->
+    <div class="card">
+      <div class="card-title">
+        <div class="card-title-icon">📋</div>
+        Agences ajoutées
+        <span class="count-badge" id="agencyCount">2</span>
+      </div>
+
+      <div class="agencies-list" id="agencyList">
+        <!-- Pre-populated agencies -->
+        <div class="agency-item" data-id="1">
+          <div class="agency-avatar">🏢</div>
+          <div class="agency-info">
+            <div class="agency-name">Agence Plateau Centre</div>
+            <div class="agency-meta">Abidjan · koua.felix@orange.ci</div>
+            <div class="agency-tags">
+              <span class="tag">Active</span>
+            </div>
+          </div>
+          <button class="agency-delete" onclick="removeAgency(1)" aria-label="Supprimer cette agence">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="agency-item" data-id="2">
+          <div class="agency-avatar">🏢</div>
+          <div class="agency-info">
+            <div class="agency-name">Agence Yopougon Marché</div>
+            <div class="agency-meta">Abidjan · bamba.mariam@orange.ci</div>
+            <div class="agency-tags">
+              <span class="tag">Active</span>
+            </div>
+          </div>
+          <button class="agency-delete" onclick="removeAgency(2)" aria-label="Supprimer cette agence">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER NAV -->
+<div class="footer-nav">
+  <div class="footer-left">
+    <button class="btn-prev" onclick="history.back()">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+      </svg>
+      Précédent
+    </button>
+    <button class="btn-skip">Passer cette étape</button>
+  </div>
+
+  <div class="progress-note">
+    Étape <strong>3</strong> sur <strong>5</strong>
+  </div>
+
+  <button class="btn-next">
+    Continuer
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+    </svg>
+  </button>
+</div>
+
+<script>
+let agencies = [
+  { id: 1, name: 'Agence Plateau Centre', city: 'Abidjan', manager: 'koua.felix@orange.ci' },
+  { id: 2, name: 'Agence Yopougon Marché', city: 'Abidjan', manager: 'bamba.mariam@orange.ci' },
+];
+let nextId = 3;
+
+function updateCount() {
+  document.getElementById('agencyCount').textContent = agencies.length;
+}
+
+function renderEmpty() {
+  return `
+    <div class="empty-state">
+      <span class="empty-icon">🏢</span>
+      <div class="empty-text">Aucune agence ajoutée</div>
+      <div class="empty-sub">Utilisez le formulaire ci-contre pour ajouter votre première agence.</div>
+    </div>
+  `;
+}
+
+function removeAgency(id) {
+  agencies = agencies.filter(a => a.id !== id);
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (el) {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(12px)';
+    el.style.transition = 'all 0.2s';
+    setTimeout(() => {
+      el.remove();
+      if (agencies.length === 0) {
+        document.getElementById('agencyList').innerHTML = renderEmpty();
+      }
+      updateCount();
+    }, 200);
+  }
+}
+
+document.getElementById('agencyForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = document.getElementById('agencyName').value.trim();
+  const city = document.getElementById('agencyCity').value;
+  const manager = document.getElementById('agencyManager').value.trim();
+
+  if (!name || !city || !manager) return;
+
+  const agency = { id: nextId++, name, city, manager };
+  agencies.push(agency);
+
+  const list = document.getElementById('agencyList');
+
+  // Remove empty state if present
+  const empty = list.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const item = document.createElement('div');
+  item.className = 'agency-item';
+  item.dataset.id = agency.id;
+  item.innerHTML = `
+    <div class="agency-avatar">🏢</div>
+    <div class="agency-info">
+      <div class="agency-name">${escHtml(agency.name)}</div>
+      <div class="agency-meta">${escHtml(agency.city)} · ${escHtml(agency.manager)}</div>
+      <div class="agency-tags"><span class="tag">Active</span></div>
+    </div>
+    <button class="agency-delete" onclick="removeAgency(${agency.id})" aria-label="Supprimer cette agence">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+      </svg>
+    </button>
+  `;
+
+  list.appendChild(item);
+  updateCount();
+  e.target.reset();
+});
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

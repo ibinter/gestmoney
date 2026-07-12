@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Clients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#F5B800;--primary-dark:#D9A200;--primary-light:#FFF8E1;
+  --dark:#1A1D2E;--dark-2:#252840;--bg:#F0F2F7;--white:#FFFFFF;
+  --text:#1A1D2E;--text-2:#6B7280;--success:#22C55E;--danger:#EF4444;
+  --warning:#F59E0B;--info:#3B82F6;--border:#E5E7EB;
+  --card-shadow:0 2px 12px rgba(0,0,0,0.08);--radius:16px;
+  --sidebar-w:240px;--topbar-h:64px;
+}
+html{font-family:'Inter',sans-serif}
+body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar-h);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;z-index:200;box-shadow:0 1px 8px rgba(0,0,0,0.06)}
+.topbar-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.topbar-icon{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(245,184,0,0.35)}
+.topbar-name{font-size:18px;font-weight:800;color:var(--dark);letter-spacing:-.5px}
+.topbar-name span{color:var(--primary)}
+.topbar-search{flex:1;max-width:420px;position:relative}
+.topbar-search input{width:100%;padding:9px 16px 9px 40px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);outline:none;transition:border-color .2s}
+.topbar-search input:focus{border-color:var(--primary)}
+.topbar-search .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-2)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.topbar-date{font-size:12px;color:var(--text-2);white-space:nowrap}
+.notif-btn{position:relative;width:38px;height:38px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.notif-badge{position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:var(--danger);border-radius:50%;font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;border:2px solid var(--white)}
+.profile-btn{display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;cursor:pointer}
+.profile-avatar{width:28px;height:28px;background:var(--dark);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--primary);font-weight:700}
+.profile-info{font-size:12px;line-height:1.3}
+.profile-name{font-weight:600}
+.profile-agency{color:var(--text-2)}
+.layout{padding-top:var(--topbar-h);display:flex;min-height:100vh}
+.sidebar{position:fixed;top:var(--topbar-h);left:0;width:var(--sidebar-w);height:calc(100vh - var(--topbar-h));background:var(--dark);z-index:90;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-context{padding:16px 20px 8px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3);border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:8px}
+.sidebar-section-title{padding:10px 20px 4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.2)}
+.sidebar-item{display:flex;align-items:center;gap:12px;padding:11px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.65);cursor:pointer;text-decoration:none;margin:1px 8px;border-radius:10px;transition:all .15s}
+.sidebar-item:hover{background:rgba(255,255,255,0.07);color:#fff}
+.sidebar-item.active{background:rgba(245,184,0,0.15);color:var(--primary)}
+.sidebar-item .si-icon{font-size:16px;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid rgba(255,255,255,0.07);font-size:12px;color:rgba(255,255,255,0.3);display:flex;gap:10px;align-items:center}
+.main{margin-left:var(--sidebar-w);flex:1;padding:28px 28px 40px;min-width:0;transition:margin-right .3s}
+.main.panel-open{margin-right:400px}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.page-sub{font-size:13px;color:var(--text-2);margin-top:3px}
+.page-actions{display:flex;gap:10px}
+.btn{padding:9px 18px;font-size:13px;font-weight:600;border-radius:10px;border:none;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:var(--dark);box-shadow:0 2px 8px rgba(245,184,0,0.3)}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px)}
+.btn-outline{background:var(--white);color:var(--text);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:8px}
+.btn-danger{background:var(--danger);color:#fff;border:none}
+.btn-danger:hover{opacity:.9}
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-mini{background:var(--white);border-radius:12px;box-shadow:var(--card-shadow);padding:16px 20px;display:flex;gap:12px;align-items:center}
+.stat-mini-icon{font-size:24px}
+.stat-mini-val{font-size:20px;font-weight:700;letter-spacing:-.5px}
+.stat-mini-lbl{font-size:11px;color:var(--text-2);font-weight:500}
+/* FILTERS */
+.filters-bar{background:var(--white);border-radius:12px;box-shadow:var(--card-shadow);padding:14px 20px;display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.search-input{flex:1;min-width:200px;padding:9px 14px 9px 36px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;position:relative}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-2)}
+.search-wrap input{width:100%;padding:9px 14px 9px 36px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;outline:none}
+.search-wrap input:focus{border-color:var(--primary)}
+.filter-select{padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:12px;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);outline:none;cursor:pointer}
+.filter-select:focus{border-color:var(--primary)}
+/* TABLE */
+.table-wrap{background:var(--white);border-radius:var(--radius);box-shadow:var(--card-shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{padding:12px 16px;font-size:11px;font-weight:700;color:var(--text-2);text-align:left;letter-spacing:.5px;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(245,184,0,0.03);cursor:pointer}
+.avatar{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+.client-cell{display:flex;align-items:center;gap:10px}
+.client-name{font-weight:600;font-size:13px}
+.client-id{font-size:11px;color:var(--text-2)}
+.op-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.op-orange{background:rgba(255,107,0,0.12);color:#cc5500}
+.op-mtn{background:rgba(255,204,0,0.15);color:#8a6800}
+.op-wave{background:rgba(29,167,232,0.12);color:#0e6b9e}
+.op-moov{background:rgba(0,166,81,0.12);color:#005c2c}
+/* NIVEAUX */
+.lvl-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+.lvl-bronze{background:#fdf3e7;color:#92400e}
+.lvl-silver{background:#f3f4f6;color:#4b5563}
+.lvl-gold{background:rgba(245,184,0,0.15);color:#92400e}
+.lvl-platinum{background:rgba(168,85,247,0.12);color:#6d28d9}
+.action-btn{padding:4px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.action-btn:hover{border-color:var(--primary);color:var(--primary)}
+.table-footer{padding:12px 20px;font-size:12px;color:var(--text-2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+
+/* DETAIL PANEL */
+.detail-panel{position:fixed;top:var(--topbar-h);right:-440px;width:400px;height:calc(100vh - var(--topbar-h));background:var(--white);border-left:1px solid var(--border);box-shadow:-8px 0 32px rgba(0,0,0,0.1);z-index:150;transition:right .3s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column}
+.detail-panel.open{right:0}
+.panel-header{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:10}
+.panel-title{font-size:15px;font-weight:700}
+.panel-close{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.panel-body{padding:20px;flex:1}
+.panel-avatar{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto 12px}
+.panel-name{font-size:18px;font-weight:700;text-align:center;margin-bottom:4px}
+.panel-phone{font-size:13px;color:var(--text-2);text-align:center;margin-bottom:16px}
+.panel-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.pm-card{background:var(--bg);border-radius:10px;padding:12px;text-align:center}
+.pm-val{font-size:18px;font-weight:700;letter-spacing:-.5px}
+.pm-lbl{font-size:11px;color:var(--text-2);margin-top:2px}
+.panel-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-2);margin-bottom:10px}
+.txn-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.txn-item:last-child{border-bottom:none}
+.txn-left{display:flex;gap:8px;align-items:center}
+.txn-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.txn-name{font-size:13px;font-weight:500}
+.txn-date{font-size:11px;color:var(--text-2)}
+.txn-amount{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.panel-actions{padding:16px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;position:sticky;bottom:0;background:var(--white)}
+
+@media(max-width:1100px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.sidebar{display:none}.main{margin-left:0;padding:16px}.main.panel-open{margin-right:0}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-icon">🪙</div>
+    <div class="topbar-name">GEST<span>MONEY</span></div>
+  </a>
+  <div class="topbar-search"><span class="si">🔍</span><input type="text" id="topbar-search" placeholder="Rechercher un client, un numéro…" oninput="filterClients(this.value)"></div>
+  <div class="topbar-right">
+    <div class="topbar-date" id="topbar-date"></div>
+    <div class="notif-btn">🔔<span class="notif-badge">3</span></div>
+    <div class="profile-btn"><div class="profile-avatar">KY</div><div class="profile-info"><div class="profile-name">Konan Yao</div><div class="profile-agency">Agence Plateau</div></div><span style="font-size:10px;color:var(--text-2)">▼</span></div>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <div class="sidebar-context">CLIENTS</div>
+  <a class="sidebar-item active" href="clients.html"><span class="si-icon">👥</span><span>Tous les clients</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">🆕</span><span>Nouveaux (12 aujourd'hui)</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">✅</span><span>Clients actifs (2 847)</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">⭐</span><span>Programme fidélité</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">📋</span><span>Import / Export</span></a>
+  <a class="sidebar-item" href="#"><span class="si-icon">📊</span><span>Statistiques clients</span></a>
+  <div class="sidebar-section-title">NAVIGATION</div>
+  <a class="sidebar-item" href="index.html"><span class="si-icon">🏠</span><span>Tableau de bord</span></a>
+  <a class="sidebar-item" href="comptabilite.html"><span class="si-icon">📒</span><span>Comptabilité</span></a>
+  <a class="sidebar-item" href="rapports.html"><span class="si-icon">📊</span><span>Rapports BI</span></a>
+  <a class="sidebar-item" href="ia-fraude.html"><span class="si-icon">🤖</span><span>IA & Fraude</span></a>
+  <div class="sidebar-footer">🪙 GESTMONEY v2.4.1</div>
+</aside>
+
+<div class="layout">
+<main class="main" id="main-content">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Gestion des clients</div>
+      <div class="page-sub">3 214 clients enregistrés — 12 nouveaux aujourd'hui · 10 juillet 2026</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-outline btn-sm">📥 Importer CSV</button>
+      <button class="btn btn-outline btn-sm">📤 Exporter</button>
+      <button class="btn btn-primary btn-sm">+ Nouveau client</button>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-mini"><div class="stat-mini-icon">👥</div><div><div class="stat-mini-val">3 214</div><div class="stat-mini-lbl">Total clients</div></div></div>
+    <div class="stat-mini"><div class="stat-mini-icon" style="color:var(--success)">🆕</div><div><div class="stat-mini-val" style="color:var(--success)">+12</div><div class="stat-mini-lbl">Nouveaux aujourd'hui</div></div></div>
+    <div class="stat-mini"><div class="stat-mini-icon">✅</div><div><div class="stat-mini-val">2 847</div><div class="stat-mini-lbl">Clients actifs</div></div></div>
+    <div class="stat-mini"><div class="stat-mini-icon" style="color:var(--danger)">😴</div><div><div class="stat-mini-val" style="color:var(--danger)">367</div><div class="stat-mini-lbl">Clients inactifs</div></div></div>
+  </div>
+
+  <div class="filters-bar">
+    <div class="search-wrap">
+      <span class="si">🔍</span>
+      <input type="text" id="main-search" placeholder="Rechercher par nom, téléphone, agence…" oninput="filterClients(this.value)">
+    </div>
+    <select class="filter-select" onchange="applyFilters()">
+      <option value="">Tous les opérateurs</option>
+      <option value="Orange">Orange Money</option>
+      <option value="MTN">MTN MoMo</option>
+      <option value="Wave">Wave</option>
+      <option value="Moov">Moov Money</option>
+    </select>
+    <select class="filter-select" onchange="applyFilters()">
+      <option value="">Tous les niveaux</option>
+      <option value="BRONZE">Bronze</option>
+      <option value="SILVER">Silver</option>
+      <option value="GOLD">Gold</option>
+      <option value="PLATINUM">Platinum</option>
+    </select>
+    <select class="filter-select" onchange="applyFilters()">
+      <option value="">Toutes les agences</option>
+      <option>Agence Plateau</option>
+      <option>Agence Cocody</option>
+      <option>Agence Bouaké</option>
+      <option>Agence San-Pédro</option>
+    </select>
+    <span id="result-count" style="font-size:12px;color:var(--text-2);white-space:nowrap;margin-left:auto"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Client</th><th>Téléphone</th><th>Opérateur</th><th>Agence</th>
+        <th>Transactions</th><th>Points</th><th>Niveau</th><th>Dernière activité</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="clients-tbody"></tbody>
+    </table>
+    </div>
+    <div class="table-footer">
+      <span id="table-info">Affichage de 1–50 sur 3 214 clients</span>
+      <div style="display:flex;gap:8px">
+        <button class="action-btn">← Précédent</button>
+        <button class="action-btn" style="background:var(--primary);border-color:var(--primary);color:var(--dark)">1</button>
+        <button class="action-btn">2</button>
+        <button class="action-btn">3</button>
+        <button class="action-btn">Suivant →</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detail-panel">
+  <div class="panel-header">
+    <div class="panel-title">Détail client</div>
+    <button class="panel-close" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-body">
+    <div class="panel-avatar" id="panel-avatar"></div>
+    <div class="panel-name" id="panel-name"></div>
+    <div class="panel-phone" id="panel-phone"></div>
+    <div class="panel-metrics" id="panel-metrics"></div>
+    <div class="panel-section-title">5 dernières transactions</div>
+    <div id="panel-txns"></div>
+  </div>
+  <div class="panel-actions">
+    <button class="btn btn-outline" style="width:100%">✏️ Modifier le client</button>
+    <button class="btn btn-danger" style="width:100%">⏸ Suspendre le compte</button>
+    <button class="btn btn-primary" style="width:100%">📋 Toutes les transactions</button>
+  </div>
+</div>
+
+<script>
+const days=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const months=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const now=new Date();
+document.getElementById('topbar-date').textContent=days[now.getDay()]+' '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
+
+const prenoms=['Aminata','Fatou','Ibrahim','Djibril','Koffi','Raïssa','Youssouf','Cécile','Mariam','Seydou','Adama','Binta','Moussa','Nadia','Oumar','Pamela','Roch','Sali','Théodore','Ursule','Victor','Wafa','Xavier','Yolande','Zakaria','Awa','Boubacar','Coumba','Désiré','Esther'];
+const noms=['Koné','Touré','Bamba','Sylla','Diallo','Coulibaly','Dembélé','Traoré','Cissé','Sanogo','Ouédraogo','Sawadogo','Kaboré','Compaoré','Zongo','Dao','Yao','Ahou','Asséa','Gbané','Atta','Kra','N\'Guessan','Tanoh','Gnahoua','Kouakou','Djé','Konan','Brou','Aboua'];
+const operators=['Orange','Orange','Orange','MTN','MTN','Wave','Wave','Moov'];
+const agences=['Agence Plateau','Agence Cocody','Agence Bouaké','Agence San-Pédro','Agence Yamoussoukro'];
+const niveaux=['BRONZE','BRONZE','BRONZE','SILVER','SILVER','GOLD','GOLD','PLATINUM'];
+const avatarColors=['#FF6B00','#3B82F6','#22C55E','#7C3AED','#EF4444','#F59E0B','#1DA7E8','#9CA3AF','#EC4899','#14B8A6'];
+
+function rnd(arr){return arr[Math.floor(Math.random()*arr.length)]}
+function rndInt(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+
+const allClients=[];
+for(let i=0;i<50;i++){
+  const p=prenoms[i%prenoms.length], n=noms[i%noms.length];
+  const op=operators[i%operators.length];
+  const lvl=niveaux[i%niveaux.length];
+  const txns=rndInt(5,280);
+  const volume=txns*rndInt(15000,85000);
+  const points=Math.round(volume/10000);
+  const color=avatarColors[i%avatarColors.length];
+  const daysAgo=rndInt(0,30);
+  const lastDate=daysAgo===0?'Aujourd\'hui':daysAgo===1?'Hier':`Il y a ${daysAgo} j.`;
+  const tel='07'+rndInt(1000000,9999999);
+  const agence=agences[i%agences.length];
+  allClients.push({id:1000+i,prenom:p,nom:n,op,lvl,txns,volume,points,color,lastDate,tel,agence});
+}
+
+function opBadge(op){
+  const cls={Orange:'op-orange',MTN:'op-mtn',Wave:'op-wave',Moov:'op-moov'};
+  const dot={Orange:'🟠',MTN:'🟡',Wave:'🔵',Moov:'🟢'};
+  return `<span class="op-badge ${cls[op]||''}">${dot[op]||'⚫'} ${op}</span>`;
+}
+function lvlBadge(l){
+  const cls={BRONZE:'lvl-bronze',SILVER:'lvl-silver',GOLD:'lvl-gold',PLATINUM:'lvl-platinum'};
+  const ico={BRONZE:'🥉',SILVER:'🥈',GOLD:'🥇',PLATINUM:'💎'};
+  return `<span class="lvl-badge ${cls[l]}">${ico[l]} ${l}</span>`;
+}
+
+function renderTable(clients){
+  const tbody=document.getElementById('clients-tbody');
+  tbody.innerHTML='';
+  clients.forEach((c,i)=>{
+    const initials=(c.prenom[0]+c.nom[0]).toUpperCase();
+    tbody.innerHTML+=`<tr onclick="openPanel(${i})">
+      <td><div class="client-cell"><div class="avatar" style="background:${c.color}">${initials}</div><div><div class="client-name">${c.prenom} ${c.nom}</div><div class="client-id">#${c.id}</div></div></div></td>
+      <td style="font-family:monospace;font-size:12px">${c.tel}</td>
+      <td>${opBadge(c.op)}</td>
+      <td style="font-size:12px">${c.agence}</td>
+      <td style="font-weight:600;font-variant-numeric:tabular-nums">${c.txns}</td>
+      <td style="font-variant-numeric:tabular-nums">${c.points.toLocaleString('fr-FR')} pts</td>
+      <td>${lvlBadge(c.lvl)}</td>
+      <td style="font-size:12px;color:var(--text-2)">${c.lastDate}</td>
+      <td style="display:flex;gap:6px">
+        <button class="action-btn" onclick="event.stopPropagation();openPanel(${i})">👁️</button>
+        <button class="action-btn" onclick="event.stopPropagation()">✏️</button>
+      </td>
+    </tr>`;
+  });
+  document.getElementById('result-count').textContent=`${clients.length} résultats`;
+}
+
+let filtered=allClients;
+function filterClients(q){
+  q=q.toLowerCase();
+  document.getElementById('main-search').value=q;
+  filtered=allClients.filter(c=>(c.prenom+' '+c.nom).toLowerCase().includes(q)||c.tel.includes(q)||c.agence.toLowerCase().includes(q));
+  renderTable(filtered);
+}
+function applyFilters(){renderTable(filtered)}
+
+renderTable(allClients);
+
+// Panel
+function openPanel(idx){
+  const c=filtered[idx]||allClients[idx];
+  if(!c)return;
+  document.getElementById('panel-avatar').style.background=c.color;
+  document.getElementById('panel-avatar').textContent=(c.prenom[0]+c.nom[0]).toUpperCase();
+  document.getElementById('panel-name').textContent=c.prenom+' '+c.nom;
+  document.getElementById('panel-phone').innerHTML=`📞 ${c.tel} &nbsp;·&nbsp; ${opBadge(c.op)} &nbsp;·&nbsp; ${lvlBadge(c.lvl)}`;
+  document.getElementById('panel-metrics').innerHTML=`
+    <div class="pm-card"><div class="pm-val">${c.txns}</div><div class="pm-lbl">Transactions</div></div>
+    <div class="pm-card"><div class="pm-val">${(c.volume/1000000).toFixed(1)}M</div><div class="pm-lbl">Volume XOF</div></div>
+    <div class="pm-card"><div class="pm-val">${c.points.toLocaleString('fr-FR')}</div><div class="pm-lbl">Points fidélité</div></div>
+    <div class="pm-card"><div class="pm-val" style="font-size:14px">${c.agence.split(' ').pop()}</div><div class="pm-lbl">Agence</div></div>
+  `;
+  const txnTypes=[{ico:'⬇️',nom:'Dépôt',bg:'rgba(34,197,94,0.1)'},{ico:'⬆️',nom:'Retrait',bg:'rgba(239,68,68,0.1)'},{ico:'↪️',nom:'Cash In',bg:'rgba(59,130,246,0.1)'},{ico:'↩️',nom:'Cash Out',bg:'rgba(168,85,247,0.1)'},{ico:'🔄',nom:'Transfert',bg:'rgba(245,158,11,0.1)'}];
+  let txnHtml='';
+  for(let i=0;i<5;i++){
+    const t=txnTypes[i%txnTypes.length];
+    const amt=rndInt(10,150)*1000;
+    const d=rndInt(1,10);
+    const hr=rndInt(8,18);
+    const mn=rndInt(0,59);
+    txnHtml+=`<div class="txn-item">
+      <div class="txn-left">
+        <div class="txn-icon" style="background:${t.bg}">${t.ico}</div>
+        <div><div class="txn-name">${t.nom}</div><div class="txn-date">0${d}/07/2026 ${hr}:${mn.toString().padStart(2,'0')}</div></div>
+      </div>
+      <div class="txn-amount" style="color:${t.nom==='Retrait'||t.nom==='Cash Out'?'var(--danger)':'var(--success)'}">${t.nom==='Retrait'||t.nom==='Cash Out'?'−':'+'} ${amt.toLocaleString('fr-FR')} XOF</div>
+    </div>`;
+  }
+  document.getElementById('panel-txns').innerHTML=txnHtml;
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('main-content').classList.add('panel-open');
+}
+function closePanel(){
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('main-content').classList.remove('panel-open');
+}
+</script>
+</body>
+</html>

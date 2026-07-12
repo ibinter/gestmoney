@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESTMONEY — Connexion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --gold: #F5B800;
+  --gold-dark: #C99600;
+  --gold-glow: rgba(245,184,0,0.18);
+  --panel-bg: #0F1117;
+  --panel-surface: #161A26;
+  --form-bg: #FFFFFF;
+  --form-surface: #F7F8FC;
+  --text-on-dark: #FFFFFF;
+  --muted-on-dark: rgba(255,255,255,0.55);
+  --faint-on-dark: rgba(255,255,255,0.12);
+  --text-primary: #111520;
+  --text-secondary: #6B7488;
+  --text-placeholder: #A0A8BE;
+  --border: #E4E7F0;
+  --border-focus: #F5B800;
+  --input-bg: #F7F8FC;
+  --success: #22C55E;
+  --radius: 12px;
+  --shadow-form: 0 24px 64px rgba(15,17,23,0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --form-bg: #181C2A;
+    --form-surface: #1E2235;
+    --text-primary: #ECEEF5;
+    --text-secondary: #8890AA;
+    --text-placeholder: #5A6280;
+    --border: #2A2F45;
+    --input-bg: #1E2235;
+    --shadow-form: 0 24px 64px rgba(0,0,0,0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  --form-bg: #181C2A;
+  --form-surface: #1E2235;
+  --text-primary: #ECEEF5;
+  --text-secondary: #8890AA;
+  --text-placeholder: #5A6280;
+  --border: #2A2F45;
+  --input-bg: #1E2235;
+  --shadow-form: 0 24px 64px rgba(0,0,0,0.4);
+}
+
+:root[data-theme="light"] {
+  --form-bg: #FFFFFF;
+  --form-surface: #F7F8FC;
+  --text-primary: #111520;
+  --text-secondary: #6B7488;
+  --text-placeholder: #A0A8BE;
+  --border: #E4E7F0;
+  --input-bg: #F7F8FC;
+  --shadow-form: 0 24px 64px rgba(15,17,23,0.10);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  min-height: 100vh;
+  background: var(--panel-bg);
+}
+
+/* ───── LEFT PANEL ───── */
+.left {
+  flex: 0 0 40%;
+  background: var(--panel-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 52px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Geometric background pattern */
+.left-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.left-bg svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Glow orb */
+.left::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Logo */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.logo-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--gold);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 4px 20px rgba(245,184,0,0.4);
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-on-dark);
+  letter-spacing: -0.5px;
+}
+
+.logo-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted-on-dark);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+/* Center content */
+.left-center {
+  position: relative;
+  z-index: 1;
+}
+
+.left-slogan {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-on-dark);
+  line-height: 1.35;
+  text-wrap: balance;
+  margin-bottom: 40px;
+  letter-spacing: -0.4px;
+}
+
+.left-slogan span {
+  color: var(--gold);
+}
+
+/* Stats */
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--faint-on-dark);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 14px 18px;
+  backdrop-filter: blur(4px);
+}
+
+.stat-emoji {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-on-dark);
+  margin-top: 1px;
+}
+
+/* Testimonial */
+.testimonial {
+  background: var(--faint-on-dark);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-left: 3px solid var(--gold);
+  border-radius: 12px;
+  padding: 20px 20px 20px 22px;
+  margin-bottom: 0;
+}
+
+.testimonial-quote {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.65;
+  font-style: italic;
+  margin-bottom: 14px;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F5B800 0%, #FF8C00 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.author-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-on-dark);
+}
+
+.author-role {
+  font-size: 11px;
+  color: var(--muted-on-dark);
+  margin-top: 1px;
+}
+
+/* Bottom: operators */
+.left-bottom {
+  position: relative;
+  z-index: 1;
+}
+
+.operators-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted-on-dark);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.operators-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.op-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--faint-on-dark);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.op-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.op-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.02em;
+}
+
+/* ───── RIGHT PANEL ───── */
+.right {
+  flex: 1;
+  background: var(--form-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  position: relative;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 420px;
+  animation: fadeUp 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.form-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold-dark);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.form-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.6px;
+  text-wrap: balance;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.form-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 36px;
+  line-height: 1.5;
+}
+
+/* Floating label fields */
+.field {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.field-label {
+  position: absolute;
+  left: 42px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--text-placeholder);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.22,1,0.36,1);
+  background: transparent;
+  padding: 0 2px;
+}
+
+.field input:focus ~ .field-label,
+.field input:not(:placeholder-shown) ~ .field-label {
+  top: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold-dark);
+  background: var(--form-bg);
+  left: 38px;
+}
+
+.field-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-placeholder);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  transition: color 0.2s;
+}
+
+.field input:focus ~ .field-icon,
+.field input:not(:placeholder-shown) ~ .field-icon {
+  color: var(--gold-dark);
+}
+
+/* Reorder: input first, label after (CSS sibling trick) */
+.field input {
+  width: 100%;
+  padding: 16px 16px 16px 42px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(245,184,0,0.12);
+  background: var(--form-bg);
+}
+
+.field input::placeholder {
+  color: transparent;
+}
+
+.toggle-pw {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-placeholder);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.toggle-pw:hover { color: var(--text-secondary); }
+.toggle-pw:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.forgot-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gold-dark);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.forgot-link:hover { text-decoration: underline; }
+
+/* Submit button */
+.btn-primary {
+  width: 100%;
+  padding: 15px;
+  background: var(--gold);
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #111520;
+  cursor: pointer;
+  letter-spacing: -0.2px;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #FFCA1A;
+  box-shadow: 0 6px 24px rgba(245,184,0,0.35);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.btn-primary:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+/* Spinner */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-top-color: #111520;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-primary.loading .spinner { display: block; }
+.btn-primary.loading .btn-text { opacity: 0.7; }
+
+/* Separator */
+.separator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.separator::before,
+.separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.separator span {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  font-weight: 500;
+}
+
+/* SSO button */
+.btn-sso {
+  width: 100%;
+  padding: 13px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text-placeholder);
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+
+.sso-soon {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--border);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Demo accounts */
+.demo-box {
+  margin-top: 24px;
+  background: var(--form-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.demo-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.demo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.demo-row:last-child { margin-bottom: 0; }
+
+.demo-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.demo-pill.admin { background: rgba(245,184,0,0.15); color: var(--gold-dark); }
+.demo-pill.agent { background: rgba(34,197,94,0.12); color: #16a34a; }
+
+.demo-creds {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+}
+
+.demo-creds strong { color: var(--text-primary); font-weight: 600; }
+
+/* Language selector */
+.form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 32px;
+}
+
+.lang-select {
+  display: flex;
+  gap: 4px;
+}
+
+.lang-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.lang-btn.active,
+.lang-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold-dark);
+  background: rgba(245,184,0,0.08);
+}
+
+.copyright {
+  font-size: 11px;
+  color: var(--text-placeholder);
+}
+
+/* Error message */
+.error-msg {
+  display: none;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #dc2626;
+  margin-bottom: 16px;
+}
+
+.error-msg.visible { display: block; }
+
+/* ───── RESPONSIVE ───── */
+@media (max-width: 768px) {
+  body { flex-direction: column; }
+
+  .left {
+    flex: 0 0 auto;
+    padding: 32px 24px;
+    min-height: auto;
+  }
+
+  .left-center { display: none; }
+
+  .left {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .left-bottom { display: none; }
+
+  .right {
+    flex: 1;
+    padding: 32px 20px;
+    align-items: flex-start;
+  }
+
+  .form-card {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-card { animation: none; }
+  .btn-primary, .field input { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- LEFT PANEL -->
+<div class="left">
+  <div class="left-bg">
+    <svg viewBox="0 0 500 900" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Geometric triangle pattern -->
+      <polygon points="0,0 120,0 60,104" fill="rgba(245,184,0,0.04)"/>
+      <polygon points="120,0 240,0 180,104" fill="rgba(245,184,0,0.03)"/>
+      <polygon points="60,104 180,104 120,208" fill="rgba(245,184,0,0.05)"/>
+      <polygon points="240,0 360,0 300,104" fill="rgba(255,255,255,0.02)"/>
+      <polygon points="300,104 420,104 360,208" fill="rgba(245,184,0,0.03)"/>
+      <polygon points="360,0 480,0 420,104" fill="rgba(245,184,0,0.02)"/>
+      <polygon points="0,208 120,208 60,312" fill="rgba(255,255,255,0.02)"/>
+      <polygon points="120,208 240,208 180,312" fill="rgba(245,184,0,0.04)"/>
+      <polygon points="180,312 300,312 240,416" fill="rgba(245,184,0,0.03)"/>
+      <polygon points="60,416 180,416 120,520" fill="rgba(255,255,255,0.02)"/>
+      <polygon points="300,416 420,416 360,520" fill="rgba(245,184,0,0.04)"/>
+      <polygon points="0,624 120,624 60,728" fill="rgba(245,184,0,0.03)"/>
+      <polygon points="240,728 360,728 300,832" fill="rgba(255,255,255,0.02)"/>
+      <polygon points="360,624 480,624 420,728" fill="rgba(245,184,0,0.04)"/>
+      <polygon points="120,832 240,832 180,900" fill="rgba(245,184,0,0.03)"/>
+      <!-- Diagonal lines -->
+      <line x1="0" y1="900" x2="500" y2="0" stroke="rgba(245,184,0,0.04)" stroke-width="1"/>
+      <line x1="-100" y1="900" x2="400" y2="0" stroke="rgba(245,184,0,0.03)" stroke-width="1"/>
+      <line x1="100" y1="900" x2="600" y2="0" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <!-- Logo -->
+  <div class="logo">
+    <div class="logo-icon">🪙</div>
+    <div>
+      <div class="logo-text">GESTMONEY</div>
+      <div class="logo-sub">by IBIG SOFT</div>
+    </div>
+  </div>
+
+  <!-- Center: slogan + stats + testimonial -->
+  <div class="left-center">
+    <p class="left-slogan">La plateforme <span>intelligente</span> de gestion des services financiers digitaux</p>
+
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-emoji">🌍</span>
+        <div>
+          <div class="stat-value" data-target="16" data-suffix=" pays africains">0</div>
+          <div class="stat-label">Présence continentale</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-emoji">💳</span>
+        <div>
+          <div class="stat-value" data-target="10000" data-suffix="+ réseaux" data-separator=",">0</div>
+          <div class="stat-label">Réseaux d'agents connectés</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-emoji">🔄</span>
+        <div>
+          <div class="stat-value" data-target="2.5" data-suffix=" Mds XOF/jour" data-decimal="true">0</div>
+          <div class="stat-label">Volume de transactions quotidien</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="testimonial">
+      <p class="testimonial-quote">« GESTMONEY a transformé la façon dont nous gérons nos 200 agents. La visibilité en temps réel sur les transactions est un game-changer pour nous. »</p>
+      <div class="testimonial-author">
+        <div class="author-avatar">AD</div>
+        <div>
+          <div class="author-name">Aminata Diallo</div>
+          <div class="author-role">Chef d'agence · Orange Money Sénégal</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: operator logos -->
+  <div class="left-bottom">
+    <div class="operators-label">Opérateurs partenaires</div>
+    <div class="operators-row">
+      <div class="op-badge">
+        <div class="op-dot" style="background:#FF6600;"></div>
+        <span class="op-name">Orange</span>
+      </div>
+      <div class="op-badge">
+        <div class="op-dot" style="background:#FFCC00;"></div>
+        <span class="op-name">MTN</span>
+      </div>
+      <div class="op-badge">
+        <div class="op-dot" style="background:#1BA0E1;"></div>
+        <span class="op-name">Wave</span>
+      </div>
+      <div class="op-badge">
+        <div class="op-dot" style="background:#0094D9;"></div>
+        <span class="op-name">Moov</span>
+      </div>
+      <div class="op-badge">
+        <div class="op-dot" style="background:#EE0000;"></div>
+        <span class="op-name">Airtel</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right">
+  <div class="form-card">
+    <div class="form-eyebrow">Espace sécurisé</div>
+    <h1 class="form-title">Bienvenue sur GESTMONEY</h1>
+    <p class="form-sub">Connectez-vous à votre espace de gestion</p>
+
+    <div class="error-msg" id="errorMsg">
+      Identifiants incorrects. Veuillez vérifier votre email et mot de passe.
+    </div>
+
+    <form id="loginForm" novalidate>
+      <!-- Email -->
+      <div class="field">
+        <input type="email" id="email" name="email" placeholder=" " autocomplete="email">
+        <svg class="field-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+        </svg>
+        <label class="field-label" for="email">Adresse email</label>
+      </div>
+
+      <!-- Password -->
+      <div class="field">
+        <input type="password" id="password" name="password" placeholder=" " autocomplete="current-password" style="padding-right: 44px;">
+        <svg class="field-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+        </svg>
+        <label class="field-label" for="password">Mot de passe</label>
+        <button type="button" class="toggle-pw" id="togglePw" aria-label="Afficher le mot de passe">
+          <svg id="eyeIcon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Remember + forgot -->
+      <div class="field-row">
+        <label class="checkbox-label">
+          <input type="checkbox" name="remember"> Se souvenir de moi
+        </label>
+        <a href="forgot-password.html" class="forgot-link">Mot de passe oublié ?</a>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" class="btn-primary" id="loginBtn">
+        <div class="spinner" id="spinner"></div>
+        <span class="btn-text">Se connecter</span>
+      </button>
+    </form>
+
+    <div class="separator"><span>ou</span></div>
+
+    <button class="btn-sso" disabled>
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 1a9 9 0 100 18A9 9 0 0010 1zm0 2a7 7 0 110 14A7 7 0 0110 3zm0 3a1 1 0 00-1 1v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3V7a1 1 0 00-1-1z" clip-rule="evenodd"/>
+      </svg>
+      Connexion avec SSO
+      <span class="sso-soon">Bientôt</span>
+    </button>
+
+    <!-- Demo accounts -->
+    <div class="demo-box">
+      <div class="demo-label">Comptes de démonstration</div>
+      <div class="demo-row" onclick="fillDemo('admin@gestmoney.demo','Admin2026!')">
+        <span class="demo-pill admin">Admin</span>
+        <span class="demo-creds"><strong>admin@gestmoney.demo</strong> — Admin2026!</span>
+      </div>
+      <div class="demo-row" onclick="fillDemo('agent@gestmoney.demo','Demo2026!')">
+        <span class="demo-pill agent">Agent</span>
+        <span class="demo-creds"><strong>agent@gestmoney.demo</strong> — Demo2026!</span>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <div class="lang-select">
+        <button class="lang-btn active">FR</button>
+        <button class="lang-btn">EN</button>
+        <button class="lang-btn">AR</button>
+      </div>
+      <span class="copyright">© 2026 IBIG SOFT</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Counter animation ──
+function animateCounter(el) {
+  const target = parseFloat(el.dataset.target);
+  const suffix = el.dataset.suffix || '';
+  const isDecimal = el.dataset.decimal === 'true';
+  const duration = 2000;
+  const start = performance.now();
+
+  function step(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const value = target * ease;
+
+    if (isDecimal) {
+      el.textContent = value.toFixed(1) + suffix;
+    } else {
+      const rounded = Math.round(value);
+      el.textContent = rounded.toLocaleString('fr-FR') + suffix;
+    }
+
+    if (progress < 1) requestAnimationFrame(step);
+  }
+
+  requestAnimationFrame(step);
+}
+
+// Run counters when page loads
+window.addEventListener('load', () => {
+  document.querySelectorAll('[data-target]').forEach(el => {
+    // Use Intersection Observer for robustness
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setTimeout(() => animateCounter(el), 200);
+        obs.disconnect();
+      }
+    });
+    obs.observe(el);
+  });
+});
+
+// ── Password toggle ──
+const togglePw = document.getElementById('togglePw');
+const pwInput = document.getElementById('password');
+const eyeIcon = document.getElementById('eyeIcon');
+
+togglePw.addEventListener('click', () => {
+  const isPassword = pwInput.type === 'password';
+  pwInput.type = isPassword ? 'text' : 'password';
+  eyeIcon.innerHTML = isPassword
+    ? '<path d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"/><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>'
+    : '<path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>';
+});
+
+// ── Fill demo credentials ──
+function fillDemo(email, password) {
+  document.getElementById('email').value = email;
+  document.getElementById('password').value = password;
+  // Trigger input events so floating labels activate
+  ['email','password'].forEach(id => {
+    document.getElementById(id).dispatchEvent(new Event('input'));
+  });
+}
+
+// ── Login form submit ──
+const form = document.getElementById('loginForm');
+const loginBtn = document.getElementById('loginBtn');
+const errorMsg = document.getElementById('errorMsg');
+
+const VALID_CREDENTIALS = [
+  { email: 'admin@gestmoney.demo', password: 'Admin2026!' },
+  { email: 'agent@gestmoney.demo', password: 'Demo2026!' },
+];
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  errorMsg.classList.remove('visible');
+
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  loginBtn.classList.add('loading');
+  loginBtn.disabled = true;
+
+  setTimeout(() => {
+    const valid = VALID_CREDENTIALS.some(c => c.email === email && c.password === password);
+
+    if (valid) {
+      loginBtn.querySelector('.btn-text').textContent = 'Connexion réussie ✓';
+      setTimeout(() => { window.location.href = 'index.html'; }, 400);
+    } else {
+      loginBtn.classList.remove('loading');
+      loginBtn.disabled = false;
+      errorMsg.classList.add('visible');
+    }
+  }, 1500);
+});
+
+// ── Language buttons ──
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

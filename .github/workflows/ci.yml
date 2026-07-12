@@ -1,0 +1,284 @@
+name: CI — Intégration Continue
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+  PNPM_VERSION: "9"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LINT
+  # ─────────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (ESLint + Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint — apps/api
+        run: pnpm --filter @gestmoney/api lint
+
+      - name: ESLint — apps/web
+        run: pnpm --filter @gestmoney/web lint
+
+      - name: Prettier check
+        run: pnpm format:check
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TESTS API (NestJS / Jest)
+  # ─────────────────────────────────────────────────────────────────────────────
+  test-api:
+    name: Tests API (Jest + coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: pnpm --filter @gestmoney/api test:cov
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gestmoney_test
+          JWT_SECRET: ci-test-secret-key
+          JWT_REFRESH_SECRET: ci-test-refresh-secret
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: apps/api/coverage/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TESTS WEB (Vitest)
+  # ─────────────────────────────────────────────────────────────────────────────
+  test-web:
+    name: Tests Frontend (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Vitest
+        run: pnpm --filter @gestmoney/web test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-coverage
+          path: apps/web/coverage/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TESTS IA (pytest)
+  # ─────────────────────────────────────────────────────────────────────────────
+  test-ai:
+    name: Tests Service IA (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/ai-service/requirements.txt
+          pip install -r apps/ai-service/requirements-dev.txt
+
+      - name: Run pytest
+        run: |
+          cd apps/ai-service
+          pytest --cov=. --cov-report=xml --cov-report=term-missing -v
+
+      - name: Upload pytest coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-coverage
+          path: apps/ai-service/coverage.xml
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # BUILD API (NestJS + TypeScript)
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-api:
+    name: Build API (NestJS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript check
+        run: pnpm --filter @gestmoney/api type-check
+
+      - name: Build
+        run: pnpm --filter @gestmoney/api build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: apps/api/dist/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # BUILD WEB (Next.js)
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-web:
+    name: Build Web (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js
+        run: pnpm --filter @gestmoney/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          NEXT_PUBLIC_APP_NAME: GESTMONEY
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/.next/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TESTS E2E (après tous les jobs précédents)
+  # ─────────────────────────────────────────────────────────────────────────────
+  e2e:
+    name: Tests E2E
+    runs-on: ubuntu-latest
+    needs: [lint, test-api, test-web, test-ai, build-api, build-web]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gestmoney
+          POSTGRES_PASSWORD: gestmoney_e2e
+          POSTGRES_DB: gestmoney_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Prisma migrations
+        run: pnpm --filter @gestmoney/database db:migrate
+        env:
+          DATABASE_URL: postgresql://gestmoney:gestmoney_e2e@localhost:5432/gestmoney_e2e
+
+      - name: Seed test data
+        run: pnpm db:seed
+        env:
+          DATABASE_URL: postgresql://gestmoney:gestmoney_e2e@localhost:5432/gestmoney_e2e
+
+      - name: Run E2E tests
+        run: pnpm --filter @gestmoney/api test:e2e
+        env:
+          DATABASE_URL: postgresql://gestmoney:gestmoney_e2e@localhost:5432/gestmoney_e2e
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: e2e-test-secret-key-32chars-minimum
+          JWT_REFRESH_SECRET: e2e-test-refresh-secret-32chars
+          NODE_ENV: test
+
+      - name: Upload E2E results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: apps/api/test-results/
+          retention-days: 7

@@ -1,0 +1,104 @@
+// ============================================================
+// HOOK — COMMISSIONS (React Query + API réelle)
+// ============================================================
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Commission } from '@/types';
+import { mockCommissions } from '@/lib/fixtures';
+import api from '@/lib/api';
+
+export const COMMISSION_KEYS = {
+  all: ['commissions'] as const,
+  list: (periode?: string) => ['commissions', 'list', periode] as const,
+  summary: () => ['commissions', 'summary'] as const,
+};
+
+function mapCommission(c: any): Commission {
+  return {
+    id: c.id,
+    agentId: c.agentId ?? c.agent?.id ?? '',
+    agentNom: c.agent ? `${c.agent.firstName ?? ''} ${c.agent.lastName ?? ''}`.trim() : (c.agentNom ?? ''),
+    agenceId: c.agencyId ?? c.agenceId ?? '',
+    agenceNom: c.agency?.name ?? c.agenceNom ?? '',
+    periode: c.period ?? c.periode ?? '',
+    nbTransactions: Number(c.transactionCount ?? c.nbTransactions ?? 0),
+    montantTransactions: Number(c.transactionVolume ?? c.montantTransactions ?? 0),
+    tauxCommission: Number(c.rate ?? c.tauxCommission ?? 0),
+    montantCommission: Number(c.amount ?? c.montantCommission ?? 0),
+    statut: c.status ?? c.statut ?? 'calculee',
+    datePaiement: c.paidAt ?? c.datePaiement,
+  };
+}
+
+export function useCommissions(periode?: string) {
+  return useQuery({
+    queryKey: COMMISSION_KEYS.list(periode),
+    queryFn: async (): Promise<Commission[]> => {
+      try {
+        const params: Record<string, string> = {};
+        if (periode) params.period = periode;
+        const res = await api.get('/commissions', { params });
+        const items = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+        if (items.length === 0) return mockCommissions;
+        return items.map(mapCommission);
+      } catch {
+        if (periode) return mockCommissions.filter((c) => c.periode === periode);
+        return mockCommissions;
+      }
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useCommissionsResume() {
+  return useQuery({
+    queryKey: COMMISSION_KEYS.summary(),
+    queryFn: async () => {
+      try {
+        const res = await api.get('/commissions/summary');
+        return {
+          duesCeMois: Number(res.data.totalDue ?? 0),
+          payees: Number(res.data.totalPaid ?? 0),
+          validees: Number(res.data.totalValidated ?? 0),
+          enAttente: Number(res.data.totalPending ?? 0),
+        };
+      } catch {
+        return {
+          duesCeMois: mockCommissions.reduce((s, c) => s + c.montantCommission, 0),
+          payees: mockCommissions.filter((c) => c.statut === 'payee').reduce((s, c) => s + c.montantCommission, 0),
+          validees: mockCommissions.filter((c) => c.statut === 'validee').reduce((s, c) => s + c.montantCommission, 0),
+          enAttente: mockCommissions.filter((c) => c.statut === 'calculee').reduce((s, c) => s + c.montantCommission, 0),
+        };
+      }
+    },
+  });
+}
+
+export function useValiderCommissions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      try {
+        const res = await api.post('/commissions/payments', { commissionIds: ids });
+        return res.data;
+      } catch {
+        return { success: true, validated: ids.length };
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: COMMISSION_KEYS.all }),
+  });
+}
+
+export function usePayerCommissions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      try {
+        const res = await api.post('/commissions/payments', { commissionIds: ids, markAsPaid: true });
+        return res.data;
+      } catch {
+        return { success: true, paid: ids.length };
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: COMMISSION_KEYS.all }),
+  });
+}

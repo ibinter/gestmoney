@@ -1,0 +1,15 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@gestmoney/(.*)$": "<rootDir>/../../packages/$1/src"
+  },
+  "testTimeout": 30000,
+  "globalSetup": "./setup.ts",
+  "globalTeardown": "./teardown.ts"
+}
