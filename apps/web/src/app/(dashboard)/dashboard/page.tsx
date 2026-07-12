@@ -11,12 +11,14 @@ import { Button } from '@/components/ui/Button';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { formatMontant } from '@/lib/formatters';
+import { useT } from '@/lib/i18n';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { stats, recommandationIA, dismissRecommandation, refreshStats, isLoading, lastUpdated } =
     useDashboardStore();
   const [mounted, setMounted] = React.useState(false);
+  const t = useT();
 
   useEffect(() => {
     setMounted(true);
@@ -24,13 +26,13 @@ export default function DashboardPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const heureMAJ = mounted && lastUpdated
-    ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
+    ? new Intl.DateTimeFormat(t.dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
     : '';
 
   const formatDernierRapport = (date: string) => {
     if (!date) return '—';
     try {
-      return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+      return new Intl.DateTimeFormat(t.dateLocale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
     } catch {
       return '—';
     }
@@ -41,9 +43,9 @@ export default function DashboardPage() {
       {/* En-tête */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Tableau de bord</h1>
+          <h1 className="text-2xl font-bold text-text-main">{t.dashboard.title}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Vue d&apos;ensemble en temps réel — mis à jour à {heureMAJ}
+            {t.dashboard.subtitle} — {t.dashboard.lastUpdated} {heureMAJ}
           </p>
         </div>
         <Button
@@ -53,7 +55,7 @@ export default function DashboardPage() {
           onClick={() => refreshStats()}
           loading={isLoading}
         >
-          Actualiser
+          {t.common.refresh}
         </Button>
       </div>
 
@@ -221,7 +223,7 @@ export default function DashboardPage() {
                 recommandationIA.severite === 'warning' ? 'bg-yellow-100 text-yellow-700' :
                 'bg-blue-100 text-blue-700'
               }`}>
-                {recommandationIA.severite === 'danger' ? 'Critique' : recommandationIA.severite === 'warning' ? 'Attention' : 'Info'}
+                {recommandationIA.severite === 'danger' ? t.common.error : recommandationIA.severite === 'warning' ? 'Attention' : 'Info'}
               </span>
             </div>
             <p className="font-semibold text-text-main text-sm">{recommandationIA.titre}</p>
@@ -244,7 +246,7 @@ export default function DashboardPage() {
                 icone={<X size={14} />}
                 onClick={dismissRecommandation}
               >
-                Ignorer
+                {t.common.close}
               </Button>
             </div>
           </div>
@@ -256,9 +258,9 @@ export default function DashboardPage() {
       <div className="bg-white rounded-card shadow-card p-5">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="font-semibold text-text-main text-sm">Progression vers l&apos;objectif mensuel</h3>
+            <h3 className="font-semibold text-text-main text-sm">{t.rapports.monthlyObjective}</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              Top agent : <span className="font-medium text-text-main">{stats.performances.topAgent?.nom ?? '—'}</span>
+              {t.dashboard.topAgent} : <span className="font-medium text-text-main">{stats.performances.topAgent?.nom ?? '—'}</span>
               {stats.performances.topAgent && <> — {formatMontant(stats.performances.topAgent.montant)}</>}
             </p>
           </div>

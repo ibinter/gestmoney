@@ -17,6 +17,7 @@ export interface RapportHistorique {
   statut: 'disponible' | 'generation';
   date: string;
   taille: string;
+  fileUrl?: string;
 }
 
 export interface RapportsData {

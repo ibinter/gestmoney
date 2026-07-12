@@ -21,10 +21,13 @@ import {
   Settings,
   User,
   Shield,
+  HelpCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { useNotificationCount } from '@/hooks/useNotifications';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { useAuthStore } from '@/store/authStore';
+import { useT } from '@/lib/i18n';
 
 const NAV_SECTIONS = [
   {
@@ -58,6 +61,8 @@ const NAV_SECTIONS = [
       { href: '/dashboard/notifications', label: 'Notifications', icone: Bell, badgeKey: 'notifs' },
       { href: '/dashboard/settings', label: 'Paramètres', icone: Settings, badgeKey: null },
       { href: '/dashboard/profile', label: 'Mon profil', icone: User, badgeKey: null },
+      { href: '/dashboard/support', label: 'Support', icone: MessageSquare, badgeKey: null },
+      { href: '/dashboard/aide', label: 'Centre d\'aide', icone: HelpCircle, badgeKey: null },
     ],
   },
 ];
@@ -73,6 +78,7 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
   const { data: nbNotifs = 0 } = useNotificationCount();
   const { stats } = useDashboardStore();
   const { user } = useAuthStore();
+  const t = useT();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const liveBadges: Record<string, number> = {
@@ -80,6 +86,28 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
     txEnAttente: stats.transactions.enAttente,
     floatAlertes: stats.float.alertes,
   };
+
+  // Labels traduits pour chaque entrée nav
+  const navLabels: Record<string, string> = {
+    '/dashboard':              t.nav.dashboard,
+    '/dashboard/transactions': t.nav.transactions,
+    '/dashboard/float':        t.nav.float,
+    '/dashboard/caisse':       t.nav.caisse,
+    '/dashboard/agences':      t.nav.agences,
+    '/dashboard/agents':       t.nav.agents,
+    '/dashboard/clients':      t.nav.clients,
+    '/dashboard/commissions':  t.nav.commissions,
+    '/dashboard/performances': t.nav.performances,
+    '/dashboard/rapports':     t.nav.rapports,
+    '/dashboard/notifications':t.nav.notifications,
+    '/dashboard/settings':     t.nav.settings,
+    '/dashboard/profile':      t.nav.profile,
+    '/dashboard/support':      t.nav.support,
+    '/dashboard/aide':         t.nav.aide,
+  };
+
+  // Labels de sections traduits
+  const sectionLabels = [t.nav.principal, t.nav.reseau, t.nav.finance, t.nav.compte];
 
   const contenu = (
     <nav className="flex flex-col h-full">
@@ -100,7 +128,7 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
         {NAV_SECTIONS.map((section, si) => (
           <div key={si} className={clsx('space-y-0.5', si > 0 && 'mt-4')}>
             <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-1.5">
-              {section.label}
+              {sectionLabels[si] ?? section.label}
             </p>
             {section.items.map(({ href, label, icone: Icone, badgeKey }) => {
               const actif = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
@@ -118,7 +146,7 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
                   )}
                 >
                   <Icone size={18} className="flex-shrink-0" />
-                  <span className="flex-1">{label}</span>
+                  <span className="flex-1">{navLabels[href] ?? label}</span>
                   {badgeCount > 0 && !actif && (
                     <span className={clsx(
                       'text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center',
@@ -149,7 +177,7 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
             )}
           >
             <Shield size={16} className="flex-shrink-0" />
-            <span>Console SuperAdmin</span>
+            <span>{t.nav.superadmin}</span>
           </Link>
         </div>
       )}

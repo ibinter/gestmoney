@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Bell, ChevronDown, LogOut, Settings, User, Menu, Search } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LangSwitch, useT } from '@/lib/i18n';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
@@ -18,8 +19,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const { data: nbNonLues = 0 } = useNotificationCount();
   const router = useRouter();
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const t = useT();
 
-  const dateNow = new Intl.DateTimeFormat('fr-FR', {
+  const dateNow = new Intl.DateTimeFormat(t.dateLocale, {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -55,9 +57,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <Search size={14} />
-          <span>Rechercher…</span>
+          <span>{t.topbar.search}</span>
           <kbd className="ml-2 text-xs bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
         </button>
+
+        {/* Switcher de langue */}
+        <LangSwitch className="hidden md:flex items-center px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-white/20 hover:text-text-main transition-colors" />
 
         {/* Theme toggle */}
         <ThemeToggle />
@@ -102,21 +107,27 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                   onClick={() => setMenuOuvert(false)}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-surface transition-colors"
                 >
-                  <User size={16} /> Mon profil
+                  <User size={16} /> {t.topbar.myProfile}
                 </Link>
                 <Link
                   href="/dashboard/settings"
                   onClick={() => setMenuOuvert(false)}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-surface transition-colors"
                 >
-                  <Settings size={16} /> Paramètres
+                  <Settings size={16} /> {t.topbar.settings}
                 </Link>
+                <hr className="my-1 border-gray-100" />
+                {/* Switcher langue dans le menu déroulant (mobile) */}
+                <div className="px-4 py-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">{t.settings.language}</span>
+                  <LangSwitch className="text-xs font-semibold text-gray-600 hover:text-text-main transition-colors" />
+                </div>
                 <hr className="my-1 border-gray-100" />
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-red-50 transition-colors"
                 >
-                  <LogOut size={16} /> Déconnexion
+                  <LogOut size={16} /> {t.topbar.logout}
                 </button>
               </div>
             </>

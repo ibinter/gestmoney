@@ -79,3 +79,23 @@
 .dark .hover\:bg-gray-50:hover  { background-color: rgba(255,255,255,0.03); }
 .dark .hover\:bg-surface:hover  { background-color: rgba(255,255,255,0.05); }
 .dark h1, .dark h2, .dark h3 { color: hsl(0 0% 95%); }
+
+/* ── Styles prose guide utilisateur ── */
+.prose-guide ol, .prose-guide ul { padding-left: 1.25rem; margin: 0.75rem 0; }
+.prose-guide li { margin: 0.35rem 0; color: inherit; }
+.prose-guide p { margin: 0.5rem 0; }
+.prose-guide code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 5px; font-size: 0.82em; font-family: ui-monospace, monospace; }
+.dark .prose-guide code { background: rgba(255,255,255,.1); }
+.prose-guide kbd { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 5px; padding: 1px 6px; font-size: 0.8em; font-family: ui-monospace, monospace; }
+.dark .prose-guide kbd { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); }
+.prose-guide .tip { background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 10px 14px; margin: 12px 0; color: #15803d; font-size: 0.85em; }
+.prose-guide .warning { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: 10px 14px; margin: 12px 0; color: #92400e; font-size: 0.85em; }
+.dark .prose-guide .tip { background: rgba(21,128,61,.15); border-color: rgba(134,239,172,.3); color: #86efac; }
+.dark .prose-guide .warning { background: rgba(146,64,14,.15); border-color: rgba(252,211,77,.3); color: #fcd34d; }
+.prose-guide .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin: 0 2px; }
+.prose-guide .badge-green { background:#d1fae5; color:#065f46; }
+.prose-guide .badge-yellow { background:#fef3c7; color:#92400e; }
+.prose-guide .badge-red { background:#fee2e2; color:#991b1b; }
+.prose-guide .badge-blue { background:#dbeafe; color:#1e40af; }
+.prose-guide .badge-purple { background:#ede9fe; color:#5b21b6; }
+.prose-guide .badge-gray { background:#f3f4f6; color:#374151; }

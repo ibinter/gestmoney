@@ -3,7 +3,7 @@
 // PAGE PARAMÈTRES — GESTMONEY
 // ============================================================
 import React, { useState } from 'react';
-import { Shield, Bell, Palette, Camera, Eye, EyeOff } from 'lucide-react';
+import { Shield, Bell, Palette, Camera, Eye, EyeOff, BookOpen } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,12 +11,15 @@ import { Card } from '@/components/ui/Card';
 import { Tabs } from '@/components/ui/Tabs';
 import { Toggle } from '@/components/ui/Toggle';
 import { useAuthStore } from '@/store/authStore';
+import { useOnboarding } from '@/components/ui/Onboarding';
+import { useT } from '@/lib/i18n';
 
 // ——————————————————————————————————————
 // Onglet Profil
 // ——————————————————————————————————————
 function OngletProfil() {
   const { user } = useAuthStore();
+  const t = useT();
   const [form, setForm] = useState({
     prenom: user?.prenom ?? '',
     nom: user?.nom ?? '',
@@ -66,7 +69,7 @@ function OngletProfil() {
 
       {/* Formulaire */}
       <Card padding="md">
-        <h3 className="text-base font-semibold text-text-main mb-5">Informations personnelles</h3>
+        <h3 className="text-base font-semibold text-text-main mb-5">{t.settings.profile}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Prénom"
@@ -117,10 +120,10 @@ function OngletProfil() {
         </div>
         <div className="mt-6 flex items-center gap-3">
           <Button variante="primary" onClick={handleSave}>
-            Enregistrer les modifications
+            {t.common.save}
           </Button>
           {saved && (
-            <span className="text-sm text-green-600 font-medium">Modifications enregistrées ✓</span>
+            <span className="text-sm text-green-600 font-medium">{t.common.success} ✓</span>
           )}
         </div>
       </Card>
@@ -132,6 +135,7 @@ function OngletProfil() {
 // Onglet Sécurité
 // ——————————————————————————————————————
 function OngletSecurite() {
+  const t = useT();
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -148,7 +152,7 @@ function OngletSecurite() {
     <div className="space-y-6 max-w-2xl">
       {/* Changement mot de passe */}
       <Card padding="md">
-        <h3 className="text-base font-semibold text-text-main mb-5">Changer le mot de passe</h3>
+        <h3 className="text-base font-semibold text-text-main mb-5">{t.settings.security}</h3>
         <div className="space-y-4">
           {[
             { field: 'ancien', label: 'Ancien mot de passe', show: showOld, toggle: () => setShowOld((v) => !v) },
@@ -178,7 +182,7 @@ function OngletSecurite() {
           ))}
         </div>
         <div className="mt-5">
-          <Button variante="primary">Mettre à jour le mot de passe</Button>
+          <Button variante="primary">{t.common.save}</Button>
         </div>
       </Card>
 
@@ -256,6 +260,7 @@ const CATEGORIES = ['Transactions', 'Float', 'Commissions', 'Fraude', 'Système'
 const CANAUX = ['Email', 'SMS', 'Push', 'In-app'];
 
 function OngletNotifications() {
+  const t = useT();
   const [toggles, setToggles] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
     CATEGORIES.forEach((cat) => {
@@ -271,7 +276,7 @@ function OngletNotifications() {
   return (
     <div className="space-y-6 max-w-3xl">
       <Card padding="md">
-        <h3 className="text-base font-semibold text-text-main mb-5">Préférences de notification</h3>
+        <h3 className="text-base font-semibold text-text-main mb-5">{t.settings.notifications}</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -306,7 +311,7 @@ function OngletNotifications() {
           </table>
         </div>
         <div className="mt-6">
-          <Button variante="primary">Enregistrer les préférences</Button>
+          <Button variante="primary">{t.common.save}</Button>
         </div>
       </Card>
     </div>
@@ -317,6 +322,7 @@ function OngletNotifications() {
 // Onglet Apparence
 // ——————————————————————————————————————
 function OngletApparence() {
+  const t = useT();
   const [theme, setTheme] = useState<'clair' | 'sombre' | 'systeme'>('clair');
   const [densite, setDensite] = useState<'compact' | 'normal' | 'confortable'>('normal');
   const [langue, setLangue] = useState('fr');
@@ -324,12 +330,12 @@ function OngletApparence() {
   return (
     <div className="space-y-6 max-w-2xl">
       <Card padding="md">
-        <h3 className="text-base font-semibold text-text-main mb-5">Thème</h3>
+        <h3 className="text-base font-semibold text-text-main mb-5">{t.settings.theme}</h3>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { key: 'clair' as const, label: 'Clair', icon: '☀️' },
-            { key: 'sombre' as const, label: 'Sombre', icon: '🌙' },
-            { key: 'systeme' as const, label: 'Système', icon: '🖥️' },
+            { key: 'clair' as const, label: t.settings.light, icon: '☀️' },
+            { key: 'sombre' as const, label: t.settings.dark, icon: '🌙' },
+            { key: 'systeme' as const, label: t.settings.system, icon: '🖥️' },
           ].map(({ key, label, icon }) => (
             <button
               key={key}
@@ -349,12 +355,12 @@ function OngletApparence() {
       </Card>
 
       <Card padding="md">
-        <h3 className="text-base font-semibold text-text-main mb-5">Densité d&apos;affichage</h3>
+        <h3 className="text-base font-semibold text-text-main mb-5">{t.settings.density}</h3>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { key: 'compact' as const, label: 'Compact', desc: 'Plus d\'infos' },
-            { key: 'normal' as const, label: 'Normal', desc: 'Recommandé' },
-            { key: 'confortable' as const, label: 'Confortable', desc: 'Plus d\'espace' },
+            { key: 'compact' as const, label: t.settings.compact, desc: '' },
+            { key: 'normal' as const, label: t.settings.normal, desc: '' },
+            { key: 'confortable' as const, label: t.settings.comfortable, desc: '' },
           ].map(({ key, label, desc }) => (
             <button
               key={key}
@@ -374,7 +380,7 @@ function OngletApparence() {
       </Card>
 
       <Card padding="md">
-        <h3 className="text-base font-semibold text-text-main mb-4">Langue de l&apos;interface</h3>
+        <h3 className="text-base font-semibold text-text-main mb-4">{t.settings.language}</h3>
         <div className="flex gap-3">
           {[
             { value: 'fr', label: '🇫🇷 Français' },
@@ -395,7 +401,7 @@ function OngletApparence() {
           ))}
         </div>
         <div className="mt-6">
-          <Button variante="primary">Appliquer</Button>
+          <Button variante="primary">{t.settings.apply}</Button>
         </div>
       </Card>
     </div>
@@ -406,40 +412,53 @@ function OngletApparence() {
 // Page principale
 // ——————————————————————————————————————
 export default function SettingsPage() {
+  const { reset: resetOnboarding } = useOnboarding();
+  const [onboardingReset, setOnboardingReset] = React.useState(false);
+  const t = useT();
+
+  const handleRelancerGuide = () => {
+    resetOnboarding();
+    setOnboardingReset(true);
+    setTimeout(() => window.location.reload(), 300);
+  };
+
   const tabs = [
-    {
-      key: 'profil',
-      label: 'Profil',
-      content: <OngletProfil />,
-    },
-    {
-      key: 'securite',
-      label: 'Sécurité',
-      content: <OngletSecurite />,
-    },
-    {
-      key: 'notifications',
-      label: 'Notifications',
-      content: <OngletNotifications />,
-    },
-    {
-      key: 'apparence',
-      label: 'Apparence',
-      content: <OngletApparence />,
-    },
+    { key: 'profil', label: t.settings.profile, content: <OngletProfil /> },
+    { key: 'securite', label: t.settings.security, content: <OngletSecurite /> },
+    { key: 'notifications', label: t.settings.notifications, content: <OngletNotifications /> },
+    { key: 'apparence', label: t.settings.appearance, content: <OngletApparence /> },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-text-main">Paramètres</h1>
-        <p className="text-sm text-text-muted mt-1">
-          Gérez votre profil, sécurité et préférences
-        </p>
+        <h1 className="text-2xl font-bold text-text-main">{t.settings.title}</h1>
+        <p className="text-sm text-text-muted mt-1">{t.settings.subtitle}</p>
       </div>
 
       <Tabs tabs={tabs} defaultTab="profil" />
+
+      {/* Guide de démarrage */}
+      <div className="bg-white dark:bg-white/03 rounded-card shadow-card p-5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <BookOpen size={18} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-main">{t.settings.guide}</p>
+            <p className="text-xs text-text-muted mt-0.5">{t.settings.guideSub}</p>
+          </div>
+        </div>
+        <Button
+          variante="secondary"
+          taille="sm"
+          onClick={handleRelancerGuide}
+          loading={onboardingReset}
+        >
+          {t.settings.relaunchGuide}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { useTransactions, useCreateTransaction, useValiderTransaction } from '@/
 import { Transaction, TypeTransaction, StatutTransaction, Operateur, OPERATEURS } from '@/types';
 import { formatMontant, formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
+import { useT } from '@/lib/i18n';
 
 const TYPE_LABELS: Record<TypeTransaction, string> = {
   depot: 'Dépôt',
@@ -32,6 +33,7 @@ const STATUT_LABELS: Record<StatutTransaction, string> = {
 };
 
 export default function TransactionsPage() {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [filtreType, setFiltreType] = useState('');
   const [filtreOperateur, setFiltreOperateur] = useState('');
@@ -168,15 +170,15 @@ export default function TransactionsPage() {
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Transactions</h1>
-          <p className="text-sm text-gray-500">Gestion de toutes les opérations Mobile Money</p>
+          <h1 className="text-2xl font-bold text-text-main">{t.transactions.title}</h1>
+          <p className="text-sm text-gray-500">{t.transactions.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variante="primary" taille="sm" icone={<Plus size={15} />} onClick={() => setModalOuvert('depot')}>
-            Dépôt
+            {t.transactions.deposit}
           </Button>
           <Button variante="outline" taille="sm" icone={<Plus size={15} />} onClick={() => setModalOuvert('retrait')}>
-            Retrait
+            {t.transactions.withdrawal}
           </Button>
           <Button variante="ghost" taille="sm" icone={<Plus size={15} />} onClick={() => setModalOuvert('cash_in')}>
             Cash In
@@ -235,7 +237,7 @@ export default function TransactionsPage() {
               { titre: 'Statut', valeur: (t) => STATUT_LABELS[t.statut] ?? t.statut },
             ], 'transactions')}
           >
-            Export CSV
+            {t.transactions.exportCsv}
           </Button>
         </div>
 

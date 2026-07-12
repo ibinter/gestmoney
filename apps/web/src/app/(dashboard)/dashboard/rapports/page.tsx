@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Download, BarChart2, FileText } from 'lucide-react';
+import { Download, BarChart2, FileText, FileDown } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -9,7 +9,9 @@ import { Select } from '@/components/ui/Input';
 import { formatMontant, formatDate } from '@/lib/formatters';
 import { useRapports, useGenererRapport, RapportHistorique } from '@/hooks/useRapports';
 import { exporterCsv } from '@/lib/exportCsv';
+import { exporterPdf, exporterXlsx } from '@/lib/exportPdf';
 import { clsx } from 'clsx';
+import { useT } from '@/lib/i18n';
 
 const PERIODES = [
   { value: 'janvier_2024',    label: 'Janvier 2024'    },
@@ -21,19 +23,59 @@ export default function RapportsPage() {
   const [periode, setPeriode] = useState('janvier_2024');
   const { data, isLoading } = useRapports(periode);
   const genererRapport = useGenererRapport();
+  const t = useT();
 
   const [succesGen, setSuccesGen] = useState('');
+  const [rapport_courant, setRapportCourant] = useState<RapportHistorique | null>(null);
+
+  const COLONNES_OPERATEURS = [
+    { titre: 'Rapport',         valeur: () => rapport_courant?.titre ?? '' },
+    { titre: 'Opérateur',      valeur: (op: Record<string, unknown>) => String(op.label ?? '') },
+    { titre: 'Montant (FCFA)', valeur: (op: Record<string, unknown>) => Number(op.montant ?? 0), align: 'right' as const },
+    { titre: '% du total',     valeur: (op: Record<string, unknown>) => Number(op.pct ?? 0),     align: 'right' as const },
+  ];
 
   const handleTelecharger = (rapport: RapportHistorique) => {
+    setRapportCourant(rapport);
     exporterCsv(
       parOperateur.map((op) => ({ ...op, periode: rapport.titre })),
       [
-        { titre: 'Rapport', valeur: () => rapport.titre },
-        { titre: 'Opérateur', valeur: (op) => op.label },
-        { titre: 'Montant (FCFA)', valeur: (op) => op.montant },
-        { titre: '% du total', valeur: (op) => op.pct },
+        { titre: 'Rapport',         valeur: () => rapport.titre },
+        { titre: 'Opérateur',       valeur: (op) => op.label },
+        { titre: 'Montant (FCFA)',  valeur: (op) => op.montant },
+        { titre: '% du total',      valeur: (op) => op.pct },
       ],
       rapport.titre.toLowerCase().replace(/\s+/g, '_')
+    );
+  };
+
+  const handleTelechargerPdf = (rapport: RapportHistorique) => {
+    setRapportCourant(rapport);
+    // Si le backend a généré un fichier, on le télécharge directement
+    if (rapport.fileUrl) {
+      window.open(rapport.fileUrl, '_blank');
+      return;
+    }
+    const kpis = [
+      { label: "Chiffre d'affaires", valeur: formatMontant(ca) },
+      { label: 'Transactions',       valeur: nbTransactions.toLocaleString('fr-FR') },
+      { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
+      { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
+    ];
+    exporterPdf(
+      parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
+      COLONNES_OPERATEURS,
+      { titre: rapport.titre, sousTitre: 'Rapport mensuel', periode: rapport.titre, nomFichier: rapport.titre.toLowerCase().replace(/\s+/g,'_') },
+      kpis
+    );
+  };
+
+  const handleTelechargerXlsx = (rapport: RapportHistorique) => {
+    setRapportCourant(rapport);
+    exporterXlsx(
+      parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
+      COLONNES_OPERATEURS,
+      { titre: rapport.titre, sousTitre: 'Rapport mensuel', periode: rapport.titre, nomFichier: rapport.titre.toLowerCase().replace(/\s+/g,'_') }
     );
   };
 
@@ -72,8 +114,8 @@ export default function RapportsPage() {
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Rapports & Business Intelligence</h1>
-          <p className="text-sm text-gray-500">Analyse des performances et indicateurs clés</p>
+          <h1 className="text-2xl font-bold text-text-main">{t.rapports.title}</h1>
+          <p className="text-sm text-gray-500">{t.rapports.subtitle}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Select
@@ -83,13 +125,38 @@ export default function RapportsPage() {
             options={PERIODES}
           />
           <Button
+            variante="secondary"
+            taille="sm"
+            icone={<FileText size={15} />}
+            onClick={() => {
+              const kpis = [
+                { label: "Chiffre d'affaires", valeur: formatMontant(ca) },
+                { label: 'Transactions',       valeur: nbTransactions.toLocaleString('fr-FR') },
+                { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
+                { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
+              ];
+              exporterPdf(
+                parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
+                [
+                  { titre: 'Opérateur', valeur: (op) => String(op.label ?? '') },
+                  { titre: 'Montant (FCFA)', valeur: (op) => Number(op.montant ?? 0), align: 'right' },
+                  { titre: '% du total', valeur: (op) => Number(op.pct ?? 0), align: 'right' },
+                ],
+                { titre: `Rapport ${PERIODES.find(p => p.value === periode)?.label ?? periode}`, sousTitre: 'Business Intelligence', periode: PERIODES.find(p => p.value === periode)?.label },
+                kpis
+              );
+            }}
+          >
+            {t.rapports.exportPdf}
+          </Button>
+          <Button
             variante="primary"
             taille="sm"
             icone={<BarChart2 size={15} />}
             onClick={handleGenerer}
             loading={genererRapport.isPending}
           >
-            Générer rapport
+            {t.rapports.generate}
           </Button>
         </div>
       </div>
@@ -192,8 +259,8 @@ export default function RapportsPage() {
           </div>
           <div className="flex justify-between text-xs text-gray-500">
             <span>0</span>
-            <span className="text-text-main font-semibold">{formatMontant(ca)} réalisé</span>
-            <span>Objectif : {formatMontant(objectif)}</span>
+            <span className="text-text-main font-semibold">{formatMontant(ca)} {t.rapports.achieved}</span>
+            <span>{t.rapports.objective} : {formatMontant(objectif)}</span>
           </div>
         </div>
       </Card>
@@ -201,7 +268,7 @@ export default function RapportsPage() {
       {/* Historique des rapports */}
       <Card>
         <CardHeader>
-          <CardTitle>Rapports générés</CardTitle>
+          <CardTitle>{t.rapports.history}</CardTitle>
         </CardHeader>
         <div className="space-y-2">
           {historique.map((r) => (
@@ -215,14 +282,22 @@ export default function RapportsPage() {
                   <p className="text-xs text-gray-400">{formatDate(r.date)} — {r.taille}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <Badge couleur={r.statut === 'disponible' ? 'success' : 'warning'}>
                   {r.statut === 'disponible' ? 'Disponible' : 'En cours'}
                 </Badge>
                 {r.statut === 'disponible' && (
-                  <Button variante="ghost" taille="sm" icone={<Download size={13} />} onClick={() => handleTelecharger(r)}>
-                    Télécharger
-                  </Button>
+                  <>
+                    <Button variante="ghost" taille="sm" icone={<Download size={13} />} onClick={() => handleTelecharger(r)}>
+                      CSV
+                    </Button>
+                    <Button variante="ghost" taille="sm" icone={<FileDown size={13} />} onClick={() => handleTelechargerXlsx(r)}>
+                      XLSX
+                    </Button>
+                    <Button variante="ghost" taille="sm" icone={<FileText size={13} />} onClick={() => handleTelechargerPdf(r)}>
+                      PDF
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

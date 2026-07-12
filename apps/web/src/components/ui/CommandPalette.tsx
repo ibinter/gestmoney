@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X, LayoutDashboard, ArrowRight, Users, Building2, Repeat2, BarChart3, Wallet, FileText, Settings, UserCircle, Bell } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useT } from '@/lib/i18n';
 
 interface Item {
   id: string;
@@ -12,22 +13,6 @@ interface Item {
   href: string;
   categorie: string;
 }
-
-const NAVIGATION: Item[] = [
-  { id: 'dashboard',      label: 'Tableau de bord',  description: 'Vue d\'ensemble en temps réel', icon: <LayoutDashboard size={16} />, href: '/dashboard', categorie: 'Navigation' },
-  { id: 'transactions',   label: 'Transactions',      description: 'Dépôts, retraits, transferts', icon: <Repeat2 size={16} />,         href: '/dashboard/transactions', categorie: 'Navigation' },
-  { id: 'agents',         label: 'Agents',            description: 'Gestion des agents de terrain', icon: <Users size={16} />,            href: '/dashboard/agents', categorie: 'Navigation' },
-  { id: 'agences',        label: 'Agences & PDV',     description: 'Points de vente et agences',   icon: <Building2 size={16} />,         href: '/dashboard/agences', categorie: 'Navigation' },
-  { id: 'clients',        label: 'Clients',           description: 'Base clients et fidélité',     icon: <UserCircle size={16} />,        href: '/dashboard/clients', categorie: 'Navigation' },
-  { id: 'float',          label: 'Gestion du float',  description: 'Soldes et réapprovisionnement',icon: <Wallet size={16} />,            href: '/dashboard/float', categorie: 'Navigation' },
-  { id: 'caisse',         label: 'Caisse',            description: 'Journal de caisse et coffre',  icon: <Wallet size={16} />,            href: '/dashboard/caisse', categorie: 'Navigation' },
-  { id: 'commissions',    label: 'Commissions',       description: 'Plans et paiements agents',    icon: <FileText size={16} />,          href: '/dashboard/commissions', categorie: 'Navigation' },
-  { id: 'performances',   label: 'Performances',      description: 'Comparatifs opérateurs',       icon: <BarChart3 size={16} />,         href: '/dashboard/performances', categorie: 'Navigation' },
-  { id: 'rapports',       label: 'Rapports & BI',     description: 'Export et analyses',           icon: <FileText size={16} />,          href: '/dashboard/rapports', categorie: 'Navigation' },
-  { id: 'notifications',  label: 'Notifications',     description: 'Alertes et messages système',  icon: <Bell size={16} />,              href: '/dashboard/notifications', categorie: 'Navigation' },
-  { id: 'profile',        label: 'Mon profil',        description: 'Informations personnelles',    icon: <UserCircle size={16} />,        href: '/dashboard/profile', categorie: 'Navigation' },
-  { id: 'settings',       label: 'Paramètres',        description: 'Configuration de l\'espace',   icon: <Settings size={16} />,          href: '/dashboard/settings', categorie: 'Navigation' },
-];
 
 function score(item: Item, q: string): number {
   const low = q.toLowerCase();
@@ -45,6 +30,24 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
   const router = useRouter();
+  const t = useT();
+  const cp = t.commandPalette;
+
+  const NAVIGATION: Item[] = [
+    { id: 'dashboard',     label: t.nav.dashboard,     description: cp.descriptions.dashboard,     icon: <LayoutDashboard size={16} />, href: '/dashboard',                 categorie: cp.category },
+    { id: 'transactions',  label: t.nav.transactions,  description: cp.descriptions.transactions,  icon: <Repeat2 size={16} />,         href: '/dashboard/transactions',    categorie: cp.category },
+    { id: 'agents',        label: t.nav.agents,        description: cp.descriptions.agents,        icon: <Users size={16} />,            href: '/dashboard/agents',          categorie: cp.category },
+    { id: 'agences',       label: t.nav.agences,       description: cp.descriptions.agences,       icon: <Building2 size={16} />,        href: '/dashboard/agences',         categorie: cp.category },
+    { id: 'clients',       label: t.nav.clients,       description: cp.descriptions.clients,       icon: <UserCircle size={16} />,       href: '/dashboard/clients',         categorie: cp.category },
+    { id: 'float',         label: t.nav.float,         description: cp.descriptions.float,         icon: <Wallet size={16} />,           href: '/dashboard/float',           categorie: cp.category },
+    { id: 'caisse',        label: t.nav.caisse,        description: cp.descriptions.caisse,        icon: <Wallet size={16} />,           href: '/dashboard/caisse',          categorie: cp.category },
+    { id: 'commissions',   label: t.nav.commissions,   description: cp.descriptions.commissions,   icon: <FileText size={16} />,         href: '/dashboard/commissions',     categorie: cp.category },
+    { id: 'performances',  label: t.nav.performances,  description: cp.descriptions.performances,  icon: <BarChart3 size={16} />,        href: '/dashboard/performances',    categorie: cp.category },
+    { id: 'rapports',      label: t.nav.rapports,      description: cp.descriptions.rapports,      icon: <FileText size={16} />,         href: '/dashboard/rapports',        categorie: cp.category },
+    { id: 'notifications', label: t.nav.notifications, description: cp.descriptions.notifications, icon: <Bell size={16} />,             href: '/dashboard/notifications',   categorie: cp.category },
+    { id: 'profile',       label: t.nav.profile,       description: cp.descriptions.profile,       icon: <UserCircle size={16} />,       href: '/dashboard/profile',         categorie: cp.category },
+    { id: 'settings',      label: t.nav.settings,      description: cp.descriptions.settings,      icon: <Settings size={16} />,         href: '/dashboard/settings',        categorie: cp.category },
+  ];
   const inputRef = useRef<HTMLInputElement>(null);
 
   const results = query.trim().length === 0
@@ -127,7 +130,7 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Rechercher une page, une action…"
+            placeholder={cp.placeholder}
             className="flex-1 text-sm bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none"
           />
           {query && (
@@ -142,7 +145,7 @@ export function CommandPalette() {
         <div className="max-h-80 overflow-y-auto py-2">
           {results.length === 0 ? (
             <div className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
-              Aucun résultat pour &quot;{query}&quot;
+              {cp.noResults} &quot;{query}&quot;
             </div>
           ) : (
             Object.entries(grouped).map(([cat, items]) => (
@@ -188,9 +191,9 @@ export function CommandPalette() {
 
         {/* Footer */}
         <div className="px-4 py-2.5 border-t border-gray-100 dark:border-white/08 flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-          <span className="flex items-center gap-1"><kbd className="bg-gray-100 dark:bg-white/10 px-1 rounded font-mono">↑↓</kbd> Naviguer</span>
-          <span className="flex items-center gap-1"><kbd className="bg-gray-100 dark:bg-white/10 px-1 rounded font-mono">↵</kbd> Ouvrir</span>
-          <span className="flex items-center gap-1"><kbd className="bg-gray-100 dark:bg-white/10 px-1 rounded font-mono">Esc</kbd> Fermer</span>
+          <span className="flex items-center gap-1"><kbd className="bg-gray-100 dark:bg-white/10 px-1 rounded font-mono">↑↓</kbd> {cp.navigate}</span>
+          <span className="flex items-center gap-1"><kbd className="bg-gray-100 dark:bg-white/10 px-1 rounded font-mono">↵</kbd> {cp.open}</span>
+          <span className="flex items-center gap-1"><kbd className="bg-gray-100 dark:bg-white/10 px-1 rounded font-mono">Esc</kbd> {cp.close}</span>
         </div>
       </div>
     </div>

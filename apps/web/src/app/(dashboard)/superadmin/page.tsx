@@ -2,8 +2,9 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Shield, Users, Building2, Activity, AlertTriangle, Server, TrendingUp, Clock } from 'lucide-react';
+import { Shield, Users, Building2, Activity, AlertTriangle, Server, TrendingUp, Clock, Mail, CreditCard } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import Link from 'next/link';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { Badge } from '@/components/ui/Badge';
 import { formatMontant, formatRelativeTime } from '@/lib/formatters';
@@ -191,6 +192,37 @@ export default function SuperAdminPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Accès rapides SuperAdmin */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <Link href="/superadmin/emails" className="bg-white dark:bg-white/03 rounded-card shadow-card p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/05 transition-colors group border border-gray-100 dark:border-white/08">
+          <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+            <Mail size={17} className="text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-main">Emails automatiques</p>
+            <p className="text-xs text-text-muted">6 templates · Config SMTP</p>
+          </div>
+        </Link>
+        <Link href="/superadmin/licences" className="bg-white dark:bg-white/03 rounded-card shadow-card p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/05 transition-colors group border border-gray-100 dark:border-white/08">
+          <div className="w-9 h-9 rounded-xl bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center flex-shrink-0">
+            <CreditCard size={17} className="text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-main">Licences & Facturation</p>
+            <p className="text-xs text-text-muted">{MOCK_TENANTS.length} licences · MRR</p>
+          </div>
+        </Link>
+        <div className="bg-white dark:bg-white/03 rounded-card shadow-card p-4 flex items-center gap-3 opacity-60 border border-gray-100 dark:border-white/08 cursor-not-allowed">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-white/08 flex items-center justify-center flex-shrink-0">
+            <Server size={17} className="text-text-muted" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-main">Infrastructure</p>
+            <p className="text-xs text-text-muted">Bientôt disponible</p>
+          </div>
         </div>
       </div>
 
