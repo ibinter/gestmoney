@@ -1,11 +1,12 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Logo } from '@/components/ui/Logo';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Zap } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Logo } from '@/components/ui/Logo';
+
+const DEMO_EMAIL = 'admin@gestmoney.demo';
+const DEMO_PASSWORD = 'Admin2026!';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,40 +17,27 @@ export default function LoginPage() {
   const [afficherMdp, setAfficherMdp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState('');
+  const [heure, setHeure] = useState('');
+
   const [modalMdpOublie, setModalMdpOublie] = useState(false);
   const [emailReset, setEmailReset] = useState('');
   const [resetEnvoye, setResetEnvoye] = useState(false);
   const [loadingReset, setLoadingReset] = useState(false);
 
-  const DEMO_EMAIL = 'admin@gestmoney.demo';
-  const DEMO_PASSWORD = 'Admin2026!';
+  useEffect(() => {
+    const tick = () => setHeure(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
+    tick();
+    const t = setInterval(tick, 60000);
+    return () => clearInterval(t);
+  }, []);
 
   const loginDemo = () => {
     login({
-      id: 'demo-user',
-      nom: 'Admin',
-      prenom: 'Demo',
-      email: DEMO_EMAIL,
-      role: 'SUPER_ADMIN',
-      actif: true,
+      id: 'demo-user', nom: 'Admin', prenom: 'Demo',
+      email: DEMO_EMAIL, role: 'SUPER_ADMIN', actif: true,
       createdAt: new Date().toISOString(),
     }, 'demo-token');
     router.push('/dashboard');
-  };
-
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoadingReset(true);
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010/api/v1'}/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailReset }),
-        signal: AbortSignal.timeout(4000),
-      });
-    } catch { /* backend absent, on simule quand même */ }
-    setLoadingReset(false);
-    setResetEnvoye(true);
   };
 
   const handleConnexion = async (e: React.FormEvent) => {
@@ -80,208 +68,246 @@ export default function LoginPage() {
       }, accessToken);
       router.push('/dashboard');
     } catch {
-      // Fallback démo si les identifiants correspondent
-      if (email === DEMO_EMAIL && motDePasse === DEMO_PASSWORD) {
-        loginDemo();
-        return;
-      }
-      setErreur('Impossible de contacter le serveur. Utilisez le compte démo pour accéder à l\'application.');
+      if (email === DEMO_EMAIL && motDePasse === DEMO_PASSWORD) { loginDemo(); return; }
+      setErreur("Serveur indisponible. Utilisez le compte démo pour accéder à l'application.");
       setLoading(false);
     }
   };
 
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingReset(true);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010/api/v1'}/auth/forgot-password`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailReset }), signal: AbortSignal.timeout(4000),
+      });
+    } catch { /* simulate */ }
+    setLoadingReset(false);
+    setResetEnvoye(true);
+  };
+
   return (
-    <div className="min-h-screen flex">
-      {/* ── Gauche : panneau marque ── */}
-      <div className="hidden lg:flex flex-col w-[52%] relative overflow-hidden" style={{ background: '#0e1a0e' }}>
-        {/* Cercles décoratifs aux couleurs du logo */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #1E8C32, transparent)' }} />
-          <div className="absolute top-1/2 -right-24 w-72 h-72 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #F5B800, transparent)' }} />
-          <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #C41E1E, transparent)' }} />
+    <>
+      {/* ── Fond plein écran sombre ── */}
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: '#07110a' }}>
+
+        {/* Glows ambiants panafricains */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute" style={{ top: '-10%', left: '-5%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,158,0,0.12) 0%, transparent 70%)' }} />
+          <div className="absolute" style={{ bottom: '-8%', right: '-6%', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,208,0,0.08) 0%, transparent 70%)' }} />
+          <div className="absolute" style={{ top: '30%', right: '10%', width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle, rgba(230,0,0,0.07) 0%, transparent 70%)' }} />
+          {/* Grille de points subtile */}
+          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="dots" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+                <circle cx="1.5" cy="1.5" r="1.5" fill="#ffffff" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#dots)" />
+          </svg>
         </div>
 
-        <div className="relative z-10 flex flex-col h-full px-14 py-12">
-          {/* Logo */}
-          <div className="mb-auto">
-            <Logo variante="horizontal" theme="sombre" largeur={220} />
+        {/* ── Carte centrale ── */}
+        <div className="relative z-10 w-full max-w-[420px] mx-4">
+
+          {/* Logo + accroche en haut de la carte */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-5">
+              <Logo variante="horizontal" theme="sombre" />
+            </div>
+            <p className="text-sm font-medium tracking-widest uppercase" style={{ color: '#FFD000', letterSpacing: '0.18em' }}>
+              La plateforme intelligente
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              DE GESTION DES SERVICES FINANCIERS DIGITAUX
+            </p>
           </div>
 
-          {/* Slogan central */}
-          <div className="flex-1 flex flex-col justify-center">
-            <h2 className="text-4xl font-black text-white leading-tight mb-5">
-              Gérez votre réseau<br />
-              <span style={{ color: '#F5B800' }}>Mobile Money</span><br />
-              <span style={{ color: '#1E8C32' }}>en toute simplicité.</span>
-            </h2>
-            <p className="text-gray-400 text-base max-w-sm leading-relaxed">
-              Plateforme Cloud SaaS africaine pour la gestion complète de vos opérations Mobile Money — agents, float, commissions et reporting en temps réel.
+          {/* Formulaire */}
+          <div style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            borderRadius: 20,
+            backdropFilter: 'blur(12px)',
+            padding: '36px 36px 28px',
+          }}>
+            <h2 className="text-xl font-black text-white mb-1">Connexion</h2>
+            <p className="text-sm mb-7" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              Accédez à votre espace de gestion
             </p>
 
-            {/* Stats */}
-            <div className="mt-10 grid grid-cols-3 gap-4">
-              {[
-                { label: 'Transactions / jour', valeur: '10 000+', couleur: '#1E8C32' },
-                { label: 'Agences gérées', valeur: '500+', couleur: '#F5B800' },
-                { label: 'Opérateurs', valeur: '5', couleur: '#C41E1E' },
-              ].map((item) => (
-                <div key={item.label} className="rounded-2xl p-4 border border-white/10" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <p className="text-2xl font-black" style={{ color: item.couleur }}>{item.valeur}</p>
-                  <p className="text-gray-400 text-xs mt-1">{item.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Opérateurs */}
-            <div className="mt-8 flex flex-wrap gap-2">
-              {['🟠 Orange Money', '🟡 MTN MoMo', '🔵 Wave', '🟢 Moov', '🔴 Airtel'].map((op) => (
-                <span key={op} className="text-xs text-gray-300 px-3 py-1.5 rounded-full border border-white/10" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  {op}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <p className="text-xs text-gray-600 mt-10">&copy; 2024 IBIG SOFT — GESTMONEY</p>
-        </div>
-      </div>
-
-      {/* ── Droite : formulaire ── */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
-          {/* Logo mobile uniquement */}
-          <div className="mb-8 lg:hidden">
-            <Logo variante="horizontal" largeur={180} />
-          </div>
-
-          {/* Carte formulaire */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-            {/* En-tête */}
-            <div className="mb-7">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: '#1E8C32' }}>
-                <Zap size={22} className="text-white" />
-              </div>
-              <h2 className="text-2xl font-black text-gray-900">Connexion</h2>
-              <p className="text-gray-500 text-sm mt-1">Accédez à votre espace GESTMONEY</p>
-            </div>
-
             <form onSubmit={handleConnexion} className="space-y-4">
-              <Input
-                label="Adresse email"
-                type="email"
-                placeholder="vous@exemple.ci"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                icone={<Mail size={16} />}
-                autoComplete="email"
-                required
-              />
-
-              <div className="space-y-1">
-                <Input
-                  label="Mot de passe"
-                  type={afficherMdp ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={motDePasse}
-                  onChange={(e) => setMotDePasse(e.target.value)}
-                  icone={<Lock size={16} />}
-                  autoComplete="current-password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setAfficherMdp((v) => !v)}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 ml-auto mt-1"
-                >
-                  {afficherMdp ? <EyeOff size={12} /> : <Eye size={12} />}
-                  {afficherMdp ? 'Masquer' : 'Afficher le mot de passe'}
-                </button>
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>
+                  ADRESSE EMAIL
+                </label>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 12, padding: '11px 14px',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                  <input
+                    type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    autoComplete="email" required placeholder="vous@exemple.ci"
+                    style={{
+                      flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                      color: '#fff', fontSize: 14, fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
               </div>
 
-              {erreur && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
-                  {erreur}
+              {/* Mot de passe */}
+              <div>
+                <label className="block text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>
+                  MOT DE PASSE
+                </label>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 12, padding: '11px 14px',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <input
+                    type={afficherMdp ? 'text' : 'password'} value={motDePasse}
+                    onChange={e => setMotDePasse(e.target.value)}
+                    autoComplete="current-password" required placeholder="••••••••"
+                    style={{
+                      flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                      color: '#fff', fontSize: 14, fontFamily: 'inherit',
+                    }}
+                  />
+                  <button type="button" onClick={() => setAfficherMdp(v => !v)} style={{ color: 'rgba(255,255,255,0.35)', display: 'flex', lineHeight: 1 }}>
+                    {afficherMdp ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
                 </div>
-              )}
+              </div>
 
+              {/* Options */}
               <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
-                  <input type="checkbox" className="rounded" style={{ accentColor: '#1E8C32' }} />
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  <input type="checkbox" style={{ accentColor: '#009E00', width: 14, height: 14 }} />
                   Se souvenir de moi
                 </label>
-                <button
-                  type="button"
-                  onClick={() => { setModalMdpOublie(true); setResetEnvoye(false); setEmailReset(''); }}
-                  className="text-sm font-medium hover:underline"
-                  style={{ color: '#1E8C32' }}
-                >
+                <button type="button" onClick={() => { setModalMdpOublie(true); setResetEnvoye(false); setEmailReset(''); }}
+                  className="text-xs font-semibold hover:underline" style={{ color: '#FFD000' }}>
                   Mot de passe oublié ?
                 </button>
               </div>
 
-              <Button
-                type="submit"
-                variante="primary"
-                taille="lg"
-                fullWidth
-                loading={loading}
-                icone={<ArrowRight size={18} />}
-                iconePosition="droite"
-              >
-                Se connecter
-              </Button>
+              {/* Erreur */}
+              {erreur && (
+                <div style={{ background: 'rgba(230,0,0,0.12)', border: '1px solid rgba(230,0,0,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ff8080' }}>
+                  {erreur}
+                </div>
+              )}
+
+              {/* Bouton connexion */}
+              <button type="submit" disabled={loading} style={{
+                width: '100%', padding: '13px', borderRadius: 12, border: 'none',
+                background: loading ? 'rgba(255,208,0,0.5)' : '#FFD000',
+                color: '#111111', fontSize: 15, fontWeight: 900,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                fontFamily: 'inherit', marginTop: 8,
+                transition: 'opacity .15s',
+              }}>
+                {loading ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
+                      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur=".8s" repeatCount="indefinite" />
+                    </path>
+                  </svg>
+                ) : (
+                  <>Se connecter <ArrowRight size={16} /></>
+                )}
+              </button>
             </form>
 
-            {/* Compte démo */}
-            <div className="mt-6 p-4 rounded-xl border" style={{ background: '#f9fdf9', borderColor: '#d1f0d8' }}>
-              <p className="text-xs font-semibold mb-1.5" style={{ color: '#1E8C32' }}>Compte démo :</p>
-              <p className="text-xs text-gray-500 mb-3">
-                <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">admin@gestmoney.demo</span>
-                {' '}/{' '}
-                <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">Admin2026!</span>
-              </p>
+            {/* Séparateur */}
+            <div className="flex items-center gap-3 my-5">
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>ou</span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+            </div>
+
+            {/* Connexion démo */}
+            <div style={{ background: 'rgba(0,158,0,0.08)', border: '1px solid rgba(0,158,0,0.2)', borderRadius: 14, padding: '14px 16px' }}>
+              <div className="flex items-center justify-between mb-3">
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#009E00', letterSpacing: '0.05em' }}>COMPTE DÉMO</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Accès immédiat</span>
+              </div>
+              <div className="flex gap-2 mb-3">
+                <code style={{ fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '3px 8px', color: 'rgba(255,255,255,0.7)', flex: 1, textAlign: 'center' }}>
+                  admin@gestmoney.demo
+                </code>
+                <code style={{ fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '3px 8px', color: 'rgba(255,255,255,0.7)' }}>
+                  Admin2026!
+                </code>
+              </div>
               <button
-                type="button"
                 onClick={() => { setEmail(DEMO_EMAIL); setMotDePasse(DEMO_PASSWORD); loginDemo(); }}
-                className="w-full text-xs font-semibold py-2 px-3 rounded-lg transition-colors"
-                style={{ background: '#1E8C32', color: 'white' }}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: 10, border: '1px solid rgba(0,158,0,0.4)',
+                  background: 'rgba(0,158,0,0.15)', color: '#fff', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
               >
                 ⚡ Connexion rapide démo
               </button>
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-400 mt-6">
-            &copy; 2024 IBIG SOFT — GESTMONEY. Tous droits réservés.
-          </p>
+          {/* Bande opérateurs + heure */}
+          <div className="flex items-center justify-between mt-8 px-1">
+            <div className="flex gap-3 items-center">
+              {['🟠', '🟡', '🔵', '🟢', '🔴'].map((e, i) => (
+                <span key={i} style={{ fontSize: 16, opacity: 0.7 }}>{e}</span>
+              ))}
+            </div>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontVariantNumeric: 'tabular-nums' }}>
+              {heure} · &copy; 2026 IBIG SOFT
+            </span>
+          </div>
+
         </div>
       </div>
+
       {/* Modal mot de passe oublié */}
       {modalMdpOublie && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Mot de passe oublié</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: '#111c12', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h3 className="text-base font-black text-white mb-1">Mot de passe oublié</h3>
             {!resetEnvoye ? (
               <>
-                <p className="text-sm text-gray-500 mb-4">
-                  Entrez votre adresse email. Un lien de réinitialisation vous sera envoyé.
+                <p className="text-sm mb-4" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  Entrez votre email. Un lien de réinitialisation vous sera envoyé.
                 </p>
                 <form onSubmit={handleReset} className="space-y-3">
                   <input
-                    type="email"
-                    placeholder="votre@email.ci"
-                    value={emailReset}
-                    onChange={(e) => setEmailReset(e.target.value)}
-                    required
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    type="email" placeholder="votre@email.ci" value={emailReset}
+                    onChange={e => setEmailReset(e.target.value)} required
+                    style={{
+                      width: '100%', background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10,
+                      padding: '11px 14px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit',
+                    }}
                   />
-                  <button
-                    type="submit"
-                    disabled={loadingReset}
-                    className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-                    style={{ background: '#1E8C32' }}
-                  >
+                  <button type="submit" disabled={loadingReset} style={{
+                    width: '100%', padding: 11, borderRadius: 10, border: 'none',
+                    background: '#FFD000', color: '#111', fontSize: 14, fontWeight: 700,
+                    cursor: loadingReset ? 'not-allowed' : 'pointer', opacity: loadingReset ? 0.6 : 1, fontFamily: 'inherit',
+                  }}>
                     {loadingReset ? 'Envoi...' : 'Envoyer le lien'}
                   </button>
                 </form>
@@ -289,22 +315,22 @@ export default function LoginPage() {
             ) : (
               <div className="text-center py-4">
                 <div className="text-4xl mb-3">📧</div>
-                <p className="text-sm font-semibold text-gray-800 mb-1">Email envoyé !</p>
-                <p className="text-xs text-gray-500">
-                  Si un compte existe pour <strong>{emailReset}</strong>, vous recevrez un lien de réinitialisation dans quelques minutes.
+                <p className="text-sm font-semibold text-white mb-2">Email envoyé !</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  Si un compte existe pour <strong style={{ color: '#fff' }}>{emailReset}</strong>,<br />
+                  vous recevrez un lien dans quelques minutes.
                 </p>
               </div>
             )}
-            <button
-              type="button"
-              onClick={() => setModalMdpOublie(false)}
-              className="mt-4 w-full py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={() => setModalMdpOublie(false)} style={{
+              marginTop: 16, width: '100%', padding: 10, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)',
+              background: 'transparent', color: 'rgba(255,255,255,0.5)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
               Fermer
             </button>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
