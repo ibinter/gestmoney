@@ -43,7 +43,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs && \
+RUN apk add --no-cache openssl && \
+    addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
 # Structure complète workspace pour que pnpm symlinks fonctionnent correctement
