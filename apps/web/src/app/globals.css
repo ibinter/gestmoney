@@ -57,3 +57,25 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 }
+
+/* ── Dark mode overrides pour les couleurs statiques GESTMONEY ── */
+.dark .bg-white          { background-color: hsl(0 0% 12%); }
+.dark .bg-surface        { background-color: hsl(0 0% 10%); }
+.dark .text-text-main    { color: hsl(0 0% 95%); }
+.dark .text-text-muted   { color: hsl(0 0% 55%); }
+.dark .border-gray-100   { border-color: rgba(255,255,255,0.07); }
+.dark .border-gray-200   { border-color: rgba(255,255,255,0.1); }
+.dark .bg-gray-50        { background-color: rgba(255,255,255,0.03); }
+.dark .bg-gray-100       { background-color: rgba(255,255,255,0.07); }
+.dark .bg-gray-200       { background-color: rgba(255,255,255,0.1); }
+.dark .text-gray-400     { color: rgba(255,255,255,0.4); }
+.dark .text-gray-500     { color: rgba(255,255,255,0.45); }
+.dark .text-gray-600     { color: rgba(255,255,255,0.55); }
+.dark .text-gray-700     { color: rgba(255,255,255,0.7); }
+.dark .text-gray-900     { color: rgba(255,255,255,0.92); }
+.dark .shadow-card       { box-shadow: 0 1px 4px 0 rgba(0,0,0,0.4); }
+.dark .divide-gray-50 > * + *  { border-color: rgba(255,255,255,0.05); }
+.dark .divide-gray-100 > * + * { border-color: rgba(255,255,255,0.07); }
+.dark .hover\:bg-gray-50:hover  { background-color: rgba(255,255,255,0.03); }
+.dark .hover\:bg-surface:hover  { background-color: rgba(255,255,255,0.05); }
+.dark h1, .dark h2, .dark h3 { color: hsl(0 0% 95%); }

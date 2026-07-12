@@ -1,7 +1,8 @@
 'use client';
 import React, { useState } from 'react';
-import { Bell, ChevronDown, LogOut, Settings, User, Menu } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Settings, User, Menu, Search } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
@@ -47,6 +48,20 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       {/* Droite */}
       <div className="flex items-center gap-2">
+        {/* Recherche globale Cmd+K */}
+        <button
+          id="cmd-k-trigger"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        >
+          <Search size={14} />
+          <span>Rechercher…</span>
+          <kbd className="ml-2 text-xs bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+        </button>
+
+        {/* Theme toggle */}
+        <ThemeToggle />
+
         {/* Notifications */}
         <Link
           href="/dashboard/notifications"

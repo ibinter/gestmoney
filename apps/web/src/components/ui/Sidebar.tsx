@@ -20,9 +20,11 @@ import {
   Bell,
   Settings,
   User,
+  Shield,
 } from 'lucide-react';
 import { useNotificationCount } from '@/hooks/useNotifications';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { useAuthStore } from '@/store/authStore';
 
 const NAV_SECTIONS = [
   {
@@ -70,6 +72,8 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
   const pathname = usePathname();
   const { data: nbNotifs = 0 } = useNotificationCount();
   const { stats } = useDashboardStore();
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const liveBadges: Record<string, number> = {
     notifs: nbNotifs,
@@ -131,10 +135,29 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
         ))}
       </div>
 
+      {/* Console SuperAdmin */}
+      {isSuperAdmin && (
+        <div className="px-3 pb-2">
+          <Link
+            href="/superadmin"
+            onClick={mode === 'overlay' ? onFermer : undefined}
+            className={clsx(
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 border',
+              pathname.startsWith('/superadmin')
+                ? 'bg-[#FFD000] text-[#111] border-[#FFD000]'
+                : 'text-[#FFD000] border-[#FFD000]/30 hover:bg-[#FFD000]/10'
+            )}
+          >
+            <Shield size={16} className="flex-shrink-0" />
+            <span>Console SuperAdmin</span>
+          </Link>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="px-4 py-3 border-t border-white/10 flex-shrink-0">
         <p className="text-[10px] text-gray-500 text-center">
-          v1.0 &copy; 2024 IBIG SOFT
+          v1.0 &copy; 2026 IBIG SOFT
         </p>
       </div>
     </nav>
