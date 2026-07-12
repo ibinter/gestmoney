@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { Bell, ChevronDown, LogOut, Settings, User, Menu } from 'lucide-react';
+import { Logo } from '@/components/ui/Logo';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
@@ -41,7 +41,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         >
           <Menu size={20} />
         </button>
-        <Image src="/logo.png" alt="GESTMONEY" width={120} height={40} className="object-contain hidden sm:block" priority />
+        <Logo variante="compact" largeur={130} className="hidden sm:block" />
         <p className="text-xs text-gray-400 hidden md:block capitalize">{dateNow}</p>
       </div>
 

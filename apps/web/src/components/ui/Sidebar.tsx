@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { Logo } from '@/components/ui/Logo';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
@@ -80,18 +81,8 @@ export function Sidebar({ ouvert = true, onFermer, mode = 'fixe' }: SidebarProps
     <nav className="flex flex-col h-full">
       {/* Logo header */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          {/* Icône cercle panafricain */}
-          <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #1E8C32 0%, #F5B800 50%, #C41E1E 100%)' }}>
-            <span className="text-white font-black text-sm tracking-tight">G</span>
-          </div>
-          <div className="leading-none">
-            <p className="text-base font-black tracking-wide leading-none">
-              <span className="text-white">GEST</span><span style={{ color: '#F5B800' }}>MONEY</span>
-            </p>
-            <p className="text-[10px] text-gray-500 mt-0.5">by IBIG SOFT</p>
-          </div>
+        <div className="flex items-center gap-0">
+          <Logo variante="compact" theme="sombre" largeur={130} />
         </div>
         {mode === 'overlay' && onFermer && (
           <button onClick={onFermer} className="text-gray-400 hover:text-white">

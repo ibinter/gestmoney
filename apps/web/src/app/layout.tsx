@@ -10,8 +10,20 @@ export const metadata: Metadata = {
     default: "GESTMONEY - Gestion Mobile Money",
     template: "%s | GESTMONEY",
   },
-  description: "Plateforme Cloud SaaS africaine de gestion des reseaux Mobile Money",
+  description: "La plateforme intelligente de gestion des services financiers digitaux",
   authors: [{ name: "IBIG SOFT" }],
+  keywords: ["Mobile Money", "FCFA", "Orange Money", "MTN MoMo", "Wave", "Afrique", "fintech"],
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
+  openGraph: {
+    title: "GESTMONEY",
+    description: "La plateforme intelligente de gestion des services financiers digitaux",
+    siteName: "GESTMONEY",
+    locale: "fr_FR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

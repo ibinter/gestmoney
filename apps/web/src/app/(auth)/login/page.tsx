@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/ui/Logo';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Zap } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/Button';
@@ -104,7 +104,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col h-full px-14 py-12">
           {/* Logo */}
           <div className="mb-auto">
-            <Image src="/logo.png" alt="GESTMONEY" width={200} height={68} className="object-contain" priority />
+            <Logo variante="horizontal" theme="sombre" largeur={220} />
           </div>
 
           {/* Slogan central */}
@@ -152,7 +152,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Logo mobile uniquement */}
           <div className="mb-8 lg:hidden">
-            <Image src="/logo.png" alt="GESTMONEY" width={160} height={54} className="object-contain" priority />
+            <Logo variante="horizontal" largeur={180} />
           </div>
 
           {/* Carte formulaire */}
