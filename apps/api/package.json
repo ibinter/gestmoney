@@ -5,7 +5,7 @@
   "description": "GESTMONEY - Backend NestJS",
   "scripts": {
     "dev": "nest start --watch",
-    "build": "nest build --skip-type-checking",
+    "build": "nest build",
     "start": "node dist/main",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint src --ext .ts",
@@ -58,6 +58,7 @@
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
+    "socket.io": "^4.7.4",
     "swagger-ui-express": "^5.0.0",
     "uuid": "^9.0.1"
   },
