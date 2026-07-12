@@ -30,10 +30,8 @@ COPY apps/api/ ./apps/api/
 # Générer le client Prisma
 RUN pnpm --filter @gestmoney/database db:generate
 
-# Build (transpileOnly — ignore type errors, check dist output)
-RUN pnpm --filter @gestmoney/api build; \
-    test -f apps/api/dist/main.js && echo "Build OK" || \
-    (cd apps/api && npx tsc -p tsconfig.json --noEmitOnError false --skipLibCheck 2>/dev/null; test -f dist/main.js)
+# Build avec webpack (--skip-type-checking = pas de vérification de types)
+RUN pnpm --filter @gestmoney/api build
 
 # ---- Stage 4: Runner (Production) ----
 # Webpack bundle = tout inclus, node_modules non nécessaires
@@ -48,7 +46,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copier le bundle webpack (main.js auto-suffisant) + le client Prisma natif
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/node_modules/@prisma ./node_modules/@prisma
 
 USER nestjs

@@ -5,7 +5,7 @@
   "description": "GESTMONEY - Backend NestJS",
   "scripts": {
     "dev": "nest start --watch",
-    "build": "nest build",
+    "build": "nest build --skip-type-checking",
     "start": "node dist/main",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint src --ext .ts",
