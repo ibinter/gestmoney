@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { RefreshCw, Bot, X, CheckCircle } from 'lucide-react';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { Button } from '@/components/ui/Button';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { formatMontant } from '@/lib/formatters';
 
@@ -57,7 +58,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Grille de 8 cartes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      {isLoading && !lastUpdated ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : null}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 ${isLoading && !lastUpdated ? 'hidden' : ''}`}>
 
         {/* 1. TRANSACTIONS */}
         <DashboardCard
@@ -127,7 +133,7 @@ export default function DashboardPage() {
             { label: 'CA du mois', valeur: formatMontant(stats.performances.chiffreAffaires) },
             { label: 'Objectif', valeur: formatMontant(stats.performances.objectif) },
             { label: 'Progression', valeur: `${stats.performances.progressionPct}%`, couleur: stats.performances.progressionPct >= 80 ? 'success' : 'warning' },
-            { label: 'Top agent', valeur: stats.performances.topAgent.nom },
+            { label: 'Top agent', valeur: stats.performances.topAgent?.nom ?? '—' },
           ]}
           actions={[
             { label: 'Voir rapport', onClick: () => router.push('/dashboard/rapports'), variante: 'ghost' },
@@ -246,13 +252,14 @@ export default function DashboardPage() {
       )}
 
       {/* Barre de progression performances */}
+      {isLoading && !lastUpdated ? null : (
       <div className="bg-white rounded-card shadow-card p-5">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-semibold text-text-main text-sm">Progression vers l&apos;objectif mensuel</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              Top agent : <span className="font-medium text-text-main">{stats.performances.topAgent.nom}</span> —{' '}
-              {formatMontant(stats.performances.topAgent.montant)}
+              Top agent : <span className="font-medium text-text-main">{stats.performances.topAgent?.nom ?? '—'}</span>
+              {stats.performances.topAgent && <> — {formatMontant(stats.performances.topAgent.montant)}</>}
             </p>
           </div>
           <div className="text-right">
@@ -269,6 +276,7 @@ export default function DashboardPage() {
           />
         </div>
       </div>
+      )}
     </div>
   );
 }

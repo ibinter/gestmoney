@@ -13,7 +13,7 @@ const mockEcritures: EcritureCaisse[] = [
   { id: 'e8', type: 'sortie', libelle: 'Retrait - Oumar Sylla', montant: 120_000, soldeApres: 13_250_000, categorie: 'retrait', agentNom: 'Kofi Mensah', date: '2024-01-14T17:45:00', reference: 'TXN-001242' },
 ];
 
-export const SOLDE_OUVERTURE = 12_200_000;
+export const SOLDE_OUVERTURE = 0;
 
 function mapEcriture(e: Record<string, unknown>): EcritureCaisse {
   return {

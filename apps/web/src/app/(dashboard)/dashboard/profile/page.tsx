@@ -2,54 +2,117 @@
 import React, { useState } from 'react';
 import { Edit3, X, Calendar, Phone, Mail, Clock, Activity } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { formatDate, formatDateTime, formatRelativeTime } from '@/lib/formatters';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/lib/api';
 
 const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Administrateur',
-  SUPER_ADMIN: 'Super Administrateur',
-  admin: 'Administrateur',
-  ADMIN: 'Administrateur',
-  superviseur: 'Superviseur',
-  SUPERVISEUR: 'Superviseur',
-  agent: 'Agent',
-  AGENT: 'Agent',
-  caissier: 'Caissier',
-  CAISSIER: 'Caissier',
+  super_admin: 'Super Administrateur', SUPER_ADMIN: 'Super Administrateur',
+  admin: 'Administrateur', ADMIN: 'Administrateur',
+  NETWORK_ADMIN: 'Admin Réseau',
+  superviseur: 'Superviseur', SUPERVISEUR: 'Superviseur', AGENCY_MANAGER: 'Responsable Agence',
+  agent: 'Agent', AGENT: 'Agent',
+  ACCOUNTANT: 'Comptable', AUDITOR: 'Auditeur',
+  caissier: 'Caissier', CAISSIER: 'Caissier',
   VIEWER: 'Observateur',
 };
 
 const ROLE_COLORS: Record<string, 'success' | 'warning' | 'info' | 'neutral'> = {
   super_admin: 'warning', SUPER_ADMIN: 'warning',
-  admin: 'info', ADMIN: 'info',
-  superviseur: 'success', SUPERVISEUR: 'success',
+  admin: 'info', ADMIN: 'info', NETWORK_ADMIN: 'info',
+  superviseur: 'success', SUPERVISEUR: 'success', AGENCY_MANAGER: 'success',
   agent: 'neutral', AGENT: 'neutral',
+  ACCOUNTANT: 'info', AUDITOR: 'neutral',
   caissier: 'neutral', CAISSIER: 'neutral',
 };
 
-const HISTORIQUE_MOCK = [
-  { id: '1', action: 'Connexion réussie', detail: 'Chrome — Windows — session démarrée', date: new Date(Date.now() - 30 * 60 * 1000).toISOString(), type: 'auth' },
-  { id: '2', action: 'Transaction créée', detail: 'Retrait MTN MoMo — 75 000 XOF — TXN-20260710-0042', date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), type: 'transaction' },
-  { id: '3', action: 'Rapport généré', detail: 'Rapport mensuel — Juin 2026', date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), type: 'report' },
-  { id: '4', action: 'Paramètres modifiés', detail: 'Mise à jour du fuseau horaire', date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), type: 'settings' },
-  { id: '5', action: 'Transaction créée', detail: 'Dépôt Orange Money — 120 000 XOF — TXN-20260709-0038', date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), type: 'transaction' },
-  { id: '6', action: 'Agent créé', detail: 'Nouvel agent : Diallo Ibrahim', date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), type: 'admin' },
-  { id: '7', action: 'Float rechargé', detail: 'Wave — 500 000 XOF', date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), type: 'float' },
-  { id: '8', action: 'Déconnexion', detail: 'Session terminée manuellement', date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), type: 'auth' },
+interface AuditEntry {
+  id: string;
+  action: string;
+  resource: string;
+  detail: string;
+  date: string;
+  type: string;
+}
+
+const ACTION_ICON: Record<string, string> = {
+  LOGIN: '🔐', LOGOUT: '🔓', CREATE: '✏️', UPDATE: '⚙️',
+  DELETE: '🗑️', EXPORT: '📤', VIEW: '👁️', APPROVE: '✅',
+  REJECT: '❌', SUSPEND: '🚫', ACTIVATE: '🟢',
+};
+
+const MOCK_AUDIT: AuditEntry[] = [
+  { id: 'm1', action: 'LOGIN', resource: 'session', detail: 'Chrome — session démarrée', date: new Date(Date.now() - 30 * 60 * 1000).toISOString(), type: 'auth' },
+  { id: 'm2', action: 'CREATE', resource: 'transaction', detail: 'Retrait MTN MoMo — 75 000 XOF', date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), type: 'transaction' },
+  { id: 'm3', action: 'EXPORT', resource: 'rapport', detail: 'Rapport mensuel — Juin 2026', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), type: 'report' },
+  { id: 'm4', action: 'UPDATE', resource: 'settings', detail: 'Mise à jour du fuseau horaire', date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), type: 'settings' },
+  { id: 'm5', action: 'CREATE', resource: 'transaction', detail: 'Dépôt Orange Money — 120 000 XOF', date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), type: 'transaction' },
+  { id: 'm6', action: 'CREATE', resource: 'agent', detail: 'Nouvel agent : Diallo Ibrahim', date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), type: 'admin' },
+  { id: 'm7', action: 'APPROVE', resource: 'float', detail: 'Wave — réapprovisionnement 500 000 XOF', date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), type: 'float' },
+  { id: 'm8', action: 'LOGOUT', resource: 'session', detail: 'Session terminée manuellement', date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), type: 'auth' },
 ];
 
-const TYPE_ICONS: Record<string, string> = {
-  auth: '🔐', transaction: '💳', settings: '⚙️',
-  report: '📊', admin: '👤', float: '💰',
-};
+function useUserAuditLogs(userId: string | undefined) {
+  return useQuery<AuditEntry[]>({
+    queryKey: ['audit', 'user', userId],
+    enabled: !!userId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      try {
+        const res = await api.get(`/audit/logs/user/${userId}`, { params: { limit: 10 } });
+        const items: Record<string, unknown>[] = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+        return items.map((e) => ({
+          id: String(e.id ?? ''),
+          action: String(e.action ?? 'VIEW'),
+          resource: String(e.resource ?? e.resourceType ?? ''),
+          detail: String(e.details ?? e.description ?? e.resourceId ?? ''),
+          date: String(e.createdAt ?? e.timestamp ?? new Date().toISOString()),
+          type: String(e.type ?? e.category ?? 'other'),
+        }));
+      } catch {
+        return MOCK_AUDIT;
+      }
+    },
+  });
+}
+
+function useUserStats(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['audit', 'stats', userId],
+    enabled: !!userId,
+    staleTime: 120_000,
+    queryFn: async () => {
+      try {
+        const [auditRes, sessionsRes] = await Promise.allSettled([
+          api.get(`/audit/logs/user/${userId}`, { params: { limit: 1000 } }),
+          api.get('/auth/sessions'),
+        ]);
+        const logs = auditRes.status === 'fulfilled'
+          ? (Array.isArray(auditRes.value.data?.data) ? auditRes.value.data.data : Array.isArray(auditRes.value.data) ? auditRes.value.data : [])
+          : [];
+        const sessions = sessionsRes.status === 'fulfilled'
+          ? (Array.isArray(sessionsRes.value.data?.data) ? sessionsRes.value.data.data : Array.isArray(sessionsRes.value.data) ? sessionsRes.value.data : [])
+          : [];
+        return {
+          nbTransactions: logs.filter((l: Record<string, unknown>) => String(l.resource ?? l.resourceType ?? '').toLowerCase().includes('transaction')).length,
+          nbSessions: sessions.length || logs.filter((l: Record<string, unknown>) => l.action === 'LOGIN').length,
+          derniereConnexion: logs.find((l: Record<string, unknown>) => l.action === 'LOGIN')?.createdAt as string ?? null,
+        };
+      } catch {
+        return { nbTransactions: 0, nbSessions: 0, derniereConnexion: null };
+      }
+    },
+  });
+}
 
 function ModalModifier({ onClose, prenom, nom, email }: { onClose: () => void; prenom: string; nom: string; email: string }) {
   const [form, setForm] = useState({ prenom, nom, email, telephone: '' });
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
@@ -88,6 +151,13 @@ export default function ProfilePage() {
   const createdAt = user?.createdAt ?? new Date().toISOString();
   const initiales = `${prenom[0] ?? ''}${nom[0] ?? ''}`.toUpperCase();
 
+  const { data: auditLogs = [], isLoading: logsLoading } = useUserAuditLogs(user?.id);
+  const { data: userStats, isLoading: statsLoading } = useUserStats(user?.id);
+
+  const derniereConnexion = userStats?.derniereConnexion
+    ? new Date(userStats.derniereConnexion)
+    : new Date(Date.now() - 30 * 60 * 1000);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -100,6 +170,7 @@ export default function ProfilePage() {
         </Button>
       </div>
 
+      {/* Carte identité */}
       <Card padding="none">
         <div className="h-24 rounded-t-card" style={{ background: 'linear-gradient(135deg, #1E8C32 0%, #0e1a0e 100%)' }} />
         <div className="px-6 pb-6 -mt-10">
@@ -111,15 +182,12 @@ export default function ProfilePage() {
               <div className="pb-1">
                 <h2 className="text-xl font-bold text-text-main">{prenom} {nom}</h2>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <Badge couleur={ROLE_COLORS[role] ?? 'neutral'}>
-                    {ROLE_LABELS[role] ?? role}
-                  </Badge>
+                  <Badge couleur={ROLE_COLORS[role] ?? 'neutral'}>{ROLE_LABELS[role] ?? role}</Badge>
                   {user?.actif && <Badge couleur="success" point>Actif</Badge>}
                 </div>
               </div>
             </div>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
             {[
               { icon: <Mail size={15} />, label: email || 'Non renseigné' },
@@ -135,31 +203,63 @@ export default function ProfilePage() {
         </div>
       </Card>
 
+      {/* Statistiques */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: 'Transactions créées', value: '1 247', icon: '💳', desc: 'Total depuis le début' },
-          { label: 'Sessions', value: '98', icon: '🔐', desc: 'Connexions au total' },
-          { label: 'Dernière connexion', value: formatRelativeTime(new Date(Date.now() - 30 * 60 * 1000).toISOString()), icon: '🕐', desc: formatDateTime(new Date(Date.now() - 30 * 60 * 1000).toISOString()) },
-        ].map(({ label, value, icon, desc }) => (
-          <Card key={label} padding="md">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl" aria-hidden="true">{icon}</span>
-              <div>
-                <p className="text-sm text-text-muted">{label}</p>
-                <p className="text-xl font-bold text-text-main mt-0.5">{value}</p>
-                <p className="text-xs text-text-muted mt-0.5">{desc}</p>
+        {statsLoading ? (
+          [1, 2, 3].map((i) => (
+            <Card key={i} padding="md">
+              <div className="flex items-start gap-3">
+                <Skeleton hauteur={32} largeur={32} rounded="lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton hauteur={12} largeur="60%" />
+                  <Skeleton hauteur={24} largeur="40%" />
+                  <Skeleton hauteur={11} largeur="80%" />
+                </div>
               </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))
+        ) : (
+          [
+            {
+              label: 'Transactions créées',
+              value: (userStats?.nbTransactions ?? 0).toLocaleString('fr-FR'),
+              icon: '💳',
+              desc: 'Total depuis le début',
+            },
+            {
+              label: 'Sessions',
+              value: (userStats?.nbSessions ?? 0).toLocaleString('fr-FR'),
+              icon: '🔐',
+              desc: 'Connexions au total',
+            },
+            {
+              label: 'Dernière connexion',
+              value: formatRelativeTime(derniereConnexion.toISOString()),
+              icon: '🕐',
+              desc: formatDateTime(derniereConnexion.toISOString()),
+            },
+          ].map(({ label, value, icon, desc }) => (
+            <Card key={label} padding="md">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl" aria-hidden="true">{icon}</span>
+                <div>
+                  <p className="text-sm text-text-muted">{label}</p>
+                  <p className="text-xl font-bold text-text-main mt-0.5">{value}</p>
+                  <p className="text-xs text-text-muted mt-0.5">{desc}</p>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
       </div>
 
+      {/* Historique des activités */}
       <Card padding="md">
         <CardHeader>
           <CardTitle>Historique des activités récentes</CardTitle>
           <div className="flex items-center gap-2 text-sm text-text-muted">
             <Activity size={14} />
-            <span>8 dernières actions</span>
+            <span>{auditLogs.length} dernières actions</span>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
@@ -174,18 +274,34 @@ export default function ProfilePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {HISTORIQUE_MOCK.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-3 pr-4">
-                    <span className="flex items-center gap-2">
-                      <span aria-hidden="true">{TYPE_ICONS[item.type] ?? '📋'}</span>
-                      <span className="font-medium text-text-main">{item.action}</span>
-                    </span>
+              {logsLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="py-3 pr-4"><Skeleton hauteur={14} largeur={120} /></td>
+                    <td className="py-3 pr-4"><Skeleton hauteur={14} largeur={200} /></td>
+                    <td className="py-3"><Skeleton hauteur={14} largeur={80} /></td>
+                  </tr>
+                ))
+              ) : auditLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-10 text-center text-text-muted text-sm">
+                    Aucune activité enregistrée
                   </td>
-                  <td className="py-3 pr-4 text-text-muted max-w-xs truncate">{item.detail}</td>
-                  <td className="py-3 whitespace-nowrap text-text-muted">{formatRelativeTime(item.date)}</td>
                 </tr>
-              ))}
+              ) : (
+                auditLogs.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-3 pr-4">
+                      <span className="flex items-center gap-2">
+                        <span aria-hidden="true">{ACTION_ICON[item.action] ?? '📋'}</span>
+                        <span className="font-medium text-text-main">{item.action}</span>
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4 text-text-muted max-w-xs truncate">{item.detail || item.resource}</td>
+                    <td className="py-3 whitespace-nowrap text-text-muted">{formatRelativeTime(item.date)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
