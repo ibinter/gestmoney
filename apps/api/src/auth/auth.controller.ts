@@ -7,7 +7,9 @@ import {
   HttpCode,
   HttpStatus,
   Request,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -44,8 +46,28 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @TenantId() tenantId: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.login(loginDto, tenantId || loginDto.tenantId);
+    const result = await this.authService.login(loginDto, tenantId || loginDto.tenantId);
+    if (result.accessToken) {
+      const isProd = process.env.NODE_ENV === 'production';
+      res.cookie('gestmoney_token', result.accessToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'strict' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7j
+        path: '/',
+      });
+      res.cookie('gestmoney_refresh', result.refreshToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'strict' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30j
+        path: '/api/v1/auth/refresh',
+      });
+    }
+    const { accessToken, refreshToken, ...safe } = result as any;
+    return safe;
   }
 
   @Public()
@@ -70,7 +92,10 @@ export class AuthController {
   async logout(
     @CurrentUser('id') userId: string,
     @TenantId() tenantId: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
+    res.clearCookie('gestmoney_token', { path: '/' });
+    res.clearCookie('gestmoney_refresh', { path: '/api/v1/auth/refresh' });
     return this.authService.logout(userId, tenantId);
   }
 
@@ -84,10 +109,29 @@ export class AuthController {
     @Body() dto: RefreshTokenDto,
     @TenantId() tenantId: string,
     @Request() req: any,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    // Décoder le refresh token pour obtenir userId
-    const payload = await this.extractPayloadFromRefreshToken(dto.refreshToken);
-    return this.authService.refreshTokens(payload.sub, tenantId, dto.refreshToken);
+    // Lire le refresh token depuis le cookie httpOnly (priorité) ou le body
+    const refreshToken = req.cookies?.gestmoney_refresh || dto.refreshToken;
+    const payload = await this.extractPayloadFromRefreshToken(refreshToken);
+    const result = await this.authService.refreshTokens(payload.sub, tenantId, refreshToken);
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('gestmoney_token', result.accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'strict' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+    res.cookie('gestmoney_refresh', result.refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'strict' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      path: '/api/v1/auth/refresh',
+    });
+    const { accessToken, refreshToken: _rt, ...safe } = result as any;
+    return safe;
   }
 
   @Public()

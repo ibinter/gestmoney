@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Topbar } from '@/components/ui/Topbar';
 import { Sidebar } from '@/components/ui/Sidebar';
 import { CommandPalette } from '@/components/ui/CommandPalette';
@@ -9,21 +10,15 @@ import { useAuthStore } from '@/store/authStore';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOuverte, setSidebarOuverte] = useState(false);
-  const { isAuthenticated, login } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
+    // Rediriger vers /login si non authentifié (double sécurité côté client)
     if (!isAuthenticated) {
-      login({
-        id: 'demo-user',
-        nom: 'Admin',
-        prenom: 'Demo',
-        email: 'admin@gestmoney.demo',
-        role: 'SUPER_ADMIN',
-        actif: true,
-        createdAt: new Date().toISOString(),
-      }, 'demo-token');
+      router.replace('/login');
     }
-  }, [isAuthenticated, login]);
+  }, [isAuthenticated, router]);
 
   return (
     <div className="min-h-screen flex bg-surface">

@@ -25,6 +25,7 @@ import { FloatModule } from "./float/float.module";
 import { CommissionsModule } from "./commissions/commissions.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { AiModule } from "./ai/ai.module";
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     StockModule,
     AccountingModule,
     HrModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

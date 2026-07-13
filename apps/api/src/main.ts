@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import helmet from "helmet";
+import * as cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
@@ -17,6 +18,9 @@ async function bootstrap() {
 
   // Securite
   app.use(helmet());
+
+  // Cookie parser (pour les tokens JWT en cookie httpOnly)
+  app.use(cookieParser());
 
   // CORS — en dev, autoriser toutes les origines localhost
   app.enableCors({

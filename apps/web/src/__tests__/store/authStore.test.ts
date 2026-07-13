@@ -1,6 +1,6 @@
 /**
  * Tests unitaires — Store Zustand authStore
- * Vitest
+ * Vitest — migré vers cookie httpOnly (le token n'est plus en localStorage)
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act } from '@testing-library/react';
@@ -19,6 +19,9 @@ const localStorageMock = (() => {
 
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
 
+// Mock fetch (utilisé par logout pour appeler /api/auth-logout)
+globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+
 // ─── Import du store après le mock ───────────────────────────────────────────
 
 import { useAuthStore } from '@/store/authStore';
@@ -28,7 +31,7 @@ const mockUser = {
   nom: 'KOUAKOU',
   prenom: 'Patrice',
   email: 'patrice@ibigsoft.ci',
-  role: 'super_admin',
+  role: 'SUPER_ADMIN',
   actif: true,
   createdAt: '2024-01-01',
 };
@@ -37,23 +40,16 @@ const mockUser = {
 
 describe('authStore', () => {
   beforeEach(() => {
-    // Réinitialiser le store avant chaque test
     act(() => {
-      useAuthStore.getState().logout();
+      useAuthStore.setState({ user: null, isAuthenticated: false });
     });
     localStorageMock.clear();
     vi.clearAllMocks();
   });
 
-  // ─── État initial ─────────────────────────────────────────────────────────────
-
   describe('État initial', () => {
     it('devrait avoir user = null', () => {
       expect(useAuthStore.getState().user).toBeNull();
-    });
-
-    it('devrait avoir token = null', () => {
-      expect(useAuthStore.getState().token).toBeNull();
     });
 
     it('devrait avoir isAuthenticated = false', () => {
@@ -61,51 +57,36 @@ describe('authStore', () => {
     });
   });
 
-  // ─── login() ─────────────────────────────────────────────────────────────────
-
   describe('login()', () => {
     it('devrait mettre à jour user après login', () => {
       act(() => {
-        useAuthStore.getState().login(mockUser as any, 'access-token-123');
+        useAuthStore.getState().login(mockUser as any);
       });
-
       expect(useAuthStore.getState().user).toEqual(mockUser);
-    });
-
-    it('devrait mettre à jour token après login', () => {
-      act(() => {
-        useAuthStore.getState().login(mockUser as any, 'access-token-123');
-      });
-
-      expect(useAuthStore.getState().token).toBe('access-token-123');
     });
 
     it('devrait passer isAuthenticated à true après login', () => {
       act(() => {
-        useAuthStore.getState().login(mockUser as any, 'access-token-123');
+        useAuthStore.getState().login(mockUser as any);
       });
-
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
     });
 
-    it('devrait persister le token dans localStorage', () => {
+    it('ne devrait PAS stocker de token en localStorage (sécurité cookie httpOnly)', () => {
       act(() => {
-        useAuthStore.getState().login(mockUser as any, 'access-token-123');
+        useAuthStore.getState().login(mockUser as any);
       });
-
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      expect(localStorageMock.setItem).not.toHaveBeenCalledWith(
         'gestmoney_token',
-        'access-token-123',
+        expect.any(String),
       );
     });
   });
 
-  // ─── logout() ────────────────────────────────────────────────────────────────
-
   describe('logout()', () => {
     beforeEach(() => {
       act(() => {
-        useAuthStore.getState().login(mockUser as any, 'access-token-123');
+        useAuthStore.getState().login(mockUser as any);
       });
     });
 
@@ -113,41 +94,31 @@ describe('authStore', () => {
       act(() => {
         useAuthStore.getState().logout();
       });
-
       expect(useAuthStore.getState().user).toBeNull();
-    });
-
-    it('devrait remettre token à null après logout', () => {
-      act(() => {
-        useAuthStore.getState().logout();
-      });
-
-      expect(useAuthStore.getState().token).toBeNull();
     });
 
     it('devrait passer isAuthenticated à false après logout', () => {
       act(() => {
         useAuthStore.getState().logout();
       });
-
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
     });
 
-    it('devrait supprimer le token du localStorage', () => {
+    it('devrait appeler /api/auth-logout pour effacer les cookies httpOnly', () => {
       act(() => {
         useAuthStore.getState().logout();
       });
-
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('gestmoney_token');
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        '/api/auth-logout',
+        expect.objectContaining({ method: 'POST', credentials: 'include' }),
+      );
     });
   });
-
-  // ─── updateUser() ─────────────────────────────────────────────────────────────
 
   describe('updateUser()', () => {
     beforeEach(() => {
       act(() => {
-        useAuthStore.getState().login(mockUser as any, 'token-1');
+        useAuthStore.getState().login(mockUser as any);
       });
     });
 
@@ -155,7 +126,6 @@ describe('authStore', () => {
       act(() => {
         useAuthStore.getState().updateUser({ nom: 'DUPONT' } as any);
       });
-
       expect(useAuthStore.getState().user?.nom).toBe('DUPONT');
     });
 
@@ -163,7 +133,6 @@ describe('authStore', () => {
       act(() => {
         useAuthStore.getState().updateUser({ nom: 'DUPONT' } as any);
       });
-
       const user = useAuthStore.getState().user as any;
       expect(user.email).toBe(mockUser.email);
       expect(user.role).toBe(mockUser.role);
@@ -171,10 +140,9 @@ describe('authStore', () => {
 
     it('devrait ne rien faire si user est null', () => {
       act(() => {
-        useAuthStore.getState().logout();
+        useAuthStore.setState({ user: null });
         useAuthStore.getState().updateUser({ nom: 'DUPONT' } as any);
       });
-
       expect(useAuthStore.getState().user).toBeNull();
     });
   });

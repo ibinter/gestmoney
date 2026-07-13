@@ -5,6 +5,8 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { useState } from "react";
 import { I18nProvider } from "@/lib/i18n";
+import { CookieBanner } from "@/components/ui/CookieBanner";
+import { PwaInstallBanner } from "@/components/ui/PwaInstallBanner";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -25,6 +27,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <I18nProvider>
           {children}
           <Toaster richColors position="top-right" />
+          <CookieBanner />
+          <PwaInstallBanner />
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>

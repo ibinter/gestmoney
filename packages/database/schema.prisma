@@ -1542,3 +1542,454 @@ model GeneratedReport {
   @@index([createdAt])
   @@map("generated_reports")
 }
+
+// ==============================================================================
+// CRM — PROSPECTS & PIPELINE COMMERCIAL (SuperAdmin IBIG Soft)
+// ==============================================================================
+
+model Prospect {
+  id              String          @id @default(cuid())
+  nom             String
+  prenom          String?
+  entreprise      String?
+  fonction        String?
+  email           String?
+  telephone       String?
+  whatsapp        String?
+  pays            String?
+  secteur         String?
+  tailleEntreprise String?
+  logiciel        String          @default("GESTMONEY")
+  besoin          String?
+  budgetIndicatif String?
+  origine         ProspectOrigine @default(SITE_WEB)
+  campagne        String?
+  responsableId   String?
+  priorite        ProspectPriorite @default(NORMALE)
+  score           Int             @default(0)
+  statut          ProspectStatut  @default(NOUVEAU)
+  consentement    Boolean         @default(false)
+  notes           String?
+  prochainerAction String?
+  dateRelance     DateTime?
+  convertedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  demonstrations  Demonstration[]
+  offres          Offre[]
+
+  @@index([statut])
+  @@index([email])
+  @@index([createdAt])
+  @@map("prospects")
+}
+
+enum ProspectOrigine {
+  SITE_WEB
+  SARA
+  WHATSAPP
+  REFERRAL
+  IBIG_PARTNERS
+  SALON
+  COLD_CALL
+  EMAIL_CAMPAGNE
+  AUTRE
+}
+
+enum ProspectPriorite {
+  BASSE
+  NORMALE
+  HAUTE
+  CRITIQUE
+}
+
+enum ProspectStatut {
+  NOUVEAU
+  A_CONTACTER
+  CONTACTE
+  QUALIFIE
+  DEMO_PREVUE
+  DEMO_REALISEE
+  OFFRE_ENVOYEE
+  NEGOCIATION
+  GAGNE
+  PERDU
+  A_RELANCER
+}
+
+// ==============================================================================
+// DÉMONSTRATIONS
+// ==============================================================================
+
+model Demonstration {
+  id            String     @id @default(cuid())
+  prospectId    String?
+  entreprise    String
+  logiciel      String     @default("GESTMONEY")
+  date          DateTime
+  fuseau        String     @default("Africa/Abidjan")
+  mode          DemoMode   @default(VISIO)
+  lienVisio     String?
+  agentId       String?
+  besoins       String?
+  notes         String?
+  statut        DemoStatut @default(PLANIFIEE)
+  compteRendu   String?
+  prochainerEtape String?
+  rappelEnvoye  Boolean    @default(false)
+  confirme      Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  prospect      Prospect?  @relation(fields: [prospectId], references: [id])
+  offres        Offre[]
+
+  @@index([date])
+  @@index([statut])
+  @@map("demonstrations")
+}
+
+enum DemoMode {
+  VISIO
+  PRESENTIEL
+  TELEPHONE
+  ENREGISTREMENT
+}
+
+enum DemoStatut {
+  PLANIFIEE
+  CONFIRMEE
+  REALISEE
+  ANNULEE
+  REPORTEE
+  NO_SHOW
+}
+
+// ==============================================================================
+// OFFRES PERSONNALISÉES
+// ==============================================================================
+
+model Offre {
+  id              String      @id @default(cuid())
+  reference       String      @unique
+  prospectId      String?
+  entreprise      String
+  logiciel        String      @default("GESTMONEY")
+  formule         String?
+  modules         Json        @default("[]")
+  nbUtilisateurs  Int         @default(1)
+  nbSites         Int         @default(1)
+  dureesMois      Int         @default(12)
+  devise          String      @default("XOF")
+  prixHT          Decimal     @db.Decimal(15, 2)
+  remise          Decimal     @default(0) @db.Decimal(5, 2)
+  taxes           Decimal     @default(0) @db.Decimal(5, 2)
+  prixTTC         Decimal     @db.Decimal(15, 2)
+  options         Json        @default("{}")
+  formation       Boolean     @default(false)
+  migration       Boolean     @default(false)
+  accompagnement  Boolean     @default(false)
+  validiteJours   Int         @default(30)
+  conditions      String?
+  statut          OffreStatut @default(BROUILLON)
+  signeeAt        DateTime?
+  accepteeAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  prospect        Prospect?       @relation(fields: [prospectId], references: [id])
+  demonstration   Demonstration?  @relation(fields: [demonstrationId], references: [id])
+  demonstrationId String?
+  licenceEvents   LicenceEvent[]
+
+  @@index([statut])
+  @@index([createdAt])
+  @@map("offres")
+}
+
+enum OffreStatut {
+  BROUILLON
+  ENVOYEE
+  CONSULTEE
+  ACCEPTEE
+  REFUSEE
+  EXPIREE
+  CONVERTIE
+}
+
+// ==============================================================================
+// MOTEUR DE LICENCES
+// ==============================================================================
+
+model LicenceEvent {
+  id          String            @id @default(cuid())
+  tenantId    String?
+  offreId     String?
+  type        LicenceEventType
+  plan        String?
+  montant     Decimal?          @db.Decimal(15, 2)
+  devise      String?
+  dateDebut   DateTime?
+  dateFin     DateTime?
+  periodeGrace DateTime?
+  motif       String?
+  agentId     String?
+  createdAt   DateTime          @default(now())
+
+  offre       Offre?            @relation(fields: [offreId], references: [id])
+
+  @@index([tenantId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("licence_events")
+}
+
+enum LicenceEventType {
+  ESSAI_ACTIVE
+  ABONNEMENT_ACTIVE
+  ABONNEMENT_RENOUVELE
+  ABONNEMENT_UPGRAYE
+  ABONNEMENT_DEGRADE
+  ABONNEMENT_SUSPENDU
+  ABONNEMENT_EXPIRE
+  ABONNEMENT_REACTIVE
+  PERIODE_GRACE_ACTIVEE
+  COUPON_APPLIQUE
+  REMBOURSEMENT
+}
+
+// ==============================================================================
+// PAIEMENTS
+// ==============================================================================
+
+model Paiement {
+  id              String          @id @default(cuid())
+  tenantId        String?
+  reference       String          @unique
+  montant         Decimal         @db.Decimal(15, 2)
+  devise          String          @default("XOF")
+  provider        PaymentProvider
+  providerRef     String?
+  statut          PaiementStatut  @default(EN_ATTENTE)
+  metadata        Json            @default("{}")
+  webhookPayload  Json?
+  validePar       String?
+  valideAt        DateTime?
+  rembourseAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([tenantId])
+  @@index([statut])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("paiements")
+}
+
+enum PaymentProvider {
+  CINETPAY
+  MONEROO
+  FEDAPAY
+  PAYSTACK
+  FLUTTERWAVE
+  STRIPE
+  MOBILE_MONEY
+  VIREMENT
+  ESPECES
+  MANUEL
+}
+
+enum PaiementStatut {
+  EN_ATTENTE
+  EN_COURS
+  REUSSI
+  ECHOUE
+  REMBOURSE
+  ANNULE
+  EXPIRE
+}
+
+// ==============================================================================
+// SARA — ASSISTANT IA
+// ==============================================================================
+
+model SaraConversation {
+  id          String        @id @default(cuid())
+  tenantId    String?
+  userId      String?
+  sessionId   String
+  context     String        @default("PUBLIC") // PUBLIC | INTERNE | SUPPORT
+  messages    Json          @default("[]")
+  prospect    Json?
+  totalTokens Int           @default(0)
+  provider    String        @default("groq")
+  modele      String        @default("llama-3.3-70b-versatile")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([tenantId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("sara_conversations")
+}
+
+model SaraConfig {
+  id              String   @id @default(cuid())
+  tenantId        String?  @unique // null = config globale IBIG Soft
+  provider        String   @default("groq")
+  modele          String   @default("llama-3.3-70b-versatile")
+  temperature     Float    @default(0.7)
+  maxTokens       Int      @default(2048)
+  systemPrompt    String?
+  actif           Boolean  @default(true)
+  quotaJournalier Int      @default(100)
+  quotaMensuel    Int      @default(2000)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("sara_configs")
+}
+
+// ==============================================================================
+// PAGES LÉGALES (administrables)
+// ==============================================================================
+
+model PageLegale {
+  id        String   @id @default(cuid())
+  slug      String   @unique // mentions-legales, cgu, confidentialite, cookies, etc.
+  titreFr  String
+  titreEn  String
+  contenuFr String   @db.Text
+  contenuEn String   @db.Text
+  version  String    @default("1.0")
+  publiee  Boolean   @default(false)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("pages_legales")
+}
+
+// ==============================================================================
+// ANALYTICS ÉVÉNEMENTS
+// ==============================================================================
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  sessionId  String?
+  userId     String?
+  type       String   // PAGE_VIEW | CLICK | FORM | CONVERSION | INSTALL_PWA | etc.
+  page       String?
+  element    String?
+  valeur     String?
+  metadata   Json     @default("{}")
+  ip         String?
+  userAgent  String?
+  pays       String?
+  createdAt  DateTime @default(now())
+
+  @@index([type])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+// ==============================================================================
+// EMAILS AUTOMATIQUES — TEMPLATES & LOGS
+// ==============================================================================
+
+model EmailTemplate {
+  id         String   @id @default(cuid())
+  slug       String   @unique // welcome, expiry-7d, expiry-3d, payment-success, etc.
+  sujetFr    String
+  sujetEn    String
+  htmlFr     String   @db.Text
+  htmlEn     String   @db.Text
+  actif      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  to         String
+  sujet      String
+  template   String?
+  statut     String   @default("PENDING") // PENDING | SENT | FAILED | BOUNCED
+  tentatives Int      @default(0)
+  erreur     String?
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([statut])
+  @@index([createdAt])
+  @@map("email_logs")
+}
+
+// ==============================================================================
+// TICKETS SUPPORT
+// ==============================================================================
+
+model Ticket {
+  id          String        @id @default(cuid())
+  numero      String        @unique
+  tenantId    String?
+  userId      String?
+  objet       String
+  description String        @db.Text
+  categorie   String?
+  priorite    TicketPriorite @default(NORMALE)
+  logiciel    String        @default("GESTMONEY")
+  module      String?
+  navigateur  String?
+  appareil    String?
+  statut      TicketStatut  @default(NOUVEAU)
+  agentId     String?
+  resolution  String?       @db.Text
+  satisfaction Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  messages    TicketMessage[]
+
+  @@index([tenantId])
+  @@index([statut])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  auteurId  String?
+  contenu   String   @db.Text
+  interne   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+enum TicketPriorite {
+  BASSE
+  NORMALE
+  HAUTE
+  URGENTE
+}
+
+enum TicketStatut {
+  NOUVEAU
+  OUVERT
+  EN_COURS
+  ATTENTE_CLIENT
+  ESCALADE
+  RESOLU
+  FERME
+}

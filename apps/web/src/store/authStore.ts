@@ -1,5 +1,7 @@
 // ============================================================
 // STORE AUTHENTIFICATION — ZUSTAND
+// Sécurité : le token JWT est stocké en cookie httpOnly (côté NestJS).
+// Le store ne conserve que les métadonnées utilisateur (non sensibles).
 // ============================================================
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -7,11 +9,10 @@ import { User } from '@/types';
 
 interface AuthStore {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
 
   // Actions
-  login: (user: User, token: string) => void;
+  login: (user: User) => void;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
 }
@@ -20,21 +21,16 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       user: null,
-      token: null,
       isAuthenticated: false,
 
-      login: (user, token) => {
-        set({ user, token, isAuthenticated: true });
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('gestmoney_token', token);
-        }
+      login: (user) => {
+        set({ user, isAuthenticated: true });
       },
 
       logout: () => {
-        set({ user: null, token: null, isAuthenticated: false });
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('gestmoney_token');
-        }
+        set({ user: null, isAuthenticated: false });
+        // Appeler l'endpoint logout pour effacer les cookies httpOnly côté serveur
+        fetch('/api/auth-logout', { method: 'POST', credentials: 'include' }).catch(() => {});
       },
 
       updateUser: (updates) =>
@@ -44,7 +40,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'gestmoney-auth',
-      // Ne persiste pas le token dans le store (géré séparément)
+      // Ne persiste que les données non-sensibles
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
