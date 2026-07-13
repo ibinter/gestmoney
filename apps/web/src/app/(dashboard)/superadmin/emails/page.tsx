@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Eye, Toggle as ToggleIcon, Send, ChevronRight, CheckCircle2, AlertTriangle, BarChart2, Users, FileText, Zap } from 'lucide-react';
+import { Mail, Eye, ToggleLeft as ToggleIcon, Send, ChevronRight, CheckCircle2, AlertTriangle, BarChart2, Users, FileText, Zap } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { TEMPLATES_INFO, rendreDemoTemplate, TemplateId, TemplateInfo } from '@/lib/emailTemplates';
 import { clsx } from 'clsx';
