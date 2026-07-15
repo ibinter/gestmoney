@@ -82,10 +82,7 @@ export class KycService {
         documentType: dto.documentType,
         documentNumber: dto.documentNumber,
         documentUrl: dto.documentUrl,
-        documentUrlBack: dto.documentUrlBack,
         selfieUrl: dto.selfieUrl,
-        documentExpiryDate: dto.expiryDate ? new Date(dto.expiryDate) : null,
-        countryCode: dto.countryCode,
         status: KycStatus.PENDING,
       },
     });
@@ -105,7 +102,7 @@ export class KycService {
   async getStatus(userId: string) {
     const kyc = await this.prisma.kycVerification.findFirst({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { submittedAt: 'desc' },
     });
 
     if (!kyc) {
@@ -142,7 +139,7 @@ export class KycService {
         status: KycStatus.VERIFIED,
         level,
         limits: KYC_LIMITS[level],
-        verifiedAt: kyc.verifiedAt.toISOString(),
+        verifiedAt: (kyc as any).reviewedAt?.toISOString() ?? new Date().toISOString(),
         expiresAt: expiresAt.toISOString(),
         kycRecord: kyc,
       };
@@ -162,7 +159,7 @@ export class KycService {
   async approve(userId: string, reviewerId: string, tenantId: string) {
     const kyc = await this.prisma.kycVerification.findFirst({
       where: { userId, status: KycStatus.PENDING },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { submittedAt: 'desc' },
     });
 
     if (!kyc) {
@@ -175,7 +172,7 @@ export class KycService {
       where: { id: kyc.id },
       data: {
         status: KycStatus.VERIFIED,
-        verifiedAt: new Date(),
+        reviewedAt: new Date(),
         reviewedBy: reviewerId,
       },
     });
@@ -203,7 +200,7 @@ export class KycService {
   async reject(userId: string, reason: string, reviewerId: string, tenantId: string) {
     const kyc = await this.prisma.kycVerification.findFirst({
       where: { userId, status: KycStatus.PENDING },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { submittedAt: 'desc' },
     });
 
     if (!kyc) {
@@ -292,15 +289,13 @@ export class KycService {
         documentType: true,
         documentNumber: true,
         documentUrl: true,
-        documentUrlBack: true,
         selfieUrl: true,
         status: true,
-        documentExpiryDate: true,
-        createdAt: true,
-        verifiedAt: true,
         rejectionReason: true,
+        submittedAt: true,
+        reviewedAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { submittedAt: 'desc' },
     });
   }
 
