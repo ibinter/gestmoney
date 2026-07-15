@@ -235,6 +235,7 @@ export const fr = {
     close: 'Fermer',
     back: 'Retour',
     next: 'Suivant',
+    finish: 'Terminer',
     steps: {
       bienvenue: {
         titre: 'Bienvenue sur GESTMONEY',
@@ -379,4 +380,10 @@ export const fr = {
   currencyLocale: 'fr-FR',
 } as const;
 
-export type Translations = typeof fr;
+type WidenLiterals<T> = T extends string
+  ? string
+  : T extends object
+    ? { [K in keyof T]: WidenLiterals<T[K]> }
+    : T;
+
+export type Translations = WidenLiterals<typeof fr>;

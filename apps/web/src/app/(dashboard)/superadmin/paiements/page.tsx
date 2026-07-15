@@ -95,7 +95,7 @@ export default function PaiementsPage() {
                   </td>
                   <td className="px-4 py-3 text-xs font-bold text-purple-600 dark:text-purple-300">{p.plan}</td>
                   <td className="px-4 py-3 text-xs text-text-muted">{p.periode}</td>
-                  <td className="px-4 py-3"><Badge variant={STATUT_MAP[p.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[p.statut]?.label}</Badge></td>
+                  <td className="px-4 py-3"><Badge couleur={STATUT_MAP[p.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[p.statut]?.label}</Badge></td>
                   <td className="px-4 py-3 text-xs text-text-muted">{formatRelativeTime(p.date)}</td>
                   <td className="px-4 py-3">
                     <button className="text-xs text-brand-green hover:underline font-semibold">Voir</button>
@@ -122,7 +122,7 @@ export default function PaiementsPage() {
             <div className="text-center py-6 mb-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
               <p className="text-4xl font-black tabular-nums text-text-main">{formatMontant(detail.montant)}</p>
               <p className="text-sm text-text-muted">{detail.devise} · {detail.plan}</p>
-              <div className="mt-3"><Badge variant={STATUT_MAP[detail.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[detail.statut]?.label}</Badge></div>
+              <div className="mt-3"><Badge couleur={STATUT_MAP[detail.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[detail.statut]?.label}</Badge></div>
             </div>
             <div className="space-y-2 text-sm mb-4">
               {[

@@ -136,7 +136,7 @@ export default function ProspectsPage() {
                     <p className="text-xs text-text-muted">{p.pays}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={STATUT_MAP[p.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[p.statut]?.label}</Badge>
+                    <Badge couleur={STATUT_MAP[p.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[p.statut]?.label}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -194,7 +194,7 @@ export default function ProspectsPage() {
             </div>
             <div className="flex justify-between items-center mb-2">
               <p className="text-sm font-bold text-text-main">Statut pipeline</p>
-              <Badge variant={STATUT_MAP[detail.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[detail.statut]?.label}</Badge>
+              <Badge couleur={STATUT_MAP[detail.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[detail.statut]?.label}</Badge>
             </div>
             {/* Pipeline steps */}
             <div className="flex gap-1 mb-6 overflow-x-auto">

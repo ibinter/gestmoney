@@ -1,568 +1,365 @@
 'use client';
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
-  Search, BookOpen, Zap, ArrowLeftRight, Wallet, Users,
-  BarChart3, Bell, Shield, ChevronDown, ChevronRight,
-  ExternalLink, Download, HelpCircle, CheckCircle2,
+  Search, BookOpen, HelpCircle, LifeBuoy, Bot, Zap,
+  ArrowRight, ChevronRight, Activity, Bell, ArrowLeftRight,
+  Wallet, Users, BarChart3, Shield, ExternalLink, Star,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { exporterPdf } from '@/lib/exportPdf';
-import { useT } from '@/lib/i18n';
 
-// ─── Données du guide ──────────────────────────────────────────────────────
+// ─── Données ───────────────────────────────────────────────────────────────
 
-interface Article {
-  id: string;
-  titre: string;
-  contenu: string; // HTML
-  tags: string[];
-}
-
-interface Section {
-  id: string;
-  titre: string;
-  icone: React.ElementType;
-  couleur: string;
-  description: string;
-  articles: Article[];
-}
-
-const SECTIONS: Section[] = [
+const CATEGORIES = [
   {
-    id: 'demarrage',
-    titre: 'Démarrage rapide',
-    icone: Zap,
+    id: 'guide',
+    titre: 'Guide utilisateur',
+    description: 'Documentation complète, procédures pas-à-pas, tutoriels par module.',
+    icone: BookOpen,
     couleur: '#009E00',
-    description: 'Configurer votre compte et effectuer vos premières opérations.',
-    articles: [
-      {
-        id: 'premiere-connexion',
-        titre: 'Se connecter pour la première fois',
-        tags: ['connexion', 'compte', 'mot de passe'],
-        contenu: `
-          <p>Après la création de votre compte, vous recevez un email contenant vos identifiants temporaires.</p>
-          <ol>
-            <li>Ouvrez le lien de connexion reçu par email ou naviguez vers <code>app.gestmoney.com</code></li>
-            <li>Saisissez votre adresse email et le mot de passe temporaire</li>
-            <li>Au premier login, l'application vous demandera de choisir un nouveau mot de passe sécurisé</li>
-            <li>Activez la <strong>double authentification (2FA)</strong> recommandée pour sécuriser votre compte</li>
-          </ol>
-          <div class="tip">💡 Utilisez <kbd>⌘K</kbd> (Mac) ou <kbd>Ctrl+K</kbd> (Windows) pour naviguer rapidement dans l'application.</div>
-        `,
-      },
-      {
-        id: 'wizard-onboarding',
-        titre: 'Guide de configuration initiale',
-        tags: ['configuration', 'opérateurs', 'agences'],
-        contenu: `
-          <p>À votre première connexion, un <strong>wizard de démarrage</strong> vous guide en 4 étapes :</p>
-          <ol>
-            <li><strong>Bienvenue</strong> — Découvrez les fonctionnalités principales</li>
-            <li><strong>Opérateurs</strong> — Activez les réseaux Mobile Money (Orange Money, Wave, MTN…)</li>
-            <li><strong>Premier agent</strong> — Créez votre premier agent de terrain</li>
-            <li><strong>Terminé</strong> — Accédez au tableau de bord</li>
-          </ol>
-          <p>Vous pouvez relancer ce wizard à tout moment depuis <strong>Paramètres &gt; Guide de démarrage</strong>.</p>
-        `,
-      },
-      {
-        id: 'navigation',
-        titre: 'Navigation dans l\'application',
-        tags: ['navigation', 'raccourcis', 'clavier'],
-        contenu: `
-          <p>GESTMONEY dispose d'une <strong>palette de commandes</strong> accessible par <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>.</p>
-          <p>Elle vous permet de naviguer vers n'importe quelle page en quelques touches.</p>
-          <ul>
-            <li><kbd>↑</kbd> <kbd>↓</kbd> — Naviguer dans la liste</li>
-            <li><kbd>Entrée</kbd> — Aller à la page sélectionnée</li>
-            <li><kbd>Échap</kbd> — Fermer la palette</li>
-          </ul>
-          <p>La <strong>barre latérale</strong> affiche les badges en temps réel : transactions en attente, alertes float, notifications.</p>
-        `,
-      },
-    ],
+    bg: '#009E0015',
+    lien: '/dashboard/guide',
+    badge: '15 sections',
   },
   {
-    id: 'transactions',
-    titre: 'Transactions',
-    icone: ArrowLeftRight,
+    id: 'faq',
+    titre: 'FAQ — 100 questions',
+    description: '100 questions/réponses réelles classées par module et rôle utilisateur.',
+    icone: HelpCircle,
     couleur: '#3B82F6',
-    description: 'Enregistrer, valider et suivre toutes les opérations Mobile Money.',
-    articles: [
-      {
-        id: 'creer-transaction',
-        titre: 'Enregistrer une nouvelle transaction',
-        tags: ['transaction', 'dépôt', 'retrait', 'transfert'],
-        contenu: `
-          <p>Depuis <strong>Transactions &gt; Nouvelle transaction</strong> :</p>
-          <ol>
-            <li>Sélectionnez le <strong>type</strong> : Dépôt, Retrait ou Transfert</li>
-            <li>Choisissez l'<strong>opérateur</strong> Mobile Money concerné</li>
-            <li>Saisissez le <strong>montant</strong> et le <strong>numéro du client</strong></li>
-            <li>Ajoutez la <strong>référence opérateur</strong> (code de la transaction sur le réseau)</li>
-            <li>Cliquez sur <strong>Valider</strong> — la transaction est enregistrée et un reçu peut être imprimé</li>
-          </ol>
-          <div class="tip">💡 Les transactions en attente apparaissent dans le badge rouge de la sidebar.</div>
-        `,
-      },
-      {
-        id: 'statuts-transaction',
-        titre: 'Comprendre les statuts',
-        tags: ['statut', 'en attente', 'validé', 'rejeté'],
-        contenu: `
-          <ul>
-            <li><span class="badge badge-green">Validée</span> — Transaction traitée avec succès</li>
-            <li><span class="badge badge-yellow">En attente</span> — En cours de traitement ou en attente de confirmation opérateur</li>
-            <li><span class="badge badge-red">Rejetée</span> — Transaction échouée (fonds insuffisants, numéro invalide…)</li>
-            <li><span class="badge badge-gray">Annulée</span> — Annulée par l'opérateur ou le gestionnaire</li>
-          </ul>
-          <p>Seul un <strong>Gestionnaire</strong> ou <strong>Superviseur</strong> peut valider manuellement une transaction en attente.</p>
-        `,
-      },
-      {
-        id: 'export-transactions',
-        titre: 'Exporter les transactions',
-        tags: ['export', 'CSV', 'PDF', 'XLSX'],
-        contenu: `
-          <p>Depuis la page <strong>Transactions</strong>, utilisez les boutons d'export en haut à droite :</p>
-          <ul>
-            <li><strong>CSV</strong> — Format tableur universel, compatible Excel/LibreOffice</li>
-            <li><strong>XLSX</strong> — Format Excel natif avec en-tête GESTMONEY</li>
-            <li><strong>PDF</strong> — Document formaté prêt à imprimer ou archiver</li>
-          </ul>
-          <p>Les exports respectent les <strong>filtres actifs</strong> (période, opérateur, statut, agence).</p>
-        `,
-      },
-    ],
+    bg: '#3B82F615',
+    lien: '/dashboard/faq',
+    badge: '12 catégories',
   },
   {
-    id: 'float',
-    titre: 'Gestion du Float',
-    icone: Wallet,
+    id: 'support',
+    titre: 'Tickets support',
+    description: 'Ouvrir un ticket, suivre votre demande, contacter l\'équipe technique.',
+    icone: LifeBuoy,
     couleur: '#F59E0B',
-    description: 'Surveiller et maintenir les soldes float de chaque opérateur.',
-    articles: [
-      {
-        id: 'quest-ce-float',
-        titre: 'Qu\'est-ce que le float ?',
-        tags: ['float', 'solde', 'opérateur'],
-        contenu: `
-          <p>Le <strong>float</strong> est le solde disponible que votre réseau détient chez chaque opérateur Mobile Money. Il représente la capacité de traitement :</p>
-          <ul>
-            <li><strong>Float élevé</strong> → peut effectuer plus de retraits</li>
-            <li><strong>Float bas</strong> → doit être réapprovisionné pour continuer les opérations</li>
-          </ul>
-          <p>GESTMONEY surveille les floats en temps réel et envoie des <strong>alertes automatiques</strong> par email et notification quand un seuil est atteint.</p>
-        `,
-      },
-      {
-        id: 'configurer-seuils',
-        titre: 'Configurer les seuils d\'alerte',
-        tags: ['seuil', 'alerte', 'configuration'],
-        contenu: `
-          <p>Depuis <strong>Gestion Float &gt; Paramètres Float</strong> :</p>
-          <ol>
-            <li>Sélectionnez l'opérateur à configurer</li>
-            <li>Définissez le <strong>seuil bas</strong> (déclenchement de l'alerte)</li>
-            <li>Définissez le <strong>seuil critique</strong> (alerte urgente + blocage optionnel)</li>
-            <li>Choisissez qui reçoit les alertes (emails des gestionnaires)</li>
-          </ol>
-          <div class="warning">⚠️ Un float en dessous du seuil critique peut bloquer les retraits des agents.</div>
-        `,
-      },
-    ],
+    bg: '#F59E0B15',
+    lien: '/dashboard/support',
+    badge: 'Réponse < 4h',
   },
   {
-    id: 'agents',
-    titre: 'Agents & Agences',
-    icone: Users,
+    id: 'sara',
+    titre: 'SARA — Assistant IA',
+    description: 'Posez n\'importe quelle question à SARA, votre assistant IA GESTMONEY.',
+    icone: Bot,
     couleur: '#8B5CF6',
-    description: 'Créer et gérer votre réseau d\'agents de terrain.',
-    articles: [
-      {
-        id: 'creer-agent',
-        titre: 'Ajouter un nouvel agent',
-        tags: ['agent', 'création', 'invitation'],
-        contenu: `
-          <p>Depuis <strong>Agents &gt; Ajouter un agent</strong> :</p>
-          <ol>
-            <li>Renseignez le <strong>prénom, nom</strong> et <strong>numéro de téléphone</strong></li>
-            <li>Associez l'agent à une <strong>agence / point de vente</strong></li>
-            <li>Définissez son <strong>rôle</strong> (Agent, Superviseur agence)</li>
-            <li>GESTMONEY envoie automatiquement un <strong>email d'invitation</strong> avec ses identifiants temporaires</li>
-          </ol>
-          <p>L'agent devra changer son mot de passe à sa première connexion.</p>
-        `,
-      },
-      {
-        id: 'performances-agents',
-        titre: 'Suivre les performances d\'un agent',
-        tags: ['performance', 'commission', 'classement'],
-        contenu: `
-          <p>Depuis la fiche d'un agent, vous accédez à :</p>
-          <ul>
-            <li>Le <strong>volume de transactions</strong> du mois en cours et des mois précédents</li>
-            <li>Le <strong>montant total traité</strong> et le ticket moyen</li>
-            <li>Les <strong>commissions générées</strong></li>
-            <li>Le <strong>classement</strong> par rapport aux autres agents du réseau</li>
-          </ul>
-          <p>Le tableau de bord affiche automatiquement le <strong>Top Agent du mois</strong>.</p>
-        `,
-      },
-    ],
-  },
-  {
-    id: 'rapports',
-    titre: 'Rapports & BI',
-    icone: BarChart3,
-    couleur: '#EC4899',
-    description: 'Générer et analyser les rapports de performance mensuelle.',
-    articles: [
-      {
-        id: 'generer-rapport',
-        titre: 'Générer un rapport mensuel',
-        tags: ['rapport', 'génération', 'mensuel'],
-        contenu: `
-          <p>Depuis <strong>Rapports &amp; BI</strong> :</p>
-          <ol>
-            <li>Sélectionnez la <strong>période</strong> souhaitée dans le menu déroulant</li>
-            <li>Cliquez sur <strong>Générer rapport</strong></li>
-            <li>GESTMONEY calcule les KPIs, la répartition par opérateur et le classement des agents</li>
-            <li>Le rapport apparaît dans l'historique en quelques secondes</li>
-          </ol>
-          <p>Les rapports peuvent être exportés en <strong>CSV, XLSX ou PDF</strong> depuis l'historique.</p>
-        `,
-      },
-      {
-        id: 'rapport-automatique',
-        titre: 'Rapports automatiques mensuels',
-        tags: ['automatique', 'email', 'planification'],
-        contenu: `
-          <p>GESTMONEY génère automatiquement un <strong>rapport de synthèse</strong> le 1er de chaque mois et l'envoie par email aux gestionnaires.</p>
-          <p>Pour configurer les destinataires : <strong>Paramètres &gt; Notifications &gt; Rapports</strong></p>
-          <p>Le rapport email contient :</p>
-          <ul>
-            <li>Chiffre d'affaires et variation vs mois précédent</li>
-            <li>Nombre de transactions et nouveaux clients</li>
-            <li>Meilleur agent du mois</li>
-            <li>Lien vers le rapport PDF complet</li>
-          </ul>
-        `,
-      },
-    ],
-  },
-  {
-    id: 'securite',
-    titre: 'Sécurité & Accès',
-    icone: Shield,
-    couleur: '#E60000',
-    description: 'Protéger votre compte et gérer les droits d\'accès.',
-    articles: [
-      {
-        id: 'activer-2fa',
-        titre: 'Activer la double authentification (2FA)',
-        tags: ['2FA', 'sécurité', 'TOTP', 'authenticator'],
-        contenu: `
-          <p>La 2FA ajoute une couche de sécurité en exigeant un code temporaire en plus de votre mot de passe.</p>
-          <ol>
-            <li>Allez dans <strong>Paramètres &gt; Sécurité &gt; Double authentification</strong></li>
-            <li>Cliquez sur <strong>Activer la 2FA</strong></li>
-            <li>Scannez le QR code avec <strong>Google Authenticator</strong> ou <strong>Authy</strong></li>
-            <li>Saisissez le code à 6 chiffres pour confirmer l'activation</li>
-          </ol>
-          <div class="tip">💡 Conservez vos codes de récupération dans un endroit sûr.</div>
-        `,
-      },
-      {
-        id: 'roles-permissions',
-        titre: 'Rôles et permissions',
-        tags: ['rôle', 'permission', 'accès', 'RBAC'],
-        contenu: `
-          <ul>
-            <li><span class="badge badge-red">SUPER_ADMIN</span> — Accès total à toute la plateforme et à la console SuperAdmin</li>
-            <li><span class="badge badge-yellow">ADMIN</span> — Gestion complète d'un tenant (société)</li>
-            <li><span class="badge badge-blue">MANAGER</span> — Gestion des agents, validation des transactions, rapports</li>
-            <li><span class="badge badge-purple">SUPERVISOR</span> — Supervision d'une ou plusieurs agences</li>
-            <li><span class="badge badge-gray">AGENT</span> — Enregistrement des transactions uniquement</li>
-            <li><span class="badge badge-gray">AUDITOR</span> — Lecture seule, audit des journaux</li>
-          </ul>
-        `,
-      },
-    ],
+    bg: '#8B5CF615',
+    lien: '#sara',
+    badge: 'IA disponible 24h/24',
   },
 ];
 
-const FAQ = [
-  {
-    q: 'Comment réinitialiser le mot de passe d\'un agent ?',
-    r: 'Depuis la fiche de l\'agent (Agents > [Nom de l\'agent] > Actions), cliquez sur "Réinitialiser le mot de passe". Un email est envoyé automatiquement à l\'agent.',
-  },
-  {
-    q: 'Que faire si une transaction reste bloquée en "En attente" ?',
-    r: 'Vérifiez d\'abord le solde float de l\'opérateur concerné. Si le float est suffisant, contactez le support opérateur avec la référence de la transaction. Un gestionnaire peut forcer la validation ou le rejet depuis Transactions > [Référence] > Actions.',
-  },
-  {
-    q: 'Comment ajouter un nouvel opérateur Mobile Money ?',
-    r: 'Rendez-vous dans Paramètres > Opérateurs. Cliquez sur "Ajouter un opérateur", renseignez les informations de connexion API et définissez les seuils de float. L\'opérateur apparaîtra dans les formulaires de transaction.',
-  },
-  {
-    q: 'Les données sont-elles sauvegardées automatiquement ?',
-    r: 'Oui. GESTMONEY effectue des sauvegardes automatiques toutes les heures avec rétention de 30 jours. En cas d\'incident, contactez le support IBIG Soft pour une restauration.',
-  },
-  {
-    q: 'Comment contacter le support technique ?',
-    r: 'Par email : support@ibigsoft.com (réponse sous 4h ouvrées). Pour les urgences, utilisez le chat en direct disponible dans la Console SuperAdmin.',
-  },
+const LIENS_RAPIDES = [
+  { label: 'Enregistrer une transaction', icone: ArrowLeftRight, lien: '/dashboard/transactions', couleur: '#009E00' },
+  { label: 'Ajouter un agent', icone: Users, lien: '/dashboard/agents', couleur: '#3B82F6' },
+  { label: 'Consulter le float', icone: Wallet, lien: '/dashboard/float', couleur: '#F59E0B' },
+  { label: 'Générer un rapport', icone: BarChart3, lien: '/dashboard/rapports', couleur: '#EC4899' },
+  { label: 'Activer la 2FA', icone: Shield, lien: '/dashboard/settings', couleur: '#E60000' },
+  { label: 'Ouvrir un ticket', icone: LifeBuoy, lien: '/dashboard/support', couleur: '#8B5CF6' },
 ];
 
-// ─── Composant article expandable ─────────────────────────────────────────
-function ArticleAccordion({ article }: { article: Article }) {
-  const [ouvert, setOuvert] = useState(false);
-  return (
-    <div className={clsx('border border-gray-100 dark:border-white/08 rounded-xl overflow-hidden transition-all', ouvert && 'shadow-sm')}>
-      <button
-        onClick={() => setOuvert((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-white/03 transition-colors"
-      >
-        <span className="text-sm font-semibold text-text-main">{article.titre}</span>
-        {ouvert ? <ChevronDown size={16} className="text-text-muted flex-shrink-0" /> : <ChevronRight size={16} className="text-text-muted flex-shrink-0" />}
-      </button>
-      {ouvert && (
-        <div
-          className="px-4 pb-4 prose-guide text-sm text-text-muted leading-relaxed border-t border-gray-100 dark:border-white/08 pt-3"
-          dangerouslySetInnerHTML={{ __html: article.contenu }}
-        />
-      )}
-    </div>
-  );
-}
+const ARTICLES_POPULAIRES = [
+  { titre: 'Se connecter pour la première fois', section: 'Démarrage', lien: '/dashboard/guide' },
+  { titre: 'Enregistrer une transaction Mobile Money', section: 'Transactions', lien: '/dashboard/guide' },
+  { titre: 'Comprendre les rôles et permissions', section: 'Sécurité', lien: '/dashboard/guide' },
+  { titre: 'Configurer les seuils d\'alerte float', section: 'Float', lien: '/dashboard/guide' },
+  { titre: 'Exporter les transactions en Excel', section: 'Transactions', lien: '/dashboard/guide' },
+  { titre: 'Ajouter un nouvel agent', section: 'Agents', lien: '/dashboard/guide' },
+  { titre: 'Activer la double authentification', section: 'Sécurité', lien: '/dashboard/guide' },
+  { titre: 'Générer un rapport mensuel', section: 'Rapports', lien: '/dashboard/guide' },
+];
 
-// ─── FAQ item ─────────────────────────────────────────────────────────────
-function FaqItem({ q, r }: { q: string; r: string }) {
-  const [ouvert, setOuvert] = useState(false);
-  return (
-    <div className="border border-gray-100 dark:border-white/08 rounded-xl overflow-hidden">
-      <button
-        onClick={() => setOuvert((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-gray-50 dark:hover:bg-white/03 transition-colors gap-3"
-      >
-        <div className="flex items-start gap-3 min-w-0">
-          <HelpCircle size={16} className="text-primary flex-shrink-0 mt-0.5" />
-          <span className="text-sm font-semibold text-text-main">{q}</span>
-        </div>
-        {ouvert ? <ChevronDown size={16} className="text-text-muted flex-shrink-0" /> : <ChevronRight size={16} className="text-text-muted flex-shrink-0" />}
-      </button>
-      {ouvert && (
-        <div className="px-4 pb-4 pl-11 border-t border-gray-100 dark:border-white/08 pt-3">
-          <p className="text-sm text-text-muted leading-relaxed">{r}</p>
-        </div>
-      )}
-    </div>
-  );
-}
+const FAQ_RAPIDE = [
+  { q: 'Comment réinitialiser le mot de passe d\'un agent ?', lien: '/dashboard/faq' },
+  { q: 'Que faire si une transaction reste bloquée ?', lien: '/dashboard/faq' },
+  { q: 'Quelle est la différence entre AGENT et CAISSIER ?', lien: '/dashboard/faq' },
+  { q: 'Comment configurer les commissions ?', lien: '/dashboard/faq' },
+  { q: 'Les données sont-elles sauvegardées automatiquement ?', lien: '/dashboard/faq' },
+];
+
+const STATUT_SERVICES = [
+  { nom: 'Application Web', statut: 'operationnel' },
+  { nom: 'API Backend', statut: 'operationnel' },
+  { nom: 'Orange Money (CI)', statut: 'operationnel' },
+  { nom: 'Wave Sénégal', statut: 'degradation' },
+  { nom: 'MTN Mobile Money', statut: 'operationnel' },
+  { nom: 'SARA IA', statut: 'operationnel' },
+];
+
+const STATUT_COLOR: Record<string, { label: string; dot: string; text: string }> = {
+  operationnel: { label: 'Opérationnel', dot: 'bg-green-500', text: 'text-green-600 dark:text-green-400' },
+  degradation:  { label: 'Dégradé',      dot: 'bg-yellow-500 animate-pulse', text: 'text-yellow-600 dark:text-yellow-400' },
+  incident:     { label: 'Incident',     dot: 'bg-red-500 animate-pulse',    text: 'text-red-600 dark:text-red-400' },
+};
+
+// ─── Recherche globale simple ──────────────────────────────────────────────
+const INDEX_RECHERCHE = [
+  ...ARTICLES_POPULAIRES.map((a) => ({ type: 'guide', titre: a.titre, sous: a.section, lien: a.lien })),
+  { type: 'faq', titre: 'Comment réinitialiser le mot de passe d\'un agent ?', sous: 'FAQ · Connexion', lien: '/dashboard/faq' },
+  { type: 'faq', titre: 'Comment effectuer une transaction Mobile Money ?', sous: 'FAQ · Transactions', lien: '/dashboard/faq' },
+  { type: 'faq', titre: 'Quelle est la différence entre AGENT et MANAGER ?', sous: 'FAQ · Permissions', lien: '/dashboard/faq' },
+  { type: 'faq', titre: 'Comment configurer les commissions par opérateur ?', sous: 'FAQ · Commissions', lien: '/dashboard/faq' },
+  { type: 'faq', titre: 'Comment exporter les transactions en Excel ?', sous: 'FAQ · Exports', lien: '/dashboard/faq' },
+  { type: 'faq', titre: 'Comment ajouter un agent ?', sous: 'FAQ · Agents', lien: '/dashboard/faq' },
+  { type: 'guide', titre: 'Configuration des opérateurs Mobile Money', sous: 'Paramétrage', lien: '/dashboard/guide' },
+  { type: 'guide', titre: 'Activer la double authentification (2FA)', sous: 'Sécurité', lien: '/dashboard/guide' },
+  { type: 'ticket', titre: 'Ouvrir un ticket de support', sous: 'Support', lien: '/dashboard/support' },
+];
 
 // ─── Page principale ───────────────────────────────────────────────────────
 export default function AidePage() {
-  const t = useT();
   const [recherche, setRecherche] = useState('');
-  const [sectionActive, setSectionActive] = useState<string | null>(null);
 
-  const resultatsRecherche = useMemo(() => {
-    if (!recherche.trim()) return [];
+  const resultats = useMemo(() => {
+    if (!recherche.trim() || recherche.length < 2) return [];
     const q = recherche.toLowerCase();
-    const res: { section: Section; article: Article }[] = [];
-    SECTIONS.forEach((section) => {
-      section.articles.forEach((article) => {
-        if (
-          article.titre.toLowerCase().includes(q) ||
-          article.tags.some((t) => t.includes(q)) ||
-          article.contenu.toLowerCase().includes(q)
-        ) {
-          res.push({ section, article });
-        }
-      });
-    });
-    return res;
+    return INDEX_RECHERCHE.filter((r) =>
+      r.titre.toLowerCase().includes(q) || r.sous.toLowerCase().includes(q)
+    ).slice(0, 8);
   }, [recherche]);
 
-  const sectionsFiltrees = sectionActive ? SECTIONS.filter((s) => s.id === sectionActive) : SECTIONS;
-
-  const handleExportPdf = () => {
-    const lignes = SECTIONS.flatMap((s) =>
-      s.articles.map((a) => ({
-        section: s.titre,
-        article: a.titre,
-        tags: a.tags.join(', '),
-      }) as Record<string, unknown>)
-    );
-    exporterPdf(
-      lignes,
-      [
-        { titre: 'Section', valeur: (r) => String(r.section) },
-        { titre: 'Article', valeur: (r) => String(r.article) },
-        { titre: 'Mots-clés', valeur: (r) => String(r.tags) },
-      ],
-      { titre: 'Guide Utilisateur GESTMONEY', sousTitre: 'Documentation complète' }
-    );
-  };
-
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      {/* En-tête */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <BookOpen size={20} className="text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-text-main">{t.aide.title}</h1>
-            <p className="text-sm text-text-muted mt-0.5">{t.aide.subtitle} — {SECTIONS.reduce((n, s) => n + s.articles.length, 0)} {t.aide.articles}</p>
-          </div>
-        </div>
-        <button
-          onClick={handleExportPdf}
-          className="flex items-center gap-2 text-sm font-semibold text-text-muted border border-gray-200 dark:border-white/10 px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/05 transition-colors"
-        >
-          <Download size={15} />
-          {t.aide.exportPdf}
-        </button>
-      </div>
+    <div className="space-y-10 max-w-5xl mx-auto">
 
-      {/* Barre de recherche */}
-      <div className="relative">
-        <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
-        <input
-          type="text"
-          placeholder={t.aide.searchPlaceholder}
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/04 text-text-main text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-        />
-        {recherche && (
-          <button onClick={() => setRecherche('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main text-xs">
-            Effacer
-          </button>
-        )}
-      </div>
+      {/* ── Hero ────────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#009E00] via-[#007a00] to-[#005700] px-8 py-10 text-white">
+        {/* Cercles déco */}
+        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/05 pointer-events-none" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-[#FFD000]/10 pointer-events-none" />
 
-      {/* Résultats de recherche */}
-      {recherche.trim() && (
-        <div>
-          <p className="text-xs text-text-muted font-semibold uppercase tracking-wide mb-3">
-            {resultatsRecherche.length} résultat{resultatsRecherche.length !== 1 ? 's' : ''} pour &ldquo;{recherche}&rdquo;
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen size={20} className="text-[#FFD000]" />
+            <span className="text-sm font-semibold text-white/80">Centre d&apos;aide GESTMONEY</span>
+          </div>
+          <h1 className="text-3xl font-black mb-2">Comment pouvons-nous vous aider ?</h1>
+          <p className="text-white/75 text-sm mb-6 max-w-lg">
+            Guide complet, 100 FAQ, tickets support et SARA votre assistante IA — toute l&apos;aide dont vous avez besoin.
           </p>
-          {resultatsRecherche.length === 0 ? (
-            <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 px-6 py-10 text-center">
-              <p className="text-text-muted text-sm">Aucun article trouvé. Essayez d&apos;autres mots-clés.</p>
-              <a href="mailto:support@ibigsoft.com" className="text-primary text-sm font-semibold mt-3 inline-flex items-center gap-1">
-                Contacter le support <ExternalLink size={12} />
-              </a>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {resultatsRecherche.map(({ section, article }) => (
-                <div key={article.id} className="bg-white dark:bg-white/03 rounded-xl border border-gray-100 dark:border-white/08 overflow-hidden">
-                  <div className="px-4 pt-3 pb-1 flex items-center gap-2">
-                    <section.icone size={13} style={{ color: section.couleur }} />
-                    <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">{section.titre}</span>
+
+          {/* Barre de recherche */}
+          <div className="relative max-w-xl">
+            <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Rechercher dans le guide, FAQ, articles…"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-white/15 border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-[#FFD000]/50 focus:bg-white/20 transition-all text-sm backdrop-blur-sm"
+            />
+            {recherche && (
+              <button
+                onClick={() => setRecherche('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white text-xs"
+              >
+                Effacer
+              </button>
+            )}
+          </div>
+
+          {/* Résultats de recherche */}
+          {resultats.length > 0 && (
+            <div className="absolute z-20 top-full mt-2 w-full max-w-xl bg-white dark:bg-[hsl(0_0%_12%)] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+              {resultats.map((r, i) => (
+                <Link
+                  key={i}
+                  href={r.lien}
+                  onClick={() => setRecherche('')}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/05 transition-colors border-b border-gray-100 dark:border-white/05 last:border-0"
+                >
+                  <div className={clsx('w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0', r.type === 'guide' ? 'bg-[#009E00]/10' : r.type === 'faq' ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-orange-50 dark:bg-orange-900/20')}>
+                    {r.type === 'guide' ? <BookOpen size={13} className="text-[#009E00]" /> : r.type === 'faq' ? <HelpCircle size={13} className="text-blue-500" /> : <LifeBuoy size={13} className="text-orange-500" />}
                   </div>
-                  <ArticleAccordion article={article} />
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">{r.titre}</p>
+                    <p className="text-xs text-gray-400">{r.sous}</p>
+                  </div>
+                  <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                </Link>
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Filtres sections (si pas de recherche) */}
-      {!recherche.trim() && (
-        <>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setSectionActive(null)}
-              className={clsx('px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors', !sectionActive ? 'bg-primary text-sidebar' : 'bg-white dark:bg-white/05 text-text-muted border border-gray-200 dark:border-white/10 hover:border-primary hover:text-primary')}
-            >
-              Tout afficher
-            </button>
-            {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setSectionActive(sectionActive === s.id ? null : s.id)}
-                className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors', sectionActive === s.id ? 'text-sidebar' : 'bg-white dark:bg-white/05 text-text-muted border border-gray-200 dark:border-white/10 hover:text-text-main')}
-                style={sectionActive === s.id ? { backgroundColor: s.couleur } : {}}
-              >
-                <s.icone size={12} />
-                {s.titre}
-              </button>
-            ))}
-          </div>
-
-          {/* Sections & articles */}
-          <div className="space-y-6">
-            {sectionsFiltrees.map((section) => (
-              <div key={section.id} className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 overflow-hidden">
-                {/* Header section */}
-                <div className="px-6 py-5 flex items-center gap-4 border-b border-gray-100 dark:border-white/08" style={{ borderLeftWidth: 4, borderLeftColor: section.couleur, borderLeftStyle: 'solid' }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: section.couleur + '18' }}>
-                    <section.icone size={19} style={{ color: section.couleur }} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-text-main">{section.titre}</h2>
-                    <p className="text-xs text-text-muted mt-0.5">{section.description}</p>
-                  </div>
-                  <span className="ml-auto text-xs text-text-muted bg-gray-100 dark:bg-white/08 px-2 py-1 rounded-full flex-shrink-0">{section.articles.length} article{section.articles.length > 1 ? 's' : ''}</span>
-                </div>
-
-                {/* Articles */}
-                <div className="px-4 py-3 space-y-1.5">
-                  {section.articles.map((article) => (
-                    <ArticleAccordion key={article.id} article={article} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* FAQ */}
-          <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 dark:border-white/08 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#FFD000]/15 flex items-center justify-center">
-                <HelpCircle size={19} className="text-[#b8960a] dark:text-[#FFD000]" />
-              </div>
-              <div>
-                <h2 className="font-bold text-text-main">Questions fréquentes</h2>
-                <p className="text-xs text-text-muted mt-0.5">Les questions les plus posées par les utilisateurs</p>
-              </div>
+          {recherche.trim().length >= 2 && resultats.length === 0 && (
+            <div className="absolute z-20 top-full mt-2 w-full max-w-xl bg-white dark:bg-[hsl(0_0%_12%)] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 p-6 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Aucun résultat pour &ldquo;{recherche}&rdquo;</p>
+              <Link href="/dashboard/support" className="text-[#009E00] text-sm font-semibold mt-2 inline-block hover:underline">
+                Ouvrir un ticket de support →
+              </Link>
             </div>
-            <div className="px-4 py-3 space-y-1.5">
-              {FAQ.map((faq) => (
-                <FaqItem key={faq.q} q={faq.q} r={faq.r} />
+          )}
+        </div>
+      </div>
+
+      {/* ── Catégories principales ───────────────────────────────────── */}
+      <div>
+        <h2 className="text-lg font-bold text-text-main mb-4">Ressources d&apos;aide</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {CATEGORIES.map((cat) => (
+            <Link
+              key={cat.id}
+              href={cat.lien}
+              className="group bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 p-5 hover:border-[#009E00]/30 hover:shadow-md transition-all"
+            >
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110" style={{ background: cat.bg }}>
+                <cat.icone size={22} style={{ color: cat.couleur }} />
+              </div>
+              <h3 className="font-bold text-text-main text-sm mb-1 group-hover:text-[#009E00] transition-colors">{cat.titre}</h3>
+              <p className="text-xs text-text-muted leading-relaxed mb-3">{cat.description}</p>
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full" style={{ background: cat.bg, color: cat.couleur }}>
+                {cat.badge}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ── Articles populaires ────────────────────────────────────── */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-text-main">Articles populaires</h2>
+            <Link href="/dashboard/guide" className="text-xs text-[#009E00] font-semibold hover:underline flex items-center gap-1">
+              Voir le guide complet <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 divide-y divide-gray-50 dark:divide-white/05">
+            {ARTICLES_POPULAIRES.map((a, i) => (
+              <Link
+                key={i}
+                href={a.lien}
+                className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-white/03 transition-colors group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-[#009E00]/08 flex items-center justify-center flex-shrink-0">
+                  <Star size={13} className="text-[#009E00]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-text-main group-hover:text-[#009E00] transition-colors truncate">{a.titre}</p>
+                  <p className="text-xs text-text-muted">{a.section}</p>
+                </div>
+                <ChevronRight size={14} className="text-text-muted group-hover:text-[#009E00] transition-colors flex-shrink-0" />
+              </Link>
+            ))}
+          </div>
+
+          {/* FAQ rapide */}
+          <div className="flex items-center justify-between mt-6">
+            <h2 className="text-lg font-bold text-text-main">Questions fréquentes</h2>
+            <Link href="/dashboard/faq" className="text-xs text-blue-500 font-semibold hover:underline flex items-center gap-1">
+              100 FAQ complètes <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 divide-y divide-gray-50 dark:divide-white/05">
+            {FAQ_RAPIDE.map((f, i) => (
+              <Link
+                key={i}
+                href={f.lien}
+                className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-white/03 transition-colors group"
+              >
+                <HelpCircle size={15} className="text-blue-400 flex-shrink-0" />
+                <p className="flex-1 text-sm font-medium text-text-main group-hover:text-blue-500 transition-colors">{f.q}</p>
+                <ChevronRight size={14} className="text-text-muted group-hover:text-blue-500 transition-colors flex-shrink-0" />
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Colonne droite ─────────────────────────────────────────── */}
+        <div className="space-y-5">
+          {/* Liens rapides */}
+          <div>
+            <h2 className="text-lg font-bold text-text-main mb-3">Accès rapides</h2>
+            <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 divide-y divide-gray-50 dark:divide-white/05">
+              {LIENS_RAPIDES.map((l, i) => (
+                <Link
+                  key={i}
+                  href={l.lien}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/03 transition-colors group"
+                >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: l.couleur + '15' }}>
+                    <l.icone size={14} style={{ color: l.couleur }} />
+                  </div>
+                  <span className="text-sm font-medium text-text-main group-hover:text-[#009E00] transition-colors">{l.label}</span>
+                  <ArrowRight size={12} className="ml-auto text-text-muted group-hover:text-[#009E00] transition-colors" />
+                </Link>
               ))}
             </div>
           </div>
 
-          {/* Contact support */}
-          <div className="bg-gradient-to-r from-[#009E00]/10 to-[#FFD000]/10 rounded-2xl border border-[#009E00]/20 p-6 flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h3 className="font-bold text-text-main">Vous n&apos;avez pas trouvé la réponse ?</h3>
-              <p className="text-sm text-text-muted mt-1">Notre équipe support répond sous 4h en jours ouvrés.</p>
-            </div>
-            <div className="flex gap-3 flex-wrap">
-              <a
-                href="mailto:support@ibigsoft.com"
-                className="flex items-center gap-2 bg-white dark:bg-white/08 text-text-main text-sm font-semibold px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/12 transition-colors"
-              >
-                <ExternalLink size={14} />
-                Email support
-              </a>
-              <button className="flex items-center gap-2 bg-primary text-sidebar text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors">
-                <CheckCircle2 size={14} />
-                Chat en direct
-              </button>
+          {/* État des services */}
+          <div>
+            <h2 className="text-base font-bold text-text-main mb-3 flex items-center gap-2">
+              <Activity size={16} className="text-[#009E00]" />
+              État des services
+            </h2>
+            <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 divide-y divide-gray-50 dark:divide-white/05">
+              {STATUT_SERVICES.map((s, i) => {
+                const cfg = STATUT_COLOR[s.statut];
+                return (
+                  <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-xs text-text-main font-medium">{s.nom}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={clsx('w-2 h-2 rounded-full', cfg.dot)} />
+                      <span className={clsx('text-[10px] font-semibold', cfg.text)}>{cfg.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </>
-      )}
+
+          {/* Contact */}
+          <div className="bg-gradient-to-br from-[#009E00]/08 to-[#FFD000]/08 rounded-2xl border border-[#009E00]/15 p-5">
+            <h3 className="font-bold text-text-main text-sm mb-1">Besoin d&apos;aide urgente ?</h3>
+            <p className="text-xs text-text-muted mb-4">Notre équipe répond sous 4h en jours ouvrés. Pour les urgences, réponse garantie en 2h.</p>
+            <div className="space-y-2">
+              <a
+                href="mailto:support@ibigsoft.com"
+                className="flex items-center gap-2 w-full bg-white dark:bg-white/08 border border-gray-200 dark:border-white/10 text-text-main text-xs font-semibold px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/12 transition-colors"
+              >
+                <ExternalLink size={13} />
+                support@ibigsoft.com
+              </a>
+              <Link
+                href="/dashboard/support"
+                className="flex items-center gap-2 w-full bg-[#009E00] text-white text-xs font-semibold px-3 py-2.5 rounded-xl hover:bg-[#007a00] transition-colors"
+              >
+                <LifeBuoy size={13} />
+                Ouvrir un ticket
+              </Link>
+            </div>
+          </div>
+
+          {/* Nouveautés */}
+          <div className="bg-[#FFD000]/10 border border-[#FFD000]/30 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <Bell size={15} className="text-[#b8960a] dark:text-[#FFD000]" />
+              <span className="text-xs font-bold text-[#b8960a] dark:text-[#FFD000]">Nouveautés v2.1</span>
+            </div>
+            <ul className="space-y-1.5 text-xs text-text-muted">
+              <li className="flex items-start gap-1.5">
+                <span className="text-[#009E00] mt-0.5">+</span>
+                Export Excel avec graphiques intégrés
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-[#009E00] mt-0.5">+</span>
+                SARA IA : réponses en anglais et français
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-[#009E00] mt-0.5">+</span>
+                Mode sombre amélioré
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-[#009E00] mt-0.5">+</span>
+                Rapport PDF automatique mensuel
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

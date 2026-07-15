@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, LayoutDashboard, ArrowRight, Users, Building2, Repeat2, BarChart3, Wallet, FileText, Settings, UserCircle, Bell } from 'lucide-react';
+import { Search, X, LayoutDashboard, ArrowRight, Users, Building2, Repeat2, BarChart3, Wallet, FileText, Settings, UserCircle, Bell, BookOpen, HelpCircle, LifeBuoy } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useT } from '@/lib/i18n';
 
@@ -47,6 +47,10 @@ export function CommandPalette() {
     { id: 'notifications', label: t.nav.notifications, description: cp.descriptions.notifications, icon: <Bell size={16} />,             href: '/dashboard/notifications',   categorie: cp.category },
     { id: 'profile',       label: t.nav.profile,       description: cp.descriptions.profile,       icon: <UserCircle size={16} />,       href: '/dashboard/profile',         categorie: cp.category },
     { id: 'settings',      label: t.nav.settings,      description: cp.descriptions.settings,      icon: <Settings size={16} />,         href: '/dashboard/settings',        categorie: cp.category },
+    { id: 'aide',          label: "Centre d'aide",     description: 'Documentation, FAQ, guide utilisateur', icon: <BookOpen size={16} />,  href: '/dashboard/aide',            categorie: cp.category },
+    { id: 'guide',         label: 'Guide utilisateur', description: '15 sections — procédures pas-à-pas',    icon: <BookOpen size={16} />,  href: '/dashboard/guide',           categorie: cp.category },
+    { id: 'faq',           label: '100 FAQ',           description: '100 questions/réponses par catégorie',  icon: <HelpCircle size={16} />, href: '/dashboard/faq',            categorie: cp.category },
+    { id: 'support',       label: 'Support tickets',   description: 'Tickets de support technique',                          icon: <LifeBuoy size={16} />, href: '/dashboard/support', categorie: cp.category },
   ];
   const inputRef = useRef<HTMLInputElement>(null);
 

@@ -226,6 +226,7 @@ export const en: Translations = {
     close: 'Close',
     back: 'Back',
     next: 'Next',
+    finish: 'Finish',
     steps: {
       bienvenue: {
         titre: 'Welcome to GESTMONEY',

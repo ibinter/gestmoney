@@ -9,7 +9,8 @@ import { Select } from '@/components/ui/Input';
 import { formatMontant, formatDate } from '@/lib/formatters';
 import { useRapports, useGenererRapport, RapportHistorique } from '@/hooks/useRapports';
 import { exporterCsv } from '@/lib/exportCsv';
-import { exporterPdf, exporterXlsx } from '@/lib/exportPdf';
+import { exporterXlsx } from '@/lib/exportPdf';
+import { exportToPdf, ColumnType } from '@/lib/pdf';
 import { clsx } from 'clsx';
 import { useT } from '@/lib/i18n';
 
@@ -62,12 +63,21 @@ export default function RapportsPage() {
       { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
       { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
     ];
-    exporterPdf(
-      parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
-      COLONNES_OPERATEURS,
-      { titre: rapport.titre, sousTitre: 'Rapport mensuel', periode: rapport.titre, nomFichier: rapport.titre.toLowerCase().replace(/\s+/g,'_') },
-      kpis
-    );
+    exportToPdf({
+      title: rapport.titre,
+      columns: [
+        { key: 'label',   label: 'Opérateur',      type: ColumnType.NAME },
+        { key: 'montant', label: 'Montant (FCFA)',  type: ColumnType.AMOUNT, align: 'right' },
+        { key: 'pct',     label: '% du total',     type: ColumnType.AMOUNT, align: 'right' },
+      ],
+      rows: parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
+      options: {
+        subtitle: 'Rapport mensuel',
+        period: rapport.titre,
+        filename: rapport.titre.toLowerCase().replace(/\s+/g, '_'),
+        kpis: kpis.map((k) => ({ label: k.label, value: k.valeur })),
+      },
+    });
   };
 
   const handleTelechargerXlsx = (rapport: RapportHistorique) => {
@@ -135,16 +145,20 @@ export default function RapportsPage() {
                 { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
                 { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
               ];
-              exporterPdf(
-                parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
-                [
-                  { titre: 'Opérateur', valeur: (op) => String(op.label ?? '') },
-                  { titre: 'Montant (FCFA)', valeur: (op) => Number(op.montant ?? 0), align: 'right' },
-                  { titre: '% du total', valeur: (op) => Number(op.pct ?? 0), align: 'right' },
+              exportToPdf({
+                title: `Rapport ${PERIODES.find(p => p.value === periode)?.label ?? periode}`,
+                columns: [
+                  { key: 'label',   label: 'Opérateur',     type: ColumnType.NAME },
+                  { key: 'montant', label: 'Montant (FCFA)', type: ColumnType.AMOUNT, align: 'right' },
+                  { key: 'pct',     label: '% du total',    type: ColumnType.AMOUNT, align: 'right' },
                 ],
-                { titre: `Rapport ${PERIODES.find(p => p.value === periode)?.label ?? periode}`, sousTitre: 'Business Intelligence', periode: PERIODES.find(p => p.value === periode)?.label },
-                kpis
-              );
+                rows: parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
+                options: {
+                  subtitle: 'Business Intelligence',
+                  period: PERIODES.find(p => p.value === periode)?.label,
+                  kpis: kpis.map((k) => ({ label: k.label, value: k.valeur })),
+                },
+              });
             }}
           >
             {t.rapports.exportPdf}

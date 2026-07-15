@@ -86,7 +86,7 @@ export default function DemonstrationsPage() {
                 <p className="font-bold text-text-main">{d.prospect}</p>
                 <p className="text-xs text-text-muted">{d.entreprise}</p>
               </div>
-              <Badge variant={STATUT_MAP[d.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[d.statut]?.label}</Badge>
+              <Badge couleur={STATUT_MAP[d.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[d.statut]?.label}</Badge>
             </div>
             <div className="space-y-1.5 text-sm">
               <div className="flex items-center gap-2 text-text-muted">

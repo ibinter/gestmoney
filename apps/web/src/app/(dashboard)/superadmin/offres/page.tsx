@@ -105,7 +105,7 @@ export default function OffresPage() {
                     <td className="px-4 py-3 tabular-nums text-text-muted text-xs">{formatMontant(o.prixHT)}</td>
                     <td className="px-4 py-3 text-xs font-bold text-green-600">{o.remise > 0 ? `-${o.remise}%` : '—'}</td>
                     <td className="px-4 py-3 tabular-nums font-bold text-text-main">{formatMontant(ttc)}</td>
-                    <td className="px-4 py-3"><Badge variant={STATUT_MAP[o.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[o.statut]?.label}</Badge></td>
+                    <td className="px-4 py-3"><Badge couleur={STATUT_MAP[o.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[o.statut]?.label}</Badge></td>
                     <td className="px-4 py-3 text-xs" style={{ color: expire ? '#E60000' : 'inherit' }}>{o.dateExpiration}</td>
                     <td className="px-4 py-3">
                       <button className="text-xs text-brand-green hover:underline font-semibold">Voir</button>

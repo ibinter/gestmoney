@@ -65,7 +65,7 @@ const EMPTY_STATS: DashboardStats = {
   transactions: { nbAujourdhui: 0, montantAujourdhui: 0, variationPct: 0, enAttente: 0 },
   caisse: { soldeActuel: 0, entrees: 0, sorties: 0, ecart: 0 },
   float: { soldes: [], alertes: 0 },
-  performances: { chiffreAffaires: 0, objectif: 0, progressionPct: 0, topAgent: null },
+  performances: { chiffreAffaires: 0, objectif: 0, progressionPct: 0, topAgent: { nom: '', montant: 0 } },
   agences: { nbActives: 0, nbTotal: 0, nbAgentsEnLigne: 0, nbAgentsTotal: 0 },
   clients: { nbTotal: 0, nouveaux: 0, actifs: 0 },
   commissions: { duesCeMois: 0, payees: 0, enAttente: 0 },

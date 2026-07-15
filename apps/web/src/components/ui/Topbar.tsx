@@ -4,6 +4,7 @@ import { Bell, ChevronDown, LogOut, Settings, User, Menu, Search } from 'lucide-
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LangSwitch, useT } from '@/lib/i18n';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
@@ -36,16 +37,23 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <header className="h-16 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-      {/* Gauche : burger mobile + logo */}
-      <div className="flex items-center gap-3">
+      {/* Gauche : burger mobile + logo + breadcrumb */}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-xl hover:bg-surface text-gray-500 hover:text-text-main transition-colors"
+          className="lg:hidden p-2 rounded-xl hover:bg-surface text-gray-500 hover:text-text-main transition-colors flex-shrink-0"
+          aria-label="Ouvrir le menu"
         >
           <Menu size={20} />
         </button>
-        <Logo variante="compact" className="hidden sm:block" />
-        <p className="text-xs text-gray-400 hidden md:block capitalize">{dateNow}</p>
+        <Logo variante="compact" className="hidden sm:block flex-shrink-0" />
+        {/* Séparateur vertical */}
+        <span className="hidden md:block w-px h-5 bg-gray-200 dark:bg-white/10 flex-shrink-0" />
+        {/* Fil d'Ariane (desktop) */}
+        <div className="hidden md:block min-w-0">
+          <Breadcrumb />
+        </div>
+        <p className="text-xs text-gray-400 md:hidden capitalize truncate">{dateNow}</p>
       </div>
 
       {/* Droite */}

@@ -1,283 +1,571 @@
 'use client';
 // ============================================================
 // DASHBOARD PRINCIPAL — GESTMONEY
-// Grille de 8 grandes cartes selon le CDC
+// Dashboard adaptatif par rôle utilisateur
+// Rôles : SUPER_ADMIN / ADMIN | MANAGER | AGENT/CAISSIER | AUDITEUR
 // ============================================================
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, Bot, X, CheckCircle } from 'lucide-react';
-import { DashboardCard } from '@/components/dashboard/DashboardCard';
+import {
+  RefreshCw, CreditCard, Users, Building2, TrendingUp, Wallet,
+  AlertTriangle, CheckCircle, BarChart2, FileText, Plus,
+  ShieldCheck, ArrowRight, UserPlus,
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SkeletonCard } from '@/components/ui/Skeleton';
-import { useDashboardStore } from '@/store/dashboardStore';
+import { KpiCard } from '@/components/ui/KpiCard';
+import { MiniChart } from '@/components/ui/MiniChart';
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
+import { useAuthStore } from '@/store/authStore';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { formatMontant } from '@/lib/formatters';
-import { useT } from '@/lib/i18n';
+import { clsx } from 'clsx';
 
-export default function DashboardPage() {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'À l\'instant';
+  if (mins < 60) return `Il y a ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Il y a ${hrs}h`;
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short' }).format(new Date(iso));
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  depot: 'Dépôt', retrait: 'Retrait', transfert: 'Transfert',
+  cash_in: 'Cash In', cash_out: 'Cash Out', paiement: 'Paiement',
+};
+
+const STATUT_STYLES: Record<string, string> = {
+  success: 'bg-[#009E00]/10 text-[#009E00]',
+  pending: 'bg-[#FFD000]/15 text-[#806B00]',
+  failed:  'bg-[#E60000]/10 text-[#E60000]',
+};
+
+// ─── Sous-composants de section ───────────────────────────────────────────────
+
+function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <h2 className="text-sm font-semibold text-text-main uppercase tracking-wider">{children}</h2>
+      {action}
+    </div>
+  );
+}
+
+function AlertBadge({ count, label, couleur = 'warning' }: { count: number; label: string; couleur?: 'warning' | 'danger' }) {
+  if (count === 0) return null;
+  return (
+    <div className={clsx(
+      'flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium',
+      couleur === 'danger'
+        ? 'bg-[#E60000]/08 border-[#E60000]/20 text-[#E60000]'
+        : 'bg-[#FFD000]/10 border-[#FFD000]/30 text-[#806B00] dark:text-[#FFD000]',
+    )}>
+      <AlertTriangle size={15} className="flex-shrink-0" />
+      <span>{count} {label}</span>
+    </div>
+  );
+}
+
+// ─── Vue SUPER_ADMIN / ADMIN ─────────────────────────────────────────────────
+
+function DashboardAdmin() {
+  const { stats, isLoading, isMock, refresh } = useDashboardStats();
   const router = useRouter();
-  const { stats, recommandationIA, dismissRecommandation, refreshStats, isLoading, lastUpdated } =
-    useDashboardStore();
-  const [mounted, setMounted] = React.useState(false);
-  const t = useT();
-
-  useEffect(() => {
-    setMounted(true);
-    refreshStats();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const heureMAJ = mounted && lastUpdated
-    ? new Intl.DateTimeFormat(t.dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
-    : '';
-
-  const formatDernierRapport = (date: string) => {
-    if (!date) return '—';
-    try {
-      return new Intl.DateTimeFormat(t.dateLocale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
-    } catch {
-      return '—';
-    }
-  };
 
   return (
     <div className="space-y-6">
+      {/* KPIs */}
+      <section data-tour="dashboard-kpi">
+        <SectionTitle action={
+          isMock && (
+            <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">
+              Données démo
+            </span>
+          )
+        }>
+          Vue d'ensemble — aujourd'hui
+        </SectionTitle>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            titre="Transactions"
+            valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')}
+            delta={stats?.variationPct}
+            icone={CreditCard}
+            variante="primary"
+            isLoading={isLoading}
+            onClick={() => router.push('/dashboard/transactions')}
+          />
+          <KpiCard
+            titre="Volume (XOF)"
+            valeur={isLoading ? '—' : formatMontant(stats?.volumeJour ?? 0)}
+            delta={stats?.variationPct}
+            icone={Wallet}
+            variante="success"
+            isLoading={isLoading}
+          />
+          <KpiCard
+            titre="Agents actifs"
+            valeur={isLoading ? '—' : `${stats?.nbAgentsActifs ?? 0}`}
+            sousTitre={`sur ${(stats?.nbAgentsActifs ?? 0) + (stats?.alertesAgentsInactifs ?? 0)} agents total`}
+            icone={Users}
+            variante="neutral"
+            isLoading={isLoading}
+            onClick={() => router.push('/dashboard/agents')}
+          />
+          <KpiCard
+            titre="Agences actives"
+            valeur={isLoading ? '—' : `${stats?.nbAgencesActives ?? 0}`}
+            icone={Building2}
+            variante="neutral"
+            isLoading={isLoading}
+            onClick={() => router.push('/dashboard/agences')}
+          />
+        </div>
+      </section>
+
+      {/* Sparkline 7 jours */}
+      {!isLoading && stats?.sparklineData && (
+        <section className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-text-main">Transactions — 7 derniers jours</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Nombre de transactions par jour</p>
+            </div>
+            <TrendingUp size={16} className="text-[#009E00]" />
+          </div>
+          <MiniChart
+            data={stats.sparklineData}
+            color="#009E00"
+            height={56}
+            className="w-full"
+          />
+          <div className="flex justify-between mt-2">
+            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((j) => (
+              <span key={j} className="text-[10px] text-gray-400">{j}</span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Alertes */}
+      {!isLoading && (
+        <section>
+          <SectionTitle>Alertes</SectionTitle>
+          <div className="flex flex-wrap gap-3">
+            <AlertBadge count={stats?.alertesAgentsInactifs ?? 0} label="agent(s) inactif(s)" couleur="warning" />
+            <AlertBadge count={stats?.alertesFloatBas ?? 0} label="float bas" couleur="danger" />
+            <AlertBadge count={stats?.commissionsAValider ?? 0} label="commission(s) à valider" couleur="warning" />
+            {(stats?.alertesAgentsInactifs === 0 && stats?.alertesFloatBas === 0 && stats?.commissionsAValider === 0) && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#009E00]/20 bg-[#009E00]/08 text-sm font-medium text-[#009E00]">
+                <CheckCircle size={15} />
+                <span>Aucune alerte active — tout est en ordre</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Activité récente */}
+      <section>
+        <SectionTitle action={
+          <button onClick={() => router.push('/dashboard/transactions')} className="text-xs text-[#009E00] hover:underline flex items-center gap-1">
+            Tout voir <ArrowRight size={12} />
+          </button>
+        }>
+          Activité récente
+        </SectionTitle>
+        {isLoading ? (
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-4 py-3 font-medium">Type</th>
+                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Client</th>
+                    <th className="text-right px-4 py-3 font-medium">Montant</th>
+                    <th className="text-center px-4 py-3 font-medium">Statut</th>
+                    <th className="text-right px-4 py-3 font-medium hidden md:table-cell">Heure</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
+                  {(stats?.transactionsRecentes ?? []).slice(0, 10).map((tx) => (
+                    <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-text-main">{TYPE_LABELS[tx.type] ?? tx.type}</span>
+                        <span className="text-xs text-gray-400 block">{tx.operateur.replace('_', ' ')}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell text-gray-600 dark:text-gray-400">{tx.clientNom}</td>
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-text-main">
+                        {tx.montant.toLocaleString('fr-FR')}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', STATUT_STYLES[tx.statut])}>
+                          {tx.statut === 'success' ? 'Succès' : tx.statut === 'pending' ? 'En cours' : 'Échoué'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs text-gray-400 hidden md:table-cell">
+                        {formatRelative(tx.date)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Liens rapides */}
+      <section>
+        <SectionTitle>Accès rapides</SectionTitle>
+        <div className="flex flex-wrap gap-3" data-tour="new-transaction">
+          <Button variante="primary" icone={<Plus size={15} />} onClick={() => router.push('/dashboard/transactions?type=depot')}>
+            Nouvelle transaction
+          </Button>
+          <Button variante="outline" icone={<UserPlus size={15} />} onClick={() => router.push('/dashboard/agents')}>
+            Ajouter un agent
+          </Button>
+          <Button variante="ghost" icone={<BarChart2 size={15} />} onClick={() => router.push('/dashboard/rapports')} data-tour="rapports-link">
+            Rapports
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Vue MANAGER ─────────────────────────────────────────────────────────────
+
+function DashboardManager() {
+  const { stats, isLoading, isMock, refresh } = useDashboardStats();
+  const router = useRouter();
+
+  return (
+    <div className="space-y-6">
+      <section data-tour="dashboard-kpi">
+        <SectionTitle action={isMock && (
+          <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">Données démo</span>
+        )}>
+          Mon agence — aujourd'hui
+        </SectionTitle>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <KpiCard titre="Mes transactions" valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')} delta={stats?.variationPct} icone={CreditCard} variante="primary" isLoading={isLoading} />
+          <KpiCard titre="Volume agence" valeur={isLoading ? '—' : formatMontant(stats?.volumeAgence ?? 0)} icone={Wallet} variante="success" isLoading={isLoading} />
+          <KpiCard titre="Agents supervisés" valeur={isLoading ? '—' : `${stats?.nbAgentsSupervisés ?? 0}`} icone={Users} variante="neutral" isLoading={isLoading} onClick={() => router.push('/dashboard/agents')} />
+        </div>
+      </section>
+
+      {/* Alerte float agence */}
+      {!isLoading && stats?.alerteFloatAgence && (
+        <AlertBadge count={1} label="alerte float — votre agence est en dessous du seuil" couleur="danger" />
+      )}
+
+      {/* Performances agents */}
+      <section>
+        <SectionTitle>Performances de mon équipe</SectionTitle>
+        {isLoading ? <SkeletonCard /> : (
+          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-4 py-3 font-medium">Agent</th>
+                    <th className="text-center px-4 py-3 font-medium">Transactions</th>
+                    <th className="text-right px-4 py-3 font-medium">Volume</th>
+                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Commission</th>
+                    <th className="text-center px-4 py-3 font-medium">Statut</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
+                  {(stats?.performancesAgents ?? []).map((agent) => (
+                    <tr key={agent.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
+                      <td className="px-4 py-3 font-medium text-text-main">{agent.nom}</td>
+                      <td className="px-4 py-3 text-center tabular-nums">{agent.nbTransactions}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-text-main">{agent.volume.toLocaleString('fr-FR')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[#009E00] hidden sm:table-cell">{agent.commission.toLocaleString('fr-FR')}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', agent.statut === 'actif' ? 'bg-[#009E00]/10 text-[#009E00]' : 'bg-gray-100 text-gray-500')}>
+                          {agent.statut === 'actif' ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ─── Vue AGENT / CAISSIER ────────────────────────────────────────────────────
+
+function DashboardAgent() {
+  const user = useAuthStore((s) => s.user);
+  const { stats, isLoading, isMock, refresh } = useDashboardStats();
+  const router = useRouter();
+
+  return (
+    <div className="space-y-6">
+      <section data-tour="dashboard-kpi">
+        <SectionTitle action={isMock && (
+          <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">Données démo</span>
+        )}>
+          Mon activité — aujourd'hui
+        </SectionTitle>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <KpiCard titre="Mes transactions" valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')} delta={stats?.variationPct} icone={CreditCard} variante="primary" isLoading={isLoading} />
+          <KpiCard titre="Mon volume" valeur={isLoading ? '—' : formatMontant(stats?.volumeJour ?? 0)} icone={Wallet} variante="success" isLoading={isLoading} />
+          <KpiCard titre="Ma commission (mois)" valeur={isLoading ? '—' : formatMontant(stats?.maCommissionMois ?? 0)} icone={TrendingUp} variante="neutral" isLoading={isLoading} sousTitre="Ce mois" />
+        </div>
+      </section>
+
+      {/* Float disponible */}
+      {!isLoading && (
+        <div className={clsx(
+          'flex items-center justify-between px-5 py-4 rounded-xl border',
+          (stats?.monFloat ?? 0) < 100000
+            ? 'bg-[#E60000]/08 border-[#E60000]/20'
+            : 'bg-[#009E00]/08 border-[#009E00]/20',
+        )}>
+          <div className="flex items-center gap-3">
+            <Wallet size={20} className={(stats?.monFloat ?? 0) < 100000 ? 'text-[#E60000]' : 'text-[#009E00]'} />
+            <div>
+              <p className="text-sm font-semibold text-text-main">Float disponible</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {(stats?.monFloat ?? 0) < 100000 ? 'Seuil bas — contactez votre manager' : 'Niveau correct'}
+              </p>
+            </div>
+          </div>
+          <p className="text-lg font-bold tabular-nums text-text-main">
+            {formatMontant(stats?.monFloat ?? 0)}
+          </p>
+        </div>
+      )}
+
+      {/* Bouton principale */}
+      <div data-tour="new-transaction">
+        <Button
+          variante="primary"
+          taille="lg"
+          icone={<Plus size={18} />}
+          onClick={() => router.push('/dashboard/transactions?type=depot')}
+          className="w-full sm:w-auto"
+        >
+          Nouvelle transaction
+        </Button>
+      </div>
+
+      {/* Mes dernières transactions */}
+      <section>
+        <SectionTitle action={
+          <button onClick={() => router.push('/dashboard/transactions')} className="text-xs text-[#009E00] hover:underline flex items-center gap-1">
+            Tout voir <ArrowRight size={12} />
+          </button>
+        }>
+          Mes dernières transactions
+        </SectionTitle>
+        {isLoading ? <SkeletonCard /> : (
+          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-4 py-3 font-medium">Type</th>
+                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Client</th>
+                    <th className="text-right px-4 py-3 font-medium">Montant</th>
+                    <th className="text-center px-4 py-3 font-medium">Statut</th>
+                    <th className="text-right px-4 py-3 font-medium hidden md:table-cell">Heure</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
+                  {(stats?.mesTransactions ?? []).map((tx) => (
+                    <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-text-main">{TYPE_LABELS[tx.type] ?? tx.type}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell text-gray-600 dark:text-gray-400">{tx.clientNom}</td>
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-text-main">
+                        {tx.montant.toLocaleString('fr-FR')}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', STATUT_STYLES[tx.statut])}>
+                          {tx.statut === 'success' ? 'Succès' : tx.statut === 'pending' ? 'En cours' : 'Échoué'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs text-gray-400 hidden md:table-cell">
+                        {formatRelative(tx.date)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ─── Vue AUDITEUR / VIEWER ───────────────────────────────────────────────────
+
+function DashboardAuditeur() {
+  const { stats, isLoading, isMock, refresh } = useDashboardStats();
+  const router = useRouter();
+
+  return (
+    <div className="space-y-6">
+      <section data-tour="dashboard-kpi">
+        <SectionTitle action={isMock && (
+          <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">Données démo</span>
+        )}>
+          Tableau d'audit
+        </SectionTitle>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <KpiCard titre="Opérations auditées" valeur={isLoading ? '—' : (stats?.operationsAuditees ?? 0).toLocaleString('fr-FR')} icone={ShieldCheck} variante="neutral" isLoading={isLoading} />
+          <KpiCard titre="Transactions (jour)" valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')} delta={stats?.variationPct} icone={CreditCard} variante="primary" isLoading={isLoading} />
+          <KpiCard titre="Volume (XOF)" valeur={isLoading ? '—' : formatMontant(stats?.volumeJour ?? 0)} icone={Wallet} variante="success" isLoading={isLoading} />
+        </div>
+      </section>
+
+      {/* Journal d'audit */}
+      <section>
+        <SectionTitle>Journal d'audit récent</SectionTitle>
+        {isLoading ? <SkeletonCard /> : (
+          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-4 py-3 font-medium">Action</th>
+                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Utilisateur</th>
+                    <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Ressource</th>
+                    <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">IP</th>
+                    <th className="text-right px-4 py-3 font-medium">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
+                  {(stats?.journalAudit ?? []).map((entry) => (
+                    <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-xs bg-gray-100 dark:bg-white/08 px-2 py-0.5 rounded text-text-main">
+                          {entry.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell text-xs text-gray-600 dark:text-gray-400 truncate max-w-[160px]">
+                        {entry.utilisateur}
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-500 truncate max-w-[140px]">
+                        {entry.ressource}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell text-xs font-mono text-gray-400">
+                        {entry.ip}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
+                        {formatRelative(entry.date)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Liens rapides */}
+      <section>
+        <SectionTitle>Accès rapides</SectionTitle>
+        <div className="flex flex-wrap gap-3" data-tour="rapports-link">
+          <Button variante="primary" icone={<BarChart2 size={15} />} onClick={() => router.push('/dashboard/rapports')}>
+            Voir les rapports
+          </Button>
+          <Button variante="outline" icone={<FileText size={15} />} onClick={() => router.push('/dashboard/rapports')}>
+            Exporter
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Composant principal ───────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const user = useAuthStore((s) => s.user);
+  const { refresh, isLoading, lastUpdated } = useDashboardStats();
+  const [mounted, setMounted] = React.useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const role = user?.role?.toLowerCase() ?? '';
+  const isAdmin = role.includes('admin');
+  const isManager = role === 'superviseur' || role === 'manager';
+  const isAgent = role === 'agent' || role === 'caissier';
+  const isAuditeur = role === 'viewer' || role === 'auditeur';
+
+  const heureMAJ = mounted && lastUpdated
+    ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
+    : '';
+
+  // Salutation selon l'heure
+  const heure = new Date().getHours();
+  const salutation = heure < 12 ? 'Bonjour' : heure < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const prenom = user?.prenom ?? user?.nom ?? 'vous';
+
+  return (
+    <div className="space-y-6">
+      {/* Tour d'onboarding (première connexion) */}
+      <OnboardingTour />
+
       {/* En-tête */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">{t.dashboard.title}</h1>
+          <h1 className="text-2xl font-bold text-text-main">
+            {salutation}, {prenom} 👋
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {t.dashboard.subtitle} — {t.dashboard.lastUpdated} {heureMAJ}
+            Tableau de bord
+            {heureMAJ && <> — Mis à jour à {heureMAJ}</>}
           </p>
         </div>
         <Button
           variante="ghost"
           taille="sm"
           icone={<RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />}
-          onClick={() => refreshStats()}
+          onClick={() => refresh()}
           loading={isLoading}
         >
-          {t.common.refresh}
+          Actualiser
         </Button>
       </div>
 
-      {/* Grille de 8 cartes */}
-      {isLoading && !lastUpdated ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-      ) : null}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 ${isLoading && !lastUpdated ? 'hidden' : ''}`}>
+      {/* Checklist d'onboarding (nouveaux comptes uniquement) */}
+      {(isAdmin) && <OnboardingChecklist />}
 
-        {/* 1. TRANSACTIONS */}
-        <DashboardCard
-          icone="💳"
-          titre="TRANSACTIONS"
-          couleur="#F5B800"
-          onClick={() => router.push('/dashboard/transactions')}
-          badge={`${stats.transactions.enAttente} en attente`}
-          alerte={stats.transactions.enAttente > 5}
-          stats={[
-            { label: 'Nombre aujourd\'hui', valeur: stats.transactions.nbAujourdhui.toLocaleString('fr-FR') },
-            { label: 'Montant total', valeur: formatMontant(stats.transactions.montantAujourdhui) },
-            { label: 'Variation vs hier', valeur: `+${stats.transactions.variationPct}%`, couleur: 'success' },
-            { label: 'En attente', valeur: stats.transactions.enAttente, couleur: stats.transactions.enAttente > 0 ? 'warning' : 'default' },
-          ]}
-          actions={[
-            { label: '+ Dépôt', onClick: () => router.push('/dashboard/transactions?type=depot'), variante: 'primary' },
-            { label: '+ Retrait', onClick: () => router.push('/dashboard/transactions?type=retrait'), variante: 'outline' },
-          ]}
-        />
+      {/* Dashboard adaptatif par rôle */}
+      {isAdmin   && <DashboardAdmin />}
+      {isManager && <DashboardManager />}
+      {isAgent   && <DashboardAgent />}
+      {isAuditeur && <DashboardAuditeur />}
 
-        {/* 2. CAISSE */}
-        <DashboardCard
-          icone="💵"
-          titre="CAISSE"
-          couleur="#22C55E"
-          onClick={() => router.push('/dashboard/caisse')}
-          stats={[
-            { label: 'Solde actuel', valeur: formatMontant(stats.caisse.soldeActuel), couleur: 'success' },
-            { label: 'Entrées', valeur: formatMontant(stats.caisse.entrees) },
-            { label: 'Sorties', valeur: formatMontant(stats.caisse.sorties) },
-            { label: 'Écart', valeur: formatMontant(stats.caisse.ecart), couleur: stats.caisse.ecart !== 0 ? 'danger' : 'default' },
-          ]}
-          actions={[
-            { label: 'Voir journal', onClick: () => router.push('/dashboard/caisse'), variante: 'ghost' },
-          ]}
-        />
-
-        {/* 3. FLOAT */}
-        <DashboardCard
-          icone="🏦"
-          titre="FLOAT"
-          couleur="#3B82F6"
-          onClick={() => router.push('/dashboard/float')}
-          alerte={stats.float.alertes > 0}
-          badge={stats.float.alertes > 0 ? `${stats.float.alertes} alertes` : undefined}
-          stats={[
-            ...stats.float.soldes.slice(0, 3).map((s) => ({
-              label: s.operateur.replace('_', ' ').toUpperCase(),
-              valeur: formatMontant(s.soldeActuel),
-              couleur: (s.statut === 'critique' ? 'danger' : s.statut === 'alerte' ? 'warning' : 'success') as 'danger' | 'warning' | 'success',
-            })),
-            { label: 'Alertes actives', valeur: `${stats.float.alertes} alerte(s)`, couleur: stats.float.alertes > 0 ? 'warning' : 'default' },
-          ]}
-          actions={[
-            { label: 'Réapprovisionner', onClick: () => router.push('/dashboard/float'), variante: stats.float.alertes > 0 ? 'primary' : 'ghost' },
-          ]}
-        />
-
-        {/* 4. PERFORMANCES */}
-        <DashboardCard
-          icone="📈"
-          titre="PERFORMANCES"
-          couleur="#8B5CF6"
-          onClick={() => router.push('/dashboard/performances')}
-          stats={[
-            { label: 'CA du mois', valeur: formatMontant(stats.performances.chiffreAffaires) },
-            { label: 'Objectif', valeur: formatMontant(stats.performances.objectif) },
-            { label: 'Progression', valeur: `${stats.performances.progressionPct}%`, couleur: stats.performances.progressionPct >= 80 ? 'success' : 'warning' },
-            { label: 'Top agent', valeur: stats.performances.topAgent?.nom ?? '—' },
-          ]}
-          actions={[
-            { label: 'Voir rapport', onClick: () => router.push('/dashboard/rapports'), variante: 'ghost' },
-          ]}
-        />
-
-        {/* 5. AGENCES / POINTS DE VENTE */}
-        <DashboardCard
-          icone="🏪"
-          titre="AGENCES & PDV"
-          couleur="#F59E0B"
-          onClick={() => router.push('/dashboard/agences')}
-          stats={[
-            { label: 'Agences actives', valeur: `${stats.agences.nbActives} / ${stats.agences.nbTotal}` },
-            { label: 'Agents en ligne', valeur: `${stats.agences.nbAgentsEnLigne} / ${stats.agences.nbAgentsTotal}`, couleur: 'success' },
-          ]}
-          actions={[
-            { label: 'Gérer agences', onClick: () => router.push('/dashboard/agences'), variante: 'ghost' },
-            { label: 'Voir agents', onClick: () => router.push('/dashboard/agents'), variante: 'outline' },
-          ]}
-        />
-
-        {/* 6. CLIENTS */}
-        <DashboardCard
-          icone="👥"
-          titre="CLIENTS"
-          couleur="#06B6D4"
-          onClick={() => router.push('/dashboard/clients')}
-          stats={[
-            { label: 'Total clients', valeur: stats.clients.nbTotal.toLocaleString('fr-FR') },
-            { label: 'Nouveaux', valeur: `+${stats.clients.nouveaux}`, couleur: 'success' },
-            { label: 'Actifs ce mois', valeur: stats.clients.actifs.toLocaleString('fr-FR') },
-          ]}
-          actions={[
-            { label: 'Voir clients', onClick: () => router.push('/dashboard/clients'), variante: 'ghost' },
-          ]}
-        />
-
-        {/* 7. COMMISSIONS */}
-        <DashboardCard
-          icone="💰"
-          titre="COMMISSIONS"
-          couleur="#10B981"
-          onClick={() => router.push('/dashboard/commissions')}
-          stats={[
-            { label: 'Dues ce mois', valeur: formatMontant(stats.commissions.duesCeMois) },
-            { label: 'Payées', valeur: formatMontant(stats.commissions.payees), couleur: 'success' },
-            { label: 'En attente', valeur: formatMontant(stats.commissions.enAttente), couleur: 'warning' },
-          ]}
-          actions={[
-            { label: 'Valider paiements', onClick: () => router.push('/dashboard/commissions'), variante: 'primary' },
-          ]}
-        />
-
-        {/* 8. RAPPORTS */}
-        <DashboardCard
-          icone="📊"
-          titre="RAPPORTS & BI"
-          couleur="#EF4444"
-          onClick={() => router.push('/dashboard/rapports')}
-          stats={[
-            { label: 'Dernier rapport', valeur: formatDernierRapport(stats.rapports.dernierRapport) },
-            { label: 'Alertes BI', valeur: `${stats.rapports.alertes.length} alerte(s)`, couleur: stats.rapports.alertes.length > 0 ? 'warning' : 'success' },
-          ]}
-          actions={[
-            { label: 'Voir rapports', onClick: () => router.push('/dashboard/rapports'), variante: 'ghost' },
-            { label: 'Exporter', onClick: () => {}, variante: 'outline' },
-          ]}
-        />
-      </div>
-
-      {/* Bannière IA */}
-      {recommandationIA && (
-        <div className={`rounded-card p-5 flex items-start gap-4 ${
-          recommandationIA.severite === 'danger' ? 'bg-red-50 border border-red-200' :
-          recommandationIA.severite === 'warning' ? 'bg-yellow-50 border border-yellow-200' :
-          'bg-blue-50 border border-blue-200'
-        }`}>
-          <div className="text-2xl flex-shrink-0 mt-0.5">🤖</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Assistant IA</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                recommandationIA.severite === 'danger' ? 'bg-red-100 text-danger' :
-                recommandationIA.severite === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-blue-100 text-blue-700'
-              }`}>
-                {recommandationIA.severite === 'danger' ? t.common.error : recommandationIA.severite === 'warning' ? 'Attention' : 'Info'}
-              </span>
-            </div>
-            <p className="font-semibold text-text-main text-sm">{recommandationIA.titre}</p>
-            <p className="text-sm text-gray-600 mt-1">{recommandationIA.message}</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {recommandationIA.actions.map((action) => (
-                <Button
-                  key={action.action}
-                  taille="sm"
-                  variante={action.action.includes('reappro') ? 'primary' : 'ghost'}
-                  icone={<CheckCircle size={14} />}
-                  onClick={() => router.push('/dashboard/float')}
-                >
-                  {action.label}
-                </Button>
-              ))}
-              <Button
-                taille="sm"
-                variante="ghost"
-                icone={<X size={14} />}
-                onClick={dismissRecommandation}
-              >
-                {t.common.close}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Barre de progression performances */}
-      {isLoading && !lastUpdated ? null : (
-      <div className="bg-white rounded-card shadow-card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="font-semibold text-text-main text-sm">{t.rapports.monthlyObjective}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {t.dashboard.topAgent} : <span className="font-medium text-text-main">{stats.performances.topAgent?.nom ?? '—'}</span>
-              {stats.performances.topAgent && <> — {formatMontant(stats.performances.topAgent.montant)}</>}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-text-main">{stats.performances.progressionPct}%</p>
-            <p className="text-xs text-gray-500">
-              {formatMontant(stats.performances.chiffreAffaires)} / {formatMontant(stats.performances.objectif)}
-            </p>
-          </div>
-        </div>
-        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-primary to-yellow-400 transition-all duration-1000"
-            style={{ width: `${Math.min(stats.performances.progressionPct, 100)}%` }}
-          />
-        </div>
-      </div>
+      {/* Fallback si rôle inconnu */}
+      {!isAdmin && !isManager && !isAgent && !isAuditeur && (
+        <DashboardAdmin />
       )}
     </div>
   );
