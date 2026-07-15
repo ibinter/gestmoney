@@ -21,6 +21,8 @@ const PUBLIC_ROUTES = [
 const PUBLIC_PREFIXES = [
   '/_next/',
   '/api/auth/',          // login, register, refresh
+  '/api/auth-logout',    // route Next.js de déconnexion
+  '/api/demo-access',    // route Next.js accès démo (publique)
   '/api/config/',        // pays, devises
   '/favicon',
   '/manifest',
