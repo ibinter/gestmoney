@@ -61,6 +61,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/next.config.js ./apps/web/next.config.js
 
+# Next.js standalone ne copie PAS les assets statiques ni /public dans .next/standalone.
+# Le serveur standalone les sert depuis .next/standalone/.next/static et .next/standalone/public.
+# Sans ces copies, tous les /_next/static/* renvoient 404 → page blanche.
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/standalone/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/.next/standalone/public
+
 USER nextjs
 WORKDIR /app/apps/web
 EXPOSE 3000
