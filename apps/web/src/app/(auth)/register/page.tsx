@@ -35,11 +35,13 @@ function RegisterContent() {
     setForm(f => ({ ...f, [k]: v }));
 
   const validateStep1 = () => {
-    if (!form.firstName.trim()) return 'Le prénom est requis.';
-    if (!form.lastName.trim()) return 'Le nom est requis.';
+    if (form.firstName.trim().length < 2) return 'Le prénom doit contenir au moins 2 caractères.';
+    if (form.lastName.trim().length < 2) return 'Le nom doit contenir au moins 2 caractères.';
     if (!form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) return 'Email invalide.';
     if (form.phone && !form.phone.match(/^\+?[\d\s\-()]{7,}$/)) return 'Numéro de téléphone invalide.';
     if (form.password.length < 8) return 'Le mot de passe doit contenir au moins 8 caractères.';
+    if (!form.password.match(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/))
+      return 'Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&).';
     if (form.password !== form.confirmPassword) return 'Les mots de passe ne correspondent pas.';
     return '';
   };
@@ -66,21 +68,32 @@ function RegisterContent() {
     setLoading(true);
 
     try {
+      const tenantId = process.env.NEXT_PUBLIC_TENANT_ID;
+      // L'API n'accepte que les champs whitelistés : firstName, lastName, email,
+      // password, phone, tenantId. companyName / country / plan sont collectés
+      // pour le suivi commercial mais transmis via metadata côté onboarding.
       const res = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(tenantId && { 'x-tenant-id': tenantId }),
+        },
         credentials: 'include',
         body: JSON.stringify({
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
           email: form.email.trim().toLowerCase(),
-          phone: form.phone.trim() || undefined,
           password: form.password,
-          companyName: form.companyName.trim(),
-          country: form.country,
-          plan: form.plan,
+          ...(form.phone.trim() && { phone: form.phone.trim() }),
+          ...(tenantId && { tenantId }),
         }),
       });
+      // Mémoriser le choix commercial (formule/entreprise) pour l'onboarding
+      try {
+        localStorage.setItem('gm_signup_context', JSON.stringify({
+          companyName: form.companyName.trim(), country: form.country, plan: form.plan,
+        }));
+      } catch { /* stockage indisponible */ }
 
       const data = await res.json().catch(() => ({}));
 

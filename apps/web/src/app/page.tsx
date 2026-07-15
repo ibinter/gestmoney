@@ -39,11 +39,26 @@ const STATS = [
 ];
 
 const OPS = [
-  { nom: 'Orange Money', couleur: '#FF6B00', emoji: '🟠', pays: 'CI · SN · ML · CM' },
-  { nom: 'MTN MoMo', couleur: '#FFCC00', emoji: '🟡', pays: 'GH · NG · CM · BJ' },
-  { nom: 'Wave', couleur: '#0099FF', emoji: '🔵', pays: 'CI · SN · ML' },
-  { nom: 'Moov Money', couleur: '#009E00', emoji: '🟢', pays: 'BJ · TG · BF · GA' },
-  { nom: 'Airtel Money', couleur: '#E60000', emoji: '🔴', pays: 'KE · TZ · RW · ZM' },
+  { nom: 'Orange Money', couleur: '#FF6B00', emoji: '🟠', pays: 'CI · SN · ML · BF · CM · GN · CD' },
+  { nom: 'MTN MoMo', couleur: '#FFCC00', emoji: '🟡', pays: 'CI · BJ · GN · CM · GH · CG' },
+  { nom: 'Moov Money / Flooz', couleur: '#0066CC', emoji: '🔵', pays: 'BJ · TG · CI · BF · NE · TD' },
+  { nom: 'Wave', couleur: '#00A0E4', emoji: '🌊', pays: 'CI · SN · ML · BF · GM' },
+  { nom: 'Airtel Money', couleur: '#E60000', emoji: '🔴', pays: 'TD · GA · CG · CD · NE' },
+  { nom: 'Free Money', couleur: '#7B2CBF', emoji: '🟣', pays: 'SN' },
+  { nom: 'Wizall Money', couleur: '#00A651', emoji: '🟢', pays: 'SN · CI · ML' },
+  { nom: 'T-Money (Togocom)', couleur: '#C1272D', emoji: '🟤', pays: 'TG' },
+  { nom: 'Express Union', couleur: '#1D3F94', emoji: '🔷', pays: 'CM · CF · TD' },
+  { nom: 'Celtiis Cash', couleur: '#00843D', emoji: '🟩', pays: 'BJ' },
+  { nom: 'Djamo', couleur: '#5B2A86', emoji: '🟪', pays: 'CI · SN' },
+  { nom: 'Sank Money', couleur: '#F7941D', emoji: '🟧', pays: 'BF' },
+];
+
+// Slides rotatifs du hero (défilement fluide)
+const HERO_SLIDES = [
+  { mot: 'Mobile Money', couleur: '#009E00', accroche: 'Agents, float, commissions, comptabilité OHADA et reporting temps réel.' },
+  { mot: 'vos agents', couleur: '#d97706', accroche: 'Hiérarchie agents, super-agents et agences pilotée depuis un seul écran.' },
+  { mot: 'votre float', couleur: '#0369a1', accroche: 'Soldes par opérateur, seuils d\'alerte et réapprovisionnements automatisés.' },
+  { mot: 'vos commissions', couleur: '#E60000', accroche: 'Calcul automatique, paliers configurables, validation et paiement en un clic.' },
 ];
 
 // 4 licences modérées
@@ -59,8 +74,8 @@ const OFFRES = [
     accentTxt: '#fff',
     headColor: '#009E00',
     features: [
-      '1 agence · jusqu\'à 5 agents',
-      '2 opérateurs Mobile Money',
+      '1 agence · jusqu\'à 3 agents',
+      '4 opérateurs Mobile Money',
       'Transactions & Float',
       'Commissions automatiques',
       'Rapport mensuel PDF',
@@ -79,8 +94,8 @@ const OFFRES = [
     accentTxt: '#fff',
     headColor: '#b45309',
     features: [
-      '3 agences · jusqu\'à 20 agents',
-      '4 opérateurs Mobile Money',
+      '3 agences · jusqu\'à 15 agents',
+      '6 opérateurs Mobile Money',
       'Transactions, Float & Caisse',
       'Commissions + Reporting BI',
       'Comptabilité OHADA de base',
@@ -101,7 +116,7 @@ const OFFRES = [
     headColor: '#b45309',
     features: [
       '10 agences · agents illimités',
-      '5 opérateurs Mobile Money',
+      'Opérateurs Mobile Money illimités',
       'Tous les modules métier',
       'Comptabilité OHADA complète',
       'Assistant IA SARA inclus',
@@ -164,12 +179,21 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [faqOuvert, setFaqOuvert] = useState<number | null>(null);
+  const [heroSlide, setHeroSlide] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Rotation fluide du hero
+  useEffect(() => {
+    const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+    const t = setInterval(() => setHeroSlide(s => (s + 1) % HERO_SLIDES.length), 3800);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
@@ -308,14 +332,40 @@ export default function LandingPage() {
           </div>
 
           <h1 style={{ fontSize: 'clamp(34px, 6vw, 72px)', fontWeight: 900, lineHeight: 1.08, marginBottom: 24, letterSpacing: '-0.03em', color: '#0a2e15' }}>
-            Gérez tout votre réseau<br />
-            <span style={{ background: 'linear-gradient(90deg, #009E00, #00c400)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Mobile Money</span>
+            Gérez tout<br />
+            <span
+              key={heroSlide}
+              className="hero-rotate"
+              style={{
+                display: 'inline-block',
+                background: `linear-gradient(90deg, ${HERO_SLIDES[heroSlide].couleur}, ${HERO_SLIDES[heroSlide].couleur}cc)`,
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+              }}
+            >
+              {HERO_SLIDES[heroSlide].mot}
+            </span>
             <br />depuis un seul endroit.
           </h1>
 
-          <p style={{ fontSize: 'clamp(16px, 2vw, 19px)', color: '#4a6650', lineHeight: 1.7, maxWidth: 600, margin: '0 auto 44px' }}>
-            GESTMONEY est la plateforme intelligente de gestion des réseaux Mobile Money en Afrique — agents, float, commissions, comptabilité OHADA et reporting temps réel.
+          <p key={`p${heroSlide}`} className="hero-rotate" style={{ fontSize: 'clamp(16px, 2vw, 19px)', color: '#4a6650', lineHeight: 1.7, maxWidth: 620, margin: '0 auto 24px', minHeight: 58 }}>
+            <strong style={{ color: '#0a2e15' }}>GESTMONEY</strong> — la plateforme intelligente de gestion des réseaux Mobile Money en Afrique. {HERO_SLIDES[heroSlide].accroche}
           </p>
+
+          {/* Points indicateurs du slider */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 36 }}>
+            {HERO_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setHeroSlide(i)}
+                aria-label={`Slide ${i + 1}`}
+                style={{
+                  width: i === heroSlide ? 28 : 9, height: 9, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
+                  background: i === heroSlide ? HERO_SLIDES[heroSlide].couleur : 'rgba(0,0,0,0.15)',
+                  transition: 'all .4s ease',
+                }}
+              />
+            ))}
+          </div>
 
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 52 }}>
             <Link href="/register" style={{
@@ -334,19 +384,24 @@ export default function LandingPage() {
             </a>
           </div>
 
-          {/* Opérateurs */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {OPS.map(op => (
-              <div key={op.nom} style={{
-                display: 'flex', alignItems: 'center', gap: 7,
-                background: '#fff', border: `1.5px solid ${op.couleur}33`,
-                borderRadius: 999, padding: '6px 14px',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
-              }}>
-                <span style={{ fontSize: 14 }}>{op.emoji}</span>
-                <span style={{ fontSize: 12, color: '#333', fontWeight: 700 }}>{op.nom}</span>
-              </div>
-            ))}
+          {/* Opérateurs — marquee défilant fluide */}
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#009E00', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 14 }}>
+            Compatible avec {OPS.length}+ opérateurs Mobile Money
+          </p>
+          <div className="marquee-mask" style={{ overflow: 'hidden', width: '100%', maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)' }}>
+            <div className="marquee-track" style={{ display: 'flex', gap: 10, width: 'max-content' }}>
+              {[...OPS, ...OPS].map((op, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  background: '#fff', border: `1.5px solid ${op.couleur}33`,
+                  borderRadius: 999, padding: '8px 16px', whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 6px rgba(0,0,0,0.06)', flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: 14 }}>{op.emoji}</span>
+                  <span style={{ fontSize: 13, color: '#333', fontWeight: 700 }}>{op.nom}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -441,26 +496,44 @@ export default function LandingPage() {
 
       {/* ── OPÉRATEURS ── */}
       <section id="operateurs" style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: '#fff' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
           <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.15em', color: '#E60000', textTransform: 'uppercase', marginBottom: 12 }}>Opérateurs supportés</p>
-          <h2 style={{ fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 900, marginBottom: 52, color: '#0a2e15' }}>
-            Compatible avec tous les réseaux<br />Mobile Money d&apos;Afrique.
+          <h2 style={{ fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 900, marginBottom: 12, color: '#0a2e15' }}>
+            Tous les Mobile Money<br />d&apos;Afrique de l&apos;Ouest &amp; Centrale.
           </h2>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <p style={{ fontSize: 16, color: '#6b7280', marginBottom: 44, maxWidth: 560, margin: '0 auto 44px' }}>
+            UEMOA, CEDEAO et CEMAC — {OPS.length}+ opérateurs déjà intégrés, et <strong style={{ color: '#009E00' }}>tout autre opérateur ajouté sur demande</strong>.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
             {OPS.map(op => (
               <div key={op.nom} style={{
                 background: '#fff', border: `2px solid ${op.couleur}40`,
-                borderRadius: 18, padding: 'clamp(20px,3vw,30px) clamp(22px,4vw,40px)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-                boxShadow: `0 4px 20px ${op.couleur}15`,
-                minWidth: 130,
+                borderRadius: 16, padding: '18px 20px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+                boxShadow: `0 4px 16px ${op.couleur}15`,
+                width: 156,
               }}>
-                <span style={{ fontSize: 40 }}>{op.emoji}</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: op.couleur }}>{op.nom}</span>
-                <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>{op.pays}</span>
+                <span style={{ fontSize: 32 }}>{op.emoji}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: op.couleur, textAlign: 'center' }}>{op.nom}</span>
+                <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, textAlign: 'center' }}>{op.pays}</span>
               </div>
             ))}
+            {/* Carte "etc" — ajout sur demande */}
+            <div style={{
+              background: 'linear-gradient(135deg,#f0fdf4,#fffbeb)', border: '2px dashed #FFD000',
+              borderRadius: 16, padding: '18px 20px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7,
+              width: 156,
+            }}>
+              <span style={{ fontSize: 32 }}>➕</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#b45309', textAlign: 'center' }}>+ Autres opérateurs</span>
+              <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, textAlign: 'center' }}>Ajout sur demande</span>
+            </div>
           </div>
+          <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 32 }}>
+            Votre opérateur ne figure pas dans la liste ?{' '}
+            <a href="#contact" style={{ color: '#009E00', fontWeight: 700 }}>Contactez-nous</a>, nous l&apos;intégrons.
+          </p>
         </div>
       </section>
 
@@ -726,7 +799,7 @@ export default function LandingPage() {
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
-        html, body { width: 100%; max-width: 100%; margin: 0; overflow-x: hidden; }
+        html, body { width: 100%; max-width: 100%; margin: 0; overflow-x: hidden; scroll-behavior: smooth; }
         .hidden-mobile { display: flex !important; }
         .show-mobile { display: none !important; }
         @media (max-width: 768px) {
@@ -734,7 +807,26 @@ export default function LandingPage() {
           .show-mobile { display: flex !important; }
         }
         a:focus-visible, button:focus-visible { outline: 2px solid #009E00; outline-offset: 2px; }
-        @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+        /* Marquee défilant des opérateurs */
+        @keyframes marquee {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
+        }
+        .marquee-track { animation: marquee 28s linear infinite; }
+        .marquee-mask:hover .marquee-track { animation-play-state: paused; }
+
+        /* Rotation fluide du hero */
+        @keyframes heroRotate {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .hero-rotate { animation: heroRotate .6s ease both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          * { transition: none !important; animation: none !important; }
+          .marquee-track { animation: none !important; }
+        }
       `}</style>
     </div>
   );
