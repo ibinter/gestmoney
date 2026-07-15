@@ -106,7 +106,7 @@ export class ReportingService {
       this.prisma.transaction.count({ where }),
       this.prisma.transaction.aggregate({
         where: { ...where, status: 'COMPLETED' },
-        _sum: { montant: true, commission: true, frais: true },
+        _sum: { amount: true, commission: true, fee: true },
       }),
       this.prisma.transaction.groupBy({
         by: ['type'],
@@ -120,13 +120,13 @@ export class ReportingService {
       agentId,
       period,
       totalTransactions: total,
-      montantTotal: aggregate._sum.amount ?? 0,
-      commissionsTotal: aggregate._sum.commission ?? 0,
-      fraisTotal: aggregate._sum.frais ?? 0,
+      montantTotal: Number(aggregate._sum.amount ?? 0),
+      commissionsTotal: Number(aggregate._sum.commission ?? 0),
+      fraisTotal: Number(aggregate._sum.fee ?? 0),
       byType: byType.map((r) => ({
         type: r.type,
         count: r._count.id,
-        montant: r._sum.amount ?? 0,
+        montant: Number(r._sum.amount ?? 0),
       })),
     };
 
@@ -209,8 +209,8 @@ export class ReportingService {
       this.prisma.transaction.count({ where: { ...where, status: 'COMPLETED' } }),
     ]);
 
-    const ca = aggregate._sum.amount ?? 0;
-    const prevCa = prevAggregate._sum.amount ?? 0;
+    const ca = Number(aggregate._sum.amount ?? 0);
+    const prevCa = Number(prevAggregate._sum.amount ?? 0);
     const croissance = prevCa > 0 ? ((ca - prevCa) / prevCa) * 100 : 0;
     const tauxSucces = total > 0 ? (successCount / total) * 100 : 0;
 
@@ -219,7 +219,7 @@ export class ReportingService {
       topAgent = {
         agentId: topAgentsRaw[0].agentId,
         nom: '',
-        montant: topAgentsRaw[0]._sum.amount ?? 0,
+        montant: Number(topAgentsRaw[0]._sum.amount ?? 0),
       };
     }
 
@@ -229,7 +229,7 @@ export class ReportingService {
       topAgent,
       tauxSucces: Math.round(tauxSucces * 100) / 100,
       totalTransactions: total,
-      totalCommissions: aggregate._sum.commission ?? 0,
+      totalCommissions: Number(aggregate._sum.commission ?? 0),
       nouveauxClients: 0,
       agentsActifs: 0,
     };
@@ -398,8 +398,8 @@ export class ReportingService {
     return data.map((r) => ({
       agentId: r.agentId,
       transactions: r._count.id,
-      montant: r._sum.amount ?? 0,
-      commissions: r._sum.commission ?? 0,
+      montant: Number(r._sum.amount ?? 0),
+      commissions: Number(r._sum.commission ?? 0),
     }));
   }
 
@@ -415,13 +415,13 @@ export class ReportingService {
   async getFloatUsage(tenantId: string, period: { start: Date; end: Date }) {
     return this.prisma.floatAccount.findMany({
       where: { tenantId },
-      select: { agentId: true, operateur: true, solde: true, updatedAt: true },
+      select: { agentId: true, networkId: true, balance: true, updatedAt: true },
     });
   }
 
   async getCommissionsSummary(tenantId: string, period: { start: Date; end: Date }) {
     return this.prisma.transaction.groupBy({
-      by: ['operateur', 'type'],
+      by: ['operatorCode', 'type'],
       where: {
         tenantId,
         status: 'COMPLETED',
@@ -464,13 +464,13 @@ export class ReportingService {
 
     return {
       total,
-      montantTotal: aggregate._sum.amount ?? 0,
-      commissionsTotal: aggregate._sum.commission ?? 0,
+      montantTotal: Number(aggregate._sum.amount ?? 0),
+      commissionsTotal: Number(aggregate._sum.commission ?? 0),
       byType: Object.fromEntries(
-        byType.map((r) => [r.type, { count: r._count.id, montant: r._sum.amount ?? 0 }]),
+        byType.map((r) => [r.type, { count: r._count.id, montant: Number(r._sum.amount ?? 0) }]),
       ),
       byOperateur: Object.fromEntries(
-        byOperateur.map((r) => [r.operatorCode, { count: r._count.id, montant: r._sum.amount ?? 0 }]),
+        byOperateur.map((r) => [r.operatorCode, { count: r._count.id, montant: Number(r._sum.amount ?? 0) }]),
       ),
       byStatus: Object.fromEntries(byStatus.map((r) => [r.status, r._count.id])),
     };
@@ -492,7 +492,7 @@ export class ReportingService {
       orderBy: { _sum: { amount: 'desc' } },
       take: 10,
     });
-    return data.map((r) => ({ agentId: r.agentId, count: r._count.id, montant: r._sum.amount ?? 0 }));
+    return data.map((r) => ({ agentId: r.agentId, count: r._count.id, montant: Number(r._sum.amount ?? 0) }));
   }
 
   private async buildWeeklyEvolution(tenantId: string, start: Date, end: Date) {
@@ -513,7 +513,7 @@ export class ReportingService {
 
       days.push({
         date: cur.toISOString().slice(0, 10),
-        montant: agg._sum.amount ?? 0,
+        montant: Number(agg._sum.amount ?? 0),
         count: agg._count._all,
       });
 
