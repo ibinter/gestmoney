@@ -37,7 +37,20 @@ export async function POST() {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    const response = NextResponse.json(data);
+
+    // Propager le(s) cookie(s) d'authentification httpOnly émis par l'API NestJS
+    // (gestmoney_token). Sans ça, le navigateur n'a pas de token et le middleware
+    // renvoie /dashboard vers /login.
+    const setCookies =
+      typeof res.headers.getSetCookie === 'function'
+        ? res.headers.getSetCookie()
+        : ([res.headers.get('set-cookie')].filter(Boolean) as string[]);
+    for (const cookie of setCookies) {
+      response.headers.append('set-cookie', cookie);
+    }
+
+    return response;
   } catch {
     return NextResponse.json(
       { error: 'Service temporairement indisponible.' },
