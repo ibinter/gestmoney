@@ -253,7 +253,7 @@ export class KycService {
             select: { id: true, email: true, firstName: true, lastName: true },
           },
         },
-        orderBy: { createdAt: 'asc' }, // FIFO
+        orderBy: { submittedAt: 'asc' }, // FIFO
         skip,
         take: limit,
       }),
