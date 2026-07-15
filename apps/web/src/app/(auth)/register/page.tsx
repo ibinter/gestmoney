@@ -264,9 +264,9 @@ function RegisterContent() {
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 10 }}>Formule *</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {[
-                      { key: 'STARTER', label: 'Starter', prix: '29 900 XOF', color: '#009E00' },
-                      { key: 'ESSENTIEL', label: 'Essentiel', prix: '59 900 XOF', color: '#d97706' },
-                      { key: 'PROFESSIONAL', label: 'Professional', prix: '129 900 XOF', color: '#b45309' },
+                      { key: 'STARTER', label: 'Starter', prix: '9 900 XOF', color: '#009E00' },
+                      { key: 'ESSENTIEL', label: 'Essentiel', prix: '19 900 XOF', color: '#d97706' },
+                      { key: 'PROFESSIONAL', label: 'Professional', prix: '39 900 XOF', color: '#b45309' },
                       { key: 'ENTERPRISE', label: 'Enterprise', prix: 'Sur devis', color: '#0369a1' },
                     ].map(p => (
                       <button key={p.key} type="button" onClick={() => set('plan', p.key)} style={{
@@ -280,6 +280,7 @@ function RegisterContent() {
                     ))}
                   </div>
                   <p style={{ fontSize: 11, color: '#6b7280', marginTop: 8 }}>✅ Tous les plans incluent 14 jours d&apos;essai gratuit</p>
+                  <p style={{ fontSize: 11, color: '#b45309', marginTop: 4, fontWeight: 700 }}>🎁 2 mois offerts sur l&apos;abonnement annuel</p>
                 </div>
 
                 <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginBottom: 24 }}>

@@ -50,7 +50,7 @@ const OPS = [
 const OFFRES = [
   {
     nom: 'STARTER',
-    prix: '29 900',
+    prix: '9 900',
     devise: 'XOF / mois',
     badge: null,
     accentBg: '#f0fdf4',
@@ -70,7 +70,7 @@ const OFFRES = [
   },
   {
     nom: 'ESSENTIEL',
-    prix: '59 900',
+    prix: '19 900',
     devise: 'XOF / mois',
     badge: null,
     accentBg: '#fffbeb',
@@ -91,7 +91,7 @@ const OFFRES = [
   },
   {
     nom: 'PROFESSIONAL',
-    prix: '129 900',
+    prix: '39 900',
     devise: 'XOF / mois',
     badge: '⭐ Recommandé',
     accentBg: '#fdfce6',
@@ -471,9 +471,19 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 'clamp(26px,4vw,46px)', fontWeight: 900, textAlign: 'center', marginBottom: 12, color: '#0a2e15', letterSpacing: '-0.02em' }}>
             Des formules claires,<br />adaptées à chaque étape.
           </h2>
-          <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 16, marginBottom: 60 }}>
+          <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 16, marginBottom: 20 }}>
             ✅ Essai gratuit 14 jours &nbsp;·&nbsp; ✅ Sans carte bancaire &nbsp;·&nbsp; ✅ Résiliation sans frais
           </p>
+          <div style={{ textAlign: 'center', marginBottom: 52 }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'linear-gradient(90deg,#FFD000,#ffdd40)', color: '#111',
+              borderRadius: 999, padding: '9px 22px', fontSize: 14, fontWeight: 900,
+              boxShadow: '0 4px 16px rgba(255,208,0,0.4)',
+            }}>
+              🎁 2 mois offerts sur l&apos;abonnement annuel
+            </span>
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(258px, 1fr))', gap: 20, alignItems: 'start' }}>
             {OFFRES.map((o, i) => (
@@ -518,7 +528,7 @@ export default function LandingPage() {
             ))}
           </div>
           <p style={{ textAlign: 'center', marginTop: 36, fontSize: 13, color: '#9ca3af' }}>
-            Tarifs HT · TVA selon pays · Paiement mensuel ou annuel (–15%) · Devis personnalisé disponible
+            Tarifs HT · TVA selon pays · Paiement mensuel ou annuel (2 mois offerts) · Devis personnalisé disponible
           </p>
         </div>
       </section>
