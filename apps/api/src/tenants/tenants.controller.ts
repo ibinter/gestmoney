@@ -55,6 +55,16 @@ export class TenantsController {
     return this.tenantsService.findAll(page, limit, search);
   }
 
+  // ATTENTION : cette route DOIT rester déclarée avant `@Get(':id')`, sinon
+  // `:id` l'avale et `/tenants/stats` répond « Tenant non trouvé » (404) — ce
+  // qui était le cas, et faisait basculer la console SuperAdmin sur des
+  // statistiques fictives sans le signaler.
+  @Get('stats')
+  @ApiOperation({ summary: 'Statistiques du tenant courant' })
+  getCurrentTenantStats(@CurrentUser('tenantId') tenantId: string) {
+    return this.tenantsService.getStats(tenantId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtenir un tenant par son ID' })
   @ApiParam({ name: 'id', description: 'ID du tenant' })

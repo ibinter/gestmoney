@@ -15,11 +15,27 @@ export const formatCurrency = (amount: number, currency = 'XOF'): string => {
   return `${formatted} ${currency}`;
 };
 
+/** Valeur affichée quand une date est absente ou illisible. */
+const DATE_ABSENTE = '—';
+
+/**
+ * Convertit une entrée quelconque en Date exploitable.
+ * Renvoie null si la valeur est absente, vide ou invalide — une API peut
+ * parfaitement renvoyer `null` sur un champ date optionnel, et un
+ * `undefined.getTime()` faisait planter toute la page qui l'affichait.
+ */
+function versDate(date: Date | string | null | undefined): Date | null {
+  if (date === null || date === undefined || date === '') return null;
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+}
+
 /**
  * Formate une date en "10 juil. 2026"
  */
-export const formatDate = (date: Date | string): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
+export const formatDate = (date: Date | string | null | undefined): string => {
+  const d = versDate(date);
+  if (!d) return DATE_ABSENTE;
   return new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'short',
@@ -30,8 +46,9 @@ export const formatDate = (date: Date | string): string => {
 /**
  * Formate une date + heure en "10 juil. 2026 à 14:35"
  */
-export const formatDateTime = (date: Date | string): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
+export const formatDateTime = (date: Date | string | null | undefined): string => {
+  const d = versDate(date);
+  if (!d) return DATE_ABSENTE;
   const datePart = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'short',
@@ -47,8 +64,9 @@ export const formatDateTime = (date: Date | string): string => {
 /**
  * Formate une date en temps relatif : "il y a 5 minutes"
  */
-export const formatRelativeTime = (date: Date | string): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
+export const formatRelativeTime = (date: Date | string | null | undefined): string => {
+  const d = versDate(date);
+  if (!d) return DATE_ABSENTE;
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffSec = Math.floor(diffMs / 1000);
