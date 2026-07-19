@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import { Prisma, StockMovementType } from '@prisma/client';
+import { Prisma, PurchaseOrderStatus, StockMovementType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto, ProductCategory } from './dto/create-product.dto';
 import { MovementReason, MovementType, StockMovementDto } from './dto/stock-movement.dto';
@@ -95,17 +94,9 @@ function pagination(page: unknown, limit: unknown, limitParDefaut: number) {
   };
 }
 
-// ─── Stores en mémoire restants ───────────────────────────────────────────────
-// ⚠️ Il n'existe AUCUN modèle Prisma pour les fournisseurs ni pour les bons de
-// commande (voir packages/database/schema.prisma). Ces deux collections restent
-// donc volatiles : elles sont perdues au redémarrage du conteneur. Elles
-// devront être migrées le jour où les modèles `Supplier` / `PurchaseOrder`
-// seront ajoutés au schéma. Produits, inventaire et mouvements, eux, sont
-// désormais entièrement persistés en base.
-const suppliers: ISupplier[] = [];
-const purchaseOrders: IPurchaseOrder[] = [];
-
 // ─── Helpers de conversion Prisma → contrat d'API ─────────────────────────────
+// Plus aucun store en mémoire : produits, inventaire, mouvements, fournisseurs
+// et bons de commande sont tous persistés en base via Prisma.
 
 /** Les `Decimal` Prisma doivent sortir en `number`, sinon le JSON renvoie des objets. */
 function num(value: Prisma.Decimal | number | null | undefined): number {
@@ -169,6 +160,76 @@ function toProduct(row: ProductRow, alertThreshold: number): IProduct {
     alertThreshold,
     unit: row.unit,
     isActive: row.isActive,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function toSupplier(row: {
+  id: string;
+  tenantId: string;
+  name: string;
+  contact: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  isActive: boolean;
+  createdAt: Date;
+}): ISupplier {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    name: row.name,
+    contact: row.contact ?? undefined,
+    phone: row.phone ?? undefined,
+    email: row.email ?? undefined,
+    address: row.address ?? undefined,
+    isActive: row.isActive,
+    createdAt: row.createdAt,
+  };
+}
+
+/**
+ * `PurchaseOrder.agencyId` est nullable en base ; le contrat d'API expose une
+ * chaîne, on mappe donc `null` vers `''` comme pour l'inventaire.
+ */
+function toPurchaseOrder(row: {
+  id: string;
+  reference: string;
+  tenantId: string;
+  supplierId: string;
+  agencyId: string | null;
+  status: PurchaseOrderStatus;
+  totalAmount: Prisma.Decimal;
+  expectedDeliveryDate: Date | null;
+  notes: string | null;
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lines: Array<{
+    productId: string;
+    quantity: Prisma.Decimal;
+    unitPrice: Prisma.Decimal;
+    totalPrice: Prisma.Decimal;
+  }>;
+}): IPurchaseOrder {
+  return {
+    id: row.id,
+    reference: row.reference,
+    tenantId: row.tenantId,
+    supplierId: row.supplierId,
+    agencyId: row.agencyId ?? '',
+    status: row.status,
+    lines: row.lines.map((l) => ({
+      productId: l.productId,
+      quantity: num(l.quantity),
+      unitPrice: num(l.unitPrice),
+      totalPrice: num(l.totalPrice),
+    })),
+    totalAmount: num(row.totalAmount),
+    expectedDeliveryDate: row.expectedDeliveryDate ?? undefined,
+    notes: row.notes ?? undefined,
+    createdBy: row.createdById,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -523,50 +584,90 @@ export class StockService {
   }
 
   // ─── Fournisseurs ────────────────────────────────────────────────────────────
-  // Non persistés : aucun modèle `Supplier` dans le schéma Prisma.
 
-  getSuppliers(tenantId: string) {
-    return suppliers.filter((s) => s.tenantId === tenantId && s.isActive);
+  async getSuppliers(tenantId: string): Promise<ISupplier[]> {
+    const rows = await this.prisma.supplier.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map(toSupplier);
   }
 
   // ─── Bons de commande ────────────────────────────────────────────────────────
-  // Non persistés : aucun modèle `PurchaseOrder` dans le schéma Prisma.
 
-  createPurchaseOrder(dto: PurchaseOrderDto, tenantId: string, userId: string): IPurchaseOrder {
+  async createPurchaseOrder(
+    dto: PurchaseOrderDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<IPurchaseOrder> {
+    const fournisseur = await this.prisma.supplier.findFirst({
+      where: { id: dto.supplierId, tenantId },
+    });
+    if (!fournisseur) throw new NotFoundException(`Fournisseur ${dto.supplierId} introuvable`);
+
+    // Les lignes portent une clé étrangère vers `Product` : on vérifie d'abord
+    // que chaque produit appartient bien au tenant, sinon la contrainte partirait
+    // en erreur brute au lieu d'un 404 exploitable.
+    const productIds = [...new Set(dto.lines.map((l) => l.productId))];
+    const produits = await this.prisma.product.findMany({
+      where: { tenantId, id: { in: productIds } },
+      select: { id: true },
+    });
+    const connus = new Set(produits.map((p) => p.id));
+    const inconnu = productIds.find((id) => !connus.has(id));
+    if (inconnu) throw new NotFoundException(`Produit ${inconnu} introuvable`);
+
     const lines = dto.lines.map((l) => ({
       ...l,
       totalPrice: l.quantity * l.unitPrice,
     }));
     const totalAmount = lines.reduce((sum, l) => sum + l.totalPrice, 0);
 
-    const order: IPurchaseOrder = {
-      id: uuidv4(),
-      reference: `PO-${Date.now()}`,
-      tenantId,
-      supplierId: dto.supplierId,
-      agencyId: dto.agencyId,
-      status: 'DRAFT',
-      lines,
-      totalAmount,
-      expectedDeliveryDate: dto.expectedDeliveryDate ? new Date(dto.expectedDeliveryDate) : undefined,
-      notes: dto.notes,
-      createdBy: userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const row = await this.prisma.purchaseOrder.create({
+      data: {
+        tenantId,
+        reference: `PO-${Date.now()}`,
+        supplierId: dto.supplierId,
+        agencyId: dto.agencyId,
+        status: PurchaseOrderStatus.DRAFT,
+        totalAmount: new Prisma.Decimal(totalAmount),
+        expectedDeliveryDate: dto.expectedDeliveryDate
+          ? new Date(dto.expectedDeliveryDate)
+          : undefined,
+        notes: dto.notes,
+        createdById: userId,
+        lines: {
+          create: lines.map((l) => ({
+            productId: l.productId,
+            quantity: new Prisma.Decimal(l.quantity),
+            unitPrice: new Prisma.Decimal(l.unitPrice),
+            totalPrice: new Prisma.Decimal(l.totalPrice),
+          })),
+        },
+      },
+      include: { lines: true },
+    });
 
-    purchaseOrders.push(order);
-    this.logger.log(`Bon de commande créé: ${order.reference} — ${totalAmount} XOF`);
-    return order;
+    this.logger.log(`Bon de commande créé: ${row.reference} — ${totalAmount} XOF`);
+    return toPurchaseOrder(row);
   }
 
-  getPurchaseOrders(tenantId: string, page?: number, limit?: number) {
-    const data = purchaseOrders
-      .filter((o) => o.tenantId === tenantId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    const total = data.length;
+  async getPurchaseOrders(tenantId: string, page?: number, limit?: number) {
+    const where: Prisma.PurchaseOrderWhereInput = { tenantId };
     const { page: p, limit: l } = pagination(page, limit, 20);
-    return { data: data.slice((p - 1) * l, p * l), total, page: p, limit: l };
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.purchaseOrder.count({ where }),
+      this.prisma.purchaseOrder.findMany({
+        where,
+        include: { lines: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (p - 1) * l,
+        take: l,
+      }),
+    ]);
+
+    return { data: rows.map(toPurchaseOrder), total, page: p, limit: l };
   }
 
   // ─── Valorisation ────────────────────────────────────────────────────────────
