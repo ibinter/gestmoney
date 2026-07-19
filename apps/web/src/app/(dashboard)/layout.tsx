@@ -18,12 +18,22 @@ const COMPACT_KEY = 'gestmoney-sidebar-compact';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOuverte, setSidebarOuverte] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hasHydrated } = useAuthStore();
   const router = useRouter();
 
   // Charger la préférence compact depuis localStorage
   useEffect(() => {
     setSidebarCompact(localStorage.getItem(COMPACT_KEY) === '1');
+  }, []);
+
+  // Filet de sécurité : la relecture du storage par `persist` est synchrone,
+  // elle a donc forcément eu lieu quand cet effet s'exécute. Si le drapeau
+  // n'est pas levé (storage indisponible en navigation privée, quota, etc.),
+  // on le lève ici pour ne jamais rester bloqué sur l'écran de chargement.
+  useEffect(() => {
+    if (!useAuthStore.getState().hasHydrated) {
+      useAuthStore.getState().setHasHydrated(true);
+    }
   }, []);
 
   // Toggle compact avec persistance
@@ -35,12 +45,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   };
 
-  // Rediriger si non authentifié (double sécurité côté client)
+  // Rediriger si non authentifié (double sécurité côté client).
+  // On attend que `persist` ait relu le localStorage : au premier rendu
+  // `isAuthenticated` vaut toujours false, rediriger tout de suite éjecterait
+  // vers /login un utilisateur pourtant connecté (au rechargement d'une page).
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (hasHydrated && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, router]);
+
+  // Tant que la session n'est pas relue, on n'affiche ni le dashboard ni une
+  // redirection : un court écran d'attente évite tout clignotement.
+  if (!hasHydrated) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center bg-surface"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="sr-only">Chargement de votre session…</span>
+        <div
+          aria-hidden="true"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            border: '3px solid rgba(26,29,46,0.15)',
+            borderTopColor: '#F5B800',
+            animation: 'gm-spin 0.7s linear infinite',
+          }}
+        />
+        <style>{`@keyframes gm-spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-surface">

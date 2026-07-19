@@ -10,11 +10,16 @@ import { User } from '@/types';
 interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
+  /** false tant que `persist` n'a pas relu le localStorage. Au premier rendu
+   *  client, `isAuthenticated` vaut toujours false : sans ce drapeau, un
+   *  garde de route renverrait vers /login un utilisateur pourtant connecté. */
+  hasHydrated: boolean;
 
   // Actions
   login: (user: User) => void;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
+  setHasHydrated: (valeur: boolean) => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -22,6 +27,7 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
+      hasHydrated: false,
 
       login: (user) => {
         set({ user, isAuthenticated: true });
@@ -37,14 +43,24 @@ export const useAuthStore = create<AuthStore>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...updates } : null,
         })),
+
+      setHasHydrated: (valeur) => set({ hasHydrated: valeur }),
     }),
     {
       name: 'gestmoney-auth',
-      // Ne persiste que les données non-sensibles
+      // Ne persiste que les données non-sensibles. `hasHydrated` est
+      // volontairement exclu : il doit repartir à false à chaque chargement.
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      // Appelé après la relecture du localStorage. On passe par l'état reçu en
+      // argument : référencer `useAuthStore` ici tomberait dans sa zone morte
+      // temporelle (l'hydratation est synchrone, la const n'est pas encore
+      // assignée) et le drapeau ne serait jamais levé.
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );
