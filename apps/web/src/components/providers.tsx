@@ -23,7 +23,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      {/* Thème clair par défaut (identité GESTMONEY) — le mode sombre reste
+          disponible via le ThemeToggle, mais n'est plus imposé par l'OS. */}
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         <I18nProvider>
           {children}
           <Toaster richColors position="top-right" />

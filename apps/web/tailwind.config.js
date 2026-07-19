@@ -53,15 +53,15 @@ module.exports = {
         'gm-yellow': '#F5B800',   // Or/Jaune — accent & highlights
         'gm-red':    '#C41E1E',   // Rouge — danger / alertes
         'gm-black':  '#111111',   // Noir — textes forts
-        // Aliases sémantiques utilisés partout dans les composants
-        'text-main': '#111111',
-        'surface':   '#F5F5F5',
-        'success':   '#1E8C32',
-        'warning':   '#F5B800',
-        'danger':    '#C41E1E',
-        'info':      '#0369A1',
+        // Aliases sémantiques — alignés sur la maquette /mockup
+        'text-main': '#1A1D2E',   // Navy encre (maquette --text)
+        'surface':   '#F0F2F7',   // Fond de page gris-bleu (maquette --bg)
+        'success':   '#22C55E',
+        'warning':   '#F59E0B',
+        'danger':    '#EF4444',
+        'info':      '#3B82F6',
         'neutral':   '#6B7280',
-        'sidebar':   '#111111',   // Fond sidebar noir de marque
+        'sidebar':   '#1A1D2E',   // Fond sidebar navy (maquette --dark)
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -70,7 +70,7 @@ module.exports = {
         card: "1rem",
       },
       boxShadow: {
-        card: "0 1px 4px 0 rgba(0,0,0,0.08)",
+        card: "0 2px 12px 0 rgba(0,0,0,0.08)",   // maquette --card-shadow
       },
       keyframes: {
         "accordion-down": {
