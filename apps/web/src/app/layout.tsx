@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { PwaRegister } from "@/components/ui/PwaRegister";
 import "./globals.css";
+// Système de design porté depuis /mockup (classes et variables préfixées `gm-`)
+import "@/styles/mockup-system.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
