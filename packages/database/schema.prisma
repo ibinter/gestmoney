@@ -68,6 +68,8 @@ model Tenant {
   products            Product[]
   inventory           Inventory[]
   stockMovements      StockMovement[]
+  suppliers           Supplier[]
+  purchaseOrders      PurchaseOrder[]
   employees           Employee[]
   contracts           Contract[]
   payrolls            Payroll[]
@@ -1077,6 +1079,7 @@ model Product {
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   inventory   Inventory[]
   stockMovements StockMovement[]
+  purchaseOrderLines PurchaseOrderLine[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1133,6 +1136,74 @@ enum StockMovementType {
   ADJUSTMENT
   TRANSFER
   RETURN
+}
+
+model Supplier {
+  id             String          @id @default(cuid())
+  tenantId       String
+  name           String
+  contact        String?
+  phone          String?
+  email          String?
+  address        String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id                   String              @id @default(cuid())
+  tenantId             String
+  reference            String
+  supplierId           String
+  agencyId             String?
+  status               PurchaseOrderStatus @default(DRAFT)
+  totalAmount          Decimal             @db.Decimal(15, 2)
+  currency             String              @default("XOF")
+  expectedDeliveryDate DateTime?
+  notes                String?
+  createdById          String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  tenant               Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier             Supplier            @relation(fields: [supplierId], references: [id])
+  lines                PurchaseOrderLine[]
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  productId       String
+  quantity        Decimal       @db.Decimal(15, 4)
+  unitPrice       Decimal       @db.Decimal(15, 2)
+  totalPrice      Decimal       @db.Decimal(15, 2)
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_lines")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  RECEIVED
+  CANCELLED
 }
 
 // ==============================================================================
