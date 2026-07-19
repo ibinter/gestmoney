@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
@@ -7,48 +7,70 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // Indispensable : l'authentification repose sur des cookies httpOnly
+  // (`gestmoney_token` / `gestmoney_refresh`) posés par l'API.
   withCredentials: true,
 });
 
-// Intercepteur requetes : ajoute le token JWT
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
+// Aucun intercepteur de requête n'ajoute de `Authorization` : le token est
+// dans un cookie httpOnly, illisible par le JavaScript. C'est le navigateur
+// qui l'envoie automatiquement grâce à `withCredentials`.
 
-// Intercepteur reponses : gere les erreurs globales
+// ─── Rafraîchissement de session ──────────────────────────────────────────────
+// Le token d'accès est court (15 min). Sans ce mécanisme, toutes les requêtes
+// tombaient en 401 passé ce délai et l'utilisateur restait bloqué sur des
+// données vides, sans être ni reconnecté ni renvoyé vers /login.
+
+/** Un seul rafraîchissement à la fois : quand 10 requêtes tombent en 401
+ *  simultanément, elles attendent le même appel au lieu d'en lancer 10. */
+let rafraichissementEnCours: Promise<void> | null = null;
+
+function rafraichirSession(): Promise<void> {
+  if (!rafraichissementEnCours) {
+    rafraichissementEnCours = axios
+      .post(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
+      .then(() => undefined)
+      .finally(() => {
+        rafraichissementEnCours = null;
+      });
+  }
+  return rafraichissementEnCours;
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const requeteInitiale = error.config;
+    const url: string = requeteInitiale?.url ?? "";
 
-    // 401 sur un endpoint d'auth => essai refresh puis redirect login
-    // 401 sur les autres endpoints => on laisse le hook gérer (mock fallback)
-    const isAuthEndpoint = originalRequest?.url?.includes('/auth/');
+    // Ne pas boucler sur le rafraîchissement lui-même, ni sur la connexion.
+    const estEndpointDeSession =
+      url.includes("/auth/refresh") || url.includes("/auth/login");
 
-    if (error.response?.status === 401 && isAuthEndpoint && !originalRequest._retry) {
-      originalRequest._retry = true;
+    if (
+      error.response?.status === 401 &&
+      !estEndpointDeSession &&
+      !requeteInitiale?._retry
+    ) {
+      requeteInitiale._retry = true;
       try {
-        const refreshToken = localStorage.getItem("refresh_token");
-        const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-        const { accessToken } = response.data;
-        localStorage.setItem("access_token", accessToken);
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        return api(originalRequest);
+        await rafraichirSession();
+        // Le nouveau cookie est posé : on rejoue la requête telle quelle.
+        return api(requeteInitiale);
       } catch {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        if (typeof window !== "undefined") window.location.href = "/login";
+        // Le refresh a échoué (session réellement expirée) → retour au login,
+        // en gardant la page courante pour y revenir après reconnexion.
+        if (typeof window !== "undefined") {
+          const retour = encodeURIComponent(
+            window.location.pathname + window.location.search,
+          );
+          window.location.href = `/login?redirect=${retour}`;
+        }
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
