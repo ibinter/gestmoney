@@ -55,31 +55,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  // Tant que la session n'est pas relue, on n'affiche ni le dashboard ni une
-  // redirection : un court écran d'attente évite tout clignotement.
-  if (!hasHydrated) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center bg-surface"
-        role="status"
-        aria-live="polite"
-      >
-        <span className="sr-only">Chargement de votre session…</span>
-        <div
-          aria-hidden="true"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            border: '3px solid rgba(26,29,46,0.15)',
-            borderTopColor: '#F5B800',
-            animation: 'gm-spin 0.7s linear infinite',
-          }}
-        />
-        <style>{`@keyframes gm-spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    );
-  }
+  // On ne bloque volontairement PAS le rendu sur `hasHydrated` : le faire
+  // priverait toutes les pages du dashboard de leur rendu serveur (le serveur
+  // ne connaît jamais la session) et ferait clignoter un écran de chargement.
+  // Seule la décision de redirection ci-dessus attend l'hydratation. L'accès
+  // reste verrouillé côté serveur par le middleware, qui renvoie un 307 vers
+  // /login sans cookie valide.
 
   return (
     <div className="min-h-screen flex bg-surface">
