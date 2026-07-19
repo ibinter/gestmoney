@@ -1,11 +1,5 @@
 'use client';
-import React, { useState } from 'react';
-import { Download, BarChart2, FileText, FileDown } from 'lucide-react';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { StatCard } from '@/components/ui/StatCard';
-import { Select } from '@/components/ui/Input';
+import React, { useMemo, useState } from 'react';
 import { formatMontant, formatDate } from '@/lib/formatters';
 import { useRapports, useGenererRapport, RapportHistorique } from '@/hooks/useRapports';
 import { exporterCsv } from '@/lib/exportCsv';
@@ -13,12 +7,34 @@ import { exporterXlsx } from '@/lib/exportPdf';
 import { exportToPdf, ColumnType } from '@/lib/pdf';
 import { clsx } from 'clsx';
 import { useT } from '@/lib/i18n';
+import {
+  GmPageHeader,
+  GmButton,
+  GmSectionTitle,
+  GmTableWrap,
+} from '@/components/gm';
 
 const PERIODES = [
   { value: 'janvier_2024',    label: 'Janvier 2024'    },
   { value: 'decembre_2023',   label: 'Décembre 2023'   },
   { value: 'trimestre_4_2023',label: 'T4 2023'         },
 ];
+
+const TYPES_RAPPORT = [
+  { value: 'journalier',   label: 'Rapport journalier'   },
+  { value: 'hebdomadaire', label: 'Rapport hebdomadaire' },
+  { value: 'mensuel',      label: 'Rapport mensuel'      },
+];
+
+const LIBELLES_TYPE: Record<RapportHistorique['type'], string> = {
+  journalier: 'Journalier',
+  hebdomadaire: 'Hebdomadaire',
+  mensuel: 'Mensuel',
+};
+
+/** Circonférence du donut (r = 45). */
+const DONUT_R = 45;
+const DONUT_C = 2 * Math.PI * DONUT_R;
 
 export default function RapportsPage() {
   const [periode, setPeriode] = useState('janvier_2024');
@@ -28,6 +44,12 @@ export default function RapportsPage() {
 
   const [succesGen, setSuccesGen] = useState('');
   const [rapport_courant, setRapportCourant] = useState<RapportHistorique | null>(null);
+
+  // Présentation : modale de génération + filtres du tableau
+  const [modaleOuverte, setModaleOuverte] = useState(false);
+  const [typeGen, setTypeGen] = useState('mensuel');
+  const [recherche, setRecherche] = useState('');
+  const [filtreType, setFiltreType] = useState('tous');
 
   const COLONNES_OPERATEURS = [
     { titre: 'Rapport',         valeur: () => rapport_courant?.titre ?? '' },
@@ -89,8 +111,32 @@ export default function RapportsPage() {
     );
   };
 
+  const handleExportPdfGlobal = () => {
+    const kpis = [
+      { label: "Chiffre d'affaires", valeur: formatMontant(ca) },
+      { label: 'Transactions',       valeur: nbTransactions.toLocaleString('fr-FR') },
+      { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
+      { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
+    ];
+    exportToPdf({
+      title: `Rapport ${PERIODES.find(p => p.value === periode)?.label ?? periode}`,
+      columns: [
+        { key: 'label',   label: 'Opérateur',     type: ColumnType.NAME },
+        { key: 'montant', label: 'Montant (FCFA)', type: ColumnType.AMOUNT, align: 'right' },
+        { key: 'pct',     label: '% du total',    type: ColumnType.AMOUNT, align: 'right' },
+      ],
+      rows: parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
+      options: {
+        subtitle: 'Business Intelligence',
+        period: PERIODES.find(p => p.value === periode)?.label,
+        kpis: kpis.map((k) => ({ label: k.label, value: k.valeur })),
+      },
+    });
+  };
+
   const handleGenerer = async () => {
-    await genererRapport.mutateAsync({ periode });
+    await genererRapport.mutateAsync({ periode, type: typeGen });
+    setModaleOuverte(false);
     setSuccesGen('Rapport en cours de génération. Disponible dans quelques instants.');
     setTimeout(() => setSuccesGen(''), 4000);
   };
@@ -106,218 +152,420 @@ export default function RapportsPage() {
   const alertes         = data?.alertes         ?? [];
   const historique      = data?.historique      ?? [];
 
+  // ─── Données dérivées (uniquement à partir des vraies données) ──────────────
+  const totalOperateurs = useMemo(
+    () => parOperateur.reduce((s, op) => s + (op.montant ?? 0), 0),
+    [parOperateur],
+  );
+
+  /** Segments du donut, calculés depuis les montants réels. */
+  const segments = useMemo(() => {
+    let cumul = 0;
+    return parOperateur.map((op) => {
+      const part = totalOperateurs > 0 ? (op.montant / totalOperateurs) * 100 : 0;
+      const offset = cumul;
+      cumul += part;
+      return { ...op, part, offset };
+    });
+  }, [parOperateur, totalOperateurs]);
+
+  const maxAgent = useMemo(
+    () => topAgents.reduce((m, a) => Math.max(m, a.montant ?? 0), 0),
+    [topAgents],
+  );
+
+  const nbDisponibles = historique.filter((r) => r.statut === 'disponible').length;
+  const nbEnCours     = historique.filter((r) => r.statut === 'generation').length;
+  const dernier       = historique.length > 0
+    ? historique.reduce((a, b) => (new Date(b.date) > new Date(a.date) ? b : a))
+    : null;
+
+  const historiqueFiltre = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    return historique.filter((r) => {
+      const okType = filtreType === 'tous' || r.type === filtreType;
+      const okQ = q === '' || r.titre.toLowerCase().includes(q);
+      return okType && okQ;
+    });
+  }, [historique, recherche, filtreType]);
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-8 bg-gray-200 rounded w-64 animate-pulse" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <>
+        <div className="gm-page-header">
+          <div>
+            <h1 className="gm-page-title">{t.rapports.title}</h1>
+            <p className="gm-page-sub">{t.rapports.subtitle}</p>
+          </div>
+        </div>
+        <div className="gm-kpi-grid">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 bg-gray-200 rounded-card animate-pulse" />
+            <div key={i} className="gm-kpi-card" style={{ height: 96, opacity: 0.5 }} />
           ))}
         </div>
-      </div>
+        <div className="gm-charts-grid">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="gm-chart-card" style={{ height: 200, opacity: 0.5 }} />
+          ))}
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-main">{t.rapports.title}</h1>
-          <p className="text-sm text-gray-500">{t.rapports.subtitle}</p>
+    <>
+      <GmPageHeader
+        titre={t.rapports.title}
+        sousTitre={t.rapports.subtitle}
+        fil={['Accueil', 'Rapports & BI']}
+        actions={
+          <>
+            <select
+              className="gm-filter-select"
+              value={periode}
+              onChange={(e) => setPeriode(e.target.value)}
+              aria-label="Période"
+            >
+              {PERIODES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+            <GmButton variante="outline" petit onClick={handleExportPdfGlobal}>
+              📄 {t.rapports.exportPdf}
+            </GmButton>
+            <GmButton variante="primary" petit onClick={() => setModaleOuverte(true)}>
+              📊 {t.rapports.generate}
+            </GmButton>
+          </>
+        }
+      />
+
+      {/* ─── Statistiques du centre de rapports ─── */}
+      <div className="gm-stats-grid">
+        <div className="gm-stat-card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div className="gm-stat-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>📊</div>
+          <div>
+            <div className="gm-stat-label">Rapports disponibles</div>
+            <div className="gm-stat-value">{nbDisponibles}</div>
+            <div className="gm-stat-sub">{historique.length} au total sur la période</div>
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Select
-            placeholder="Période"
-            value={periode}
-            onChange={(e) => setPeriode(e.target.value)}
-            options={PERIODES}
-          />
-          <Button
-            variante="secondary"
-            taille="sm"
-            icone={<FileText size={15} />}
-            onClick={() => {
-              const kpis = [
-                { label: "Chiffre d'affaires", valeur: formatMontant(ca) },
-                { label: 'Transactions',       valeur: nbTransactions.toLocaleString('fr-FR') },
-                { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
-                { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
-              ];
-              exportToPdf({
-                title: `Rapport ${PERIODES.find(p => p.value === periode)?.label ?? periode}`,
-                columns: [
-                  { key: 'label',   label: 'Opérateur',     type: ColumnType.NAME },
-                  { key: 'montant', label: 'Montant (FCFA)', type: ColumnType.AMOUNT, align: 'right' },
-                  { key: 'pct',     label: '% du total',    type: ColumnType.AMOUNT, align: 'right' },
-                ],
-                rows: parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
-                options: {
-                  subtitle: 'Business Intelligence',
-                  period: PERIODES.find(p => p.value === periode)?.label,
-                  kpis: kpis.map((k) => ({ label: k.label, value: k.valeur })),
-                },
-              });
-            }}
-          >
-            {t.rapports.exportPdf}
-          </Button>
-          <Button
-            variante="primary"
-            taille="sm"
-            icone={<BarChart2 size={15} />}
-            onClick={handleGenerer}
-            loading={genererRapport.isPending}
-          >
-            {t.rapports.generate}
-          </Button>
+        <div className="gm-stat-card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div className="gm-stat-icon" style={{ background: 'rgba(245,184,0,0.15)' }}>⏳</div>
+          <div>
+            <div className="gm-stat-label">En génération</div>
+            <div className="gm-stat-value">{nbEnCours}</div>
+            <div className="gm-stat-sub">{nbEnCours > 0 ? 'Traitement en cours' : 'Aucun traitement en cours'}</div>
+          </div>
+        </div>
+        <div className="gm-stat-card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div className="gm-stat-icon" style={{ background: 'rgba(34,197,94,0.1)' }}>✅</div>
+          <div>
+            <div className="gm-stat-label">Dernier rapport</div>
+            <div className="gm-stat-value" style={{ fontSize: 18 }}>
+              {dernier ? formatDate(dernier.date) : '—'}
+            </div>
+            <div className="gm-stat-sub">{dernier ? dernier.titre : '—'}</div>
+          </div>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard titre="Chiffre d'affaires" valeur={formatMontant(ca)} variation={data?.variationCa} icone="📈" couleur="success" />
-        <StatCard titre="Nb transactions" valeur={nbTransactions.toLocaleString('fr-FR')} variation={data?.variationTx} icone="💳" couleur="primary" />
-        <StatCard titre="Nouveaux clients" valeur={nouveauxClients.toString()} variation={data?.variationClients} icone="👥" couleur="default" />
-        <StatCard titre="Ticket moyen" valeur={formatMontant(ticketMoyen)} icone="🎫" couleur="default" />
+      {/* ─── KPIs de la période ─── */}
+      <div className="gm-kpi-grid">
+        <div className="gm-kpi-card">
+          <div className="gm-kpi-label">Chiffre d&apos;affaires</div>
+          <div className="gm-kpi-value">{formatMontant(ca)}</div>
+          {typeof data?.variationCa === 'number' && (
+            <div className={clsx('gm-kpi-trend', data.variationCa >= 0 ? 'gm-trend-up' : 'gm-trend-down')}>
+              {data.variationCa >= 0 ? '▲' : '▼'} {Math.abs(data.variationCa)}%
+            </div>
+          )}
+        </div>
+        <div className="gm-kpi-card">
+          <div className="gm-kpi-label">Transactions</div>
+          <div className="gm-kpi-value">{nbTransactions.toLocaleString('fr-FR')}</div>
+          {typeof data?.variationTx === 'number' && (
+            <div className={clsx('gm-kpi-trend', data.variationTx >= 0 ? 'gm-trend-up' : 'gm-trend-down')}>
+              {data.variationTx >= 0 ? '▲' : '▼'} {Math.abs(data.variationTx)}%
+            </div>
+          )}
+        </div>
+        <div className="gm-kpi-card">
+          <div className="gm-kpi-label">Nouveaux clients</div>
+          <div className="gm-kpi-value">{nouveauxClients.toLocaleString('fr-FR')}</div>
+          {typeof data?.variationClients === 'number' && (
+            <div className={clsx('gm-kpi-trend', data.variationClients >= 0 ? 'gm-trend-up' : 'gm-trend-down')}>
+              {data.variationClients >= 0 ? '▲' : '▼'} {Math.abs(data.variationClients)}%
+            </div>
+          )}
+        </div>
+        <div className="gm-kpi-card">
+          <div className="gm-kpi-label">Ticket moyen</div>
+          <div className="gm-kpi-value">{formatMontant(ticketMoyen)}</div>
+          <div className="gm-kpi-trend gm-trend-neutral">Sur la période</div>
+        </div>
       </div>
 
-      {/* Message génération */}
+      {/* ─── Message de génération ─── */}
       {succesGen && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">{succesGen}</div>
+        <div className="gm-alert-banner" style={{ marginBottom: 20 }}>
+          <div className="gm-alert-icon">⏳</div>
+          <div className="gm-alert-content">
+            <div className="gm-alert-title">Génération lancée</div>
+            <div className="gm-alert-desc">{succesGen}</div>
+          </div>
+        </div>
       )}
 
-      {/* Alertes BI */}
+      {/* ─── Alertes BI ─── */}
       {alertes.length > 0 && (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
           {alertes.map((a) => (
-            <div key={a.id} className={clsx('flex items-start gap-3 rounded-xl p-3 text-sm', {
-              'bg-red-50 border border-red-200':    a.type === 'danger',
-              'bg-yellow-50 border border-yellow-200': a.type === 'warning',
-              'bg-blue-50 border border-blue-200':  a.type === 'info',
-            })}>
-              <span>{a.type === 'danger' ? '🔴' : a.type === 'warning' ? '🟡' : 'ℹ️'}</span>
-              <p className={clsx({ 'text-red-700': a.type === 'danger', 'text-yellow-700': a.type === 'warning', 'text-blue-700': a.type === 'info' })}>
-                {a.message}
-              </p>
+            <div key={a.id} className="gm-alert-banner">
+              <div className="gm-alert-icon">
+                {a.type === 'danger' ? '🔴' : a.type === 'warning' ? '🟡' : 'ℹ️'}
+              </div>
+              <div className="gm-alert-content">
+                <div className="gm-alert-desc">{a.message}</div>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Répartition par opérateur */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Volume par opérateur</CardTitle>
-            <span className="text-xs text-gray-400">{formatMontant(ca)} total</span>
-          </CardHeader>
-          <div className="space-y-3">
-            {parOperateur.map((op) => (
-              <div key={op.key}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>{op.logo}</span>
-                    <span className="font-medium">{op.label}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold text-text-main">{formatMontant(op.montant)}</span>
-                    <span className="text-xs text-gray-400 ml-2">{op.pct}%</span>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${op.pct}%`, backgroundColor: op.couleur }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+      {/* ─── Aperçu rapide ─── */}
+      <GmSectionTitle
+        action={
+          <span style={{ fontSize: 12, color: 'var(--gm-text-2)', fontWeight: 400 }}>
+            {PERIODES.find((p) => p.value === periode)?.label ?? periode}
+          </span>
+        }
+      >
+        Aperçu rapide
+      </GmSectionTitle>
+      <div className="gm-charts-grid">
 
-        {/* Top agents */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Top 5 agents du mois</CardTitle>
-          </CardHeader>
-          <div className="space-y-3">
-            {topAgents.map((agent, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
-                  {agent.badge || (i + 1)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-main truncate">{agent.nom}</p>
-                  <p className="text-xs text-gray-400">{agent.agence} — {agent.nbTx} tx</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold text-text-main">{formatMontant(agent.montant)}</p>
-                </div>
-              </div>
-            ))}
+        {/* Donut — répartition par opérateur */}
+        <div className="gm-chart-card">
+          <div className="gm-chart-title">Répartition par opérateur</div>
+          <div className="gm-chart-sub">
+            {totalOperateurs > 0 ? `${formatMontant(totalOperateurs)} au total` : '—'}
           </div>
-        </Card>
-      </div>
+          {segments.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>—</div>
+          ) : (
+            <svg viewBox="0 0 200 140" width="100%" xmlns="http://www.w3.org/2000/svg">
+              <g transform="rotate(-90 70 70)">
+                {segments.map((s) => (
+                  <circle
+                    key={s.key}
+                    cx="70"
+                    cy="70"
+                    r={DONUT_R}
+                    fill="none"
+                    stroke={s.couleur}
+                    strokeWidth="18"
+                    strokeDasharray={`${(s.part / 100) * DONUT_C} ${DONUT_C}`}
+                    strokeDashoffset={-((s.offset / 100) * DONUT_C)}
+                    opacity="0.9"
+                  />
+                ))}
+              </g>
+              <text x="70" y="68" textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--gm-text)">
+                {nbTransactions.toLocaleString('fr-FR')}
+              </text>
+              <text x="70" y="80" textAnchor="middle" fontSize="7" fill="var(--gm-text-2)">
+                transactions
+              </text>
+              {segments.slice(0, 5).map((s, i) => (
+                <g key={s.key}>
+                  <rect x="130" y={20 + i * 19} width="9" height="9" rx="2" fill={s.couleur} opacity="0.9" />
+                  <text x="144" y={28 + i * 19} fontSize="8.5" fontWeight="600" fill="var(--gm-text)">
+                    {s.label} {Math.round(s.part)}%
+                  </text>
+                </g>
+              ))}
+            </svg>
+          )}
+        </div>
 
-      {/* Progression objectif */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Progression vers l&apos;objectif mensuel</CardTitle>
-          <span className="text-sm font-bold text-text-main">{progression}%</span>
-        </CardHeader>
-        <div>
-          <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden mb-3">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-yellow-400 transition-all duration-1000"
-              style={{ width: `${Math.min(progression, 100)}%` }}
-            />
+        {/* Barres — top agents */}
+        <div className="gm-chart-card">
+          <div className="gm-chart-title">Top agents</div>
+          <div className="gm-chart-sub">Volume traité sur la période</div>
+          {topAgents.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>—</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {topAgents.map((agent, i) => (
+                <div key={`${agent.nom}-${i}`}>
+                  <div className="gm-progress-label">
+                    <span>{agent.badge || i + 1} {agent.nom}</span>
+                    <span>{formatMontant(agent.montant)}</span>
+                  </div>
+                  <div className="gm-progress-bar">
+                    <div
+                      className="gm-progress-fill"
+                      style={{ width: `${maxAgent > 0 ? (agent.montant / maxAgent) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--gm-text-2)', marginTop: 2 }}>
+                    {agent.agence} — {agent.nbTx} tx
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Progression vers l'objectif */}
+        <div className="gm-chart-card">
+          <div className="gm-chart-title">Progression vers l&apos;objectif</div>
+          <div className="gm-chart-sub">Objectif : {formatMontant(objectif)}</div>
+          <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.5px', marginBottom: 10 }}>
+            {progression}%
           </div>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>0</span>
-            <span className="text-text-main font-semibold">{formatMontant(ca)} {t.rapports.achieved}</span>
+          <div className="gm-progress-bar" style={{ height: 14 }}>
+            <div className="gm-progress-fill" style={{ width: `${Math.min(progression, 100)}%` }} />
+          </div>
+          <div className="gm-progress-label" style={{ marginTop: 10 }}>
+            <span>{formatMontant(ca)} {t.rapports.achieved}</span>
             <span>{t.rapports.objective} : {formatMontant(objectif)}</span>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Historique des rapports */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.rapports.history}</CardTitle>
-        </CardHeader>
-        <div className="space-y-2">
-          {historique.map((r) => (
-            <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-surface hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileText size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-text-main">{r.titre}</p>
-                  <p className="text-xs text-gray-400">{formatDate(r.date)} — {r.taille}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Badge couleur={r.statut === 'disponible' ? 'success' : 'warning'}>
-                  {r.statut === 'disponible' ? 'Disponible' : 'En cours'}
-                </Badge>
-                {r.statut === 'disponible' && (
-                  <>
-                    <Button variante="ghost" taille="sm" icone={<Download size={13} />} onClick={() => handleTelecharger(r)}>
-                      CSV
-                    </Button>
-                    <Button variante="ghost" taille="sm" icone={<FileDown size={13} />} onClick={() => handleTelechargerXlsx(r)}>
-                      XLSX
-                    </Button>
-                    <Button variante="ghost" taille="sm" icone={<FileText size={13} />} onClick={() => handleTelechargerPdf(r)}>
-                      PDF
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+      {/* ─── Historique des rapports ─── */}
+      <GmSectionTitle>{t.rapports.history}</GmSectionTitle>
+      <GmTableWrap>
+        <div className="gm-table-toolbar">
+          <div className="gm-table-toolbar-left">
+            <input
+              type="text"
+              className="gm-search-input"
+              placeholder="🔍 Rechercher un rapport…"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              style={{ width: 220 }}
+            />
+            <select value={filtreType} onChange={(e) => setFiltreType(e.target.value)} aria-label="Type de rapport">
+              <option value="tous">Tous les types</option>
+              <option value="journalier">Journalier</option>
+              <option value="hebdomadaire">Hebdomadaire</option>
+              <option value="mensuel">Mensuel</option>
+            </select>
+          </div>
+          <span className="gm-sort-note">
+            {historiqueFiltre.length} rapport{historiqueFiltre.length > 1 ? 's' : ''}
+          </span>
         </div>
-      </Card>
-    </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Nom du rapport</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Taille</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historiqueFiltre.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', color: 'var(--gm-text-2)' }}>
+                    Aucun rapport
+                  </td>
+                </tr>
+              ) : (
+                historiqueFiltre.map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: 500 }}>{r.titre}</td>
+                    <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{formatDate(r.date)}</td>
+                    <td>
+                      <span className="gm-badge gm-badge-info" style={{ fontSize: 10 }}>
+                        {LIBELLES_TYPE[r.type] ?? r.type}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{r.taille || '—'}</td>
+                    <td>
+                      <span
+                        className={clsx(
+                          'gm-status-pill',
+                          r.statut === 'disponible' ? 'gm-pill-success' : 'gm-pill-pending',
+                        )}
+                      >
+                        {r.statut === 'disponible' ? 'Disponible' : 'En cours'}
+                      </span>
+                    </td>
+                    <td>
+                      {r.statut === 'disponible' ? (
+                        <div className="gm-action-btns">
+                          <button className="gm-action-btn" onClick={() => handleTelecharger(r)}>
+                            📥 CSV
+                          </button>
+                          <button className="gm-action-btn" onClick={() => handleTelechargerXlsx(r)}>
+                            📊 XLSX
+                          </button>
+                          <button className="gm-action-btn" onClick={() => handleTelechargerPdf(r)}>
+                            📄 PDF
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </GmTableWrap>
+
+      {/* ─── Modale : générer un rapport ─── */}
+      <div
+        className={clsx('gm-modal-overlay', modaleOuverte && 'gm-open')}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setModaleOuverte(false);
+        }}
+      >
+        <div className="gm-modal">
+          <div className="gm-modal-head">
+            <div className="gm-modal-title">📊 {t.rapports.generate}</div>
+            <button className="gm-modal-close" onClick={() => setModaleOuverte(false)} aria-label="Fermer">
+              ✕
+            </button>
+          </div>
+          <div className="gm-modal-body">
+            <div className="gm-form-group">
+              <label htmlFor="gen-type">Type de rapport</label>
+              <select id="gen-type" value={typeGen} onChange={(e) => setTypeGen(e.target.value)}>
+                {TYPES_RAPPORT.map((ty) => (
+                  <option key={ty.value} value={ty.value}>{ty.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="gm-form-group">
+              <label htmlFor="gen-periode">Période</label>
+              <select id="gen-periode" value={periode} onChange={(e) => setPeriode(e.target.value)}>
+                {PERIODES.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="gm-modal-foot">
+            <GmButton variante="outline" onClick={() => setModaleOuverte(false)}>
+              Annuler
+            </GmButton>
+            <GmButton variante="primary" onClick={handleGenerer} disabled={genererRapport.isPending}>
+              {genererRapport.isPending ? 'Génération…' : `📊 ${t.rapports.generate}`}
+            </GmButton>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

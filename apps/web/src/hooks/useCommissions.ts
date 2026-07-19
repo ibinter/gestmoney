@@ -29,20 +29,31 @@ function mapCommission(c: any): Commission {
   };
 }
 
+/** Résultat des commissions. `isMock` signale un repli sur des fixtures :
+ *  la page DOIT alors l'indiquer visuellement — afficher des montants
+ *  fictifs comme réels sur une page d'argent serait trompeur. */
+export interface CommissionsResult {
+  items: Commission[];
+  isMock: boolean;
+}
+
 export function useCommissions(periode?: string) {
   return useQuery({
     queryKey: COMMISSION_KEYS.list(periode),
-    queryFn: async (): Promise<Commission[]> => {
+    queryFn: async (): Promise<CommissionsResult> => {
       try {
         const params: Record<string, string> = {};
         if (periode) params.period = periode;
         const res = await api.get('/commissions', { params });
         const items = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
-        if (items.length === 0) return mockCommissions;
-        return items.map(mapCommission);
+        // Une liste vide est une donnée VALIDE (aucune commission sur la
+        // période) : la remplacer par des fixtures inventerait de l'argent.
+        return { items: items.map(mapCommission), isMock: false };
       } catch {
-        if (periode) return mockCommissions.filter((c) => c.periode === periode);
-        return mockCommissions;
+        const items = periode
+          ? mockCommissions.filter((c) => c.periode === periode)
+          : mockCommissions;
+        return { items, isMock: true };
       }
     },
     staleTime: 60_000,
@@ -60,13 +71,19 @@ export function useCommissionsResume() {
           payees: Number(res.data.totalPaid ?? 0),
           validees: Number(res.data.totalValidated ?? 0),
           enAttente: Number(res.data.totalPending ?? 0),
+          isMock: false,
         };
       } catch {
+        const somme = (statut?: Commission['statut']) =>
+          mockCommissions
+            .filter((c) => !statut || c.statut === statut)
+            .reduce((s, c) => s + c.montantCommission, 0);
         return {
-          duesCeMois: mockCommissions.reduce((s, c) => s + c.montantCommission, 0),
-          payees: mockCommissions.filter((c) => c.statut === 'payee').reduce((s, c) => s + c.montantCommission, 0),
-          validees: mockCommissions.filter((c) => c.statut === 'validee').reduce((s, c) => s + c.montantCommission, 0),
-          enAttente: mockCommissions.filter((c) => c.statut === 'calculee').reduce((s, c) => s + c.montantCommission, 0),
+          duesCeMois: somme(),
+          payees: somme('payee'),
+          validees: somme('validee'),
+          enAttente: somme('calculee'),
+          isMock: true,
         };
       }
     },

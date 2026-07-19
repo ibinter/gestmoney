@@ -1,13 +1,15 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, UserCheck, TrendingUp, Download } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Plus, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { StatCard } from '@/components/ui/StatCard';
-import { Table, Colonne } from '@/components/ui/Table';
-import { Input, Select } from '@/components/ui/Input';
+import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import {
+  GmPageHeader,
+  GmButton,
+  GmStatusPill,
+  GmTableWrap,
+} from '@/components/gm';
 import { formatMontant, formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
 import { useClients, useCreateClient } from '@/hooks/useClients';
@@ -15,9 +17,37 @@ import { Client } from '@/types';
 
 const FORM_INIT_CLIENT = { prenom: '', nom: '', telephone: '', email: '', ville: '' };
 
-const KYC_LABELS: Record<string, string> = { verifie: 'Verifie', en_attente: 'En attente', rejete: 'Rejete' };
-const KYC_COULEURS: Record<string, 'success' | 'warning' | 'danger'> = { verifie: 'success', en_attente: 'warning', rejete: 'danger' };
-const STATUT_COULEURS: Record<string, 'success' | 'danger' | 'neutral'> = { actif: 'success', bloque: 'danger', inactif: 'neutral' };
+const KYC_LABELS: Record<string, string> = { verifie: 'Vérifié', en_attente: 'En attente', rejete: 'Rejeté' };
+const KYC_STATUTS: Record<string, 'success' | 'pending' | 'failed'> = {
+  verifie: 'success',
+  en_attente: 'pending',
+  rejete: 'failed',
+};
+const STATUT_LABELS: Record<string, string> = { actif: 'Actif', inactif: 'Inactif', bloque: 'Bloqué' };
+const STATUT_PILLS: Record<string, string> = {
+  actif: 'gm-pill-online',
+  inactif: 'gm-pill-offline',
+  bloque: 'gm-pill-suspended',
+};
+
+const AVATAR_COLORS = ['#FF6B00', '#3B82F6', '#22C55E', '#7C3AED', '#EF4444', '#F59E0B', '#1DA7E8', '#EC4899', '#14B8A6'];
+
+/** Couleur d'avatar déterministe (purement décoratif, dérivé de l'id réel). */
+function couleurAvatar(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+/** Classe de badge opérateur si l'opérateur réel est reconnu, sinon aucune. */
+function classeOperateur(op: string): string {
+  const v = (op || '').toLowerCase();
+  if (v.includes('orange')) return 'gm-op-orange';
+  if (v.includes('mtn') || v.includes('momo')) return 'gm-op-mtn';
+  if (v.includes('wave')) return 'gm-op-wave';
+  if (v.includes('moov')) return 'gm-op-moov';
+  return '';
+}
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
@@ -68,173 +98,250 @@ export default function ClientsPage() {
 
   const totalPages = Math.ceil(clients.length / LIMIT);
   const clientsPage = clients.slice((page - 1) * LIMIT, page * LIMIT);
+  const debut = clients.length === 0 ? 0 : (page - 1) * LIMIT + 1;
+  const fin = Math.min(page * LIMIT, clients.length);
 
   useEffect(() => setPage(1), [search, filtreStatut, filtreKyc]);
 
   const nbActifs = allClients.filter((c) => c.statut === 'actif').length;
+  const nbInactifs = allClients.filter((c) => c.statut === 'inactif').length;
   const nbKycPending = allClients.filter((c) => c.kycStatut === 'en_attente').length;
   const totalVolume = allClients.reduce((s, c) => s + c.montantTotal, 0);
 
-  const colonnes: Colonne<Client>[] = [
-    {
-      key: 'nom',
-      titre: 'Client',
-      triable: true,
-      rendu: (_, c) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
-            {c.prenom[0]}{c.nom[0]}
-          </div>
-          <div>
-            <p className="font-medium text-sm text-text-main">{c.prenom} {c.nom}</p>
-            <p className="text-xs text-gray-400">{c.telephone}</p>
-          </div>
-        </div>
-      ),
-    },
-    { key: 'ville', titre: 'Ville' },
-    { key: 'operateur', titre: 'Operateur', rendu: (v) => <span className="text-sm">{String(v)}</span> },
-    {
-      key: 'soldeWallet',
-      titre: 'Solde wallet',
-      align: 'right',
-      rendu: (v) => <span className="font-semibold text-sm">{formatMontant(Number(v))}</span>,
-    },
-    {
-      key: 'nbTransactions',
-      titre: 'Transactions',
-      align: 'right',
-      triable: true,
-      rendu: (v) => <span className="font-mono text-sm">{Number(v)}</span>,
-    },
-    {
-      key: 'montantTotal',
-      titre: 'Volume total',
-      align: 'right',
-      triable: true,
-      rendu: (v) => <span className="text-sm text-gray-600">{formatMontant(Number(v))}</span>,
-    },
-    {
-      key: 'kycStatut',
-      titre: 'KYC',
-      rendu: (v) => <Badge couleur={KYC_COULEURS[String(v)] ?? 'neutral'}>{KYC_LABELS[String(v)] ?? String(v)}</Badge>,
-    },
-    {
-      key: 'statut',
-      titre: 'Statut',
-      rendu: (v) => <Badge couleur={STATUT_COULEURS[String(v)] ?? 'neutral'} point>{String(v)}</Badge>,
-    },
-    {
-      key: 'createdAt',
-      titre: 'Inscription',
-      rendu: (v) => <span className="text-xs text-gray-400">{formatDate(String(v))}</span>,
-    },
-    {
-      key: 'id',
-      titre: 'Actions',
-      rendu: (_, c) => (
-        <div className="flex gap-1">
-          <button className="text-xs text-primary hover:underline font-medium">Voir</button>
-          {c.kycStatut === 'en_attente' && (
-            <button className="text-xs text-success hover:underline font-medium ml-1">Verifier KYC</button>
-          )}
-        </div>
-      ),
-    },
-  ];
+  const exporter = () => exporterCsv(clients, [
+    { titre: 'Prénom', valeur: (c: Client) => c.prenom },
+    { titre: 'Nom', valeur: (c: Client) => c.nom },
+    { titre: 'Téléphone', valeur: (c: Client) => c.telephone },
+    { titre: 'Email', valeur: (c: Client) => c.email ?? '' },
+    { titre: 'Ville', valeur: (c: Client) => c.ville ?? '' },
+    { titre: 'KYC', valeur: (c: Client) => c.kycStatut },
+    { titre: 'Statut', valeur: (c: Client) => c.statut },
+    { titre: 'Opérateur', valeur: (c: Client) => c.operateur },
+    { titre: 'Solde wallet (FCFA)', valeur: (c: Client) => c.soldeWallet },
+    { titre: 'Transactions', valeur: (c: Client) => c.nbTransactions },
+    { titre: 'Volume (FCFA)', valeur: (c: Client) => c.montantTotal },
+    { titre: 'Date inscription', valeur: (c: Client) => formatDate(c.createdAt) },
+  ], 'clients');
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-main">Clients</h1>
-          <p className="text-sm text-gray-500">Base clients et gestion KYC</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variante="ghost"
-            taille="sm"
-            icone={<Download size={15} />}
-            onClick={() => exporterCsv(clients, [
-              { titre: 'Prénom', valeur: (c) => c.prenom },
-              { titre: 'Nom', valeur: (c) => c.nom },
-              { titre: 'Téléphone', valeur: (c) => c.telephone },
-              { titre: 'Email', valeur: (c) => c.email ?? '' },
-              { titre: 'Ville', valeur: (c) => c.ville ?? '' },
-              { titre: 'KYC', valeur: (c) => c.kycStatut },
-              { titre: 'Statut', valeur: (c) => c.statut },
-              { titre: 'Opérateur', valeur: (c) => c.operateur },
-              { titre: 'Solde wallet (FCFA)', valeur: (c) => c.soldeWallet },
-              { titre: 'Transactions', valeur: (c) => c.nbTransactions },
-              { titre: 'Volume (FCFA)', valeur: (c) => c.montantTotal },
-              { titre: 'Date inscription', valeur: (c) => formatDate(c.createdAt) },
-            ], 'clients')}
-          >
-            Exporter
-          </Button>
-          <Button variante="primary" taille="sm" icone={<Plus size={15} />} onClick={() => setModalOuvert(true)}>
-            Nouveau client
-          </Button>
-        </div>
-      </div>
+    <>
+      <GmPageHeader
+        titre="Gestion des clients"
+        sousTitre={
+          isLoading
+            ? 'Chargement des clients…'
+            : `${allClients.length} client(s) enregistré(s) — ${nbActifs} actif(s) · ${nbKycPending} KYC en attente`
+        }
+        actions={
+          <>
+            <GmButton variante="outline" petit onClick={exporter}>
+              <Download size={14} /> Exporter
+            </GmButton>
+            <GmButton variante="primary" petit onClick={() => setModalOuvert(true)}>
+              <Plus size={14} /> Nouveau client
+            </GmButton>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard titre="Clients actifs" valeur={nbActifs.toString()} sousTexte={`sur ${allClients.length} total`} icone={<UserCheck size={18} />} couleur="success" />
-        <StatCard titre="Nouveaux ce mois" valeur="+127" icone={<TrendingUp size={18} />} couleur="primary" />
-        <StatCard titre="KYC en attente" valeur={nbKycPending.toString()} icone="🔍" couleur={nbKycPending > 0 ? 'warning' : 'default'} />
-        <StatCard titre="Volume total" valeur={formatMontant(totalVolume)} icone="💵" couleur="default" />
-      </div>
-
-      <Card padding="none">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <Input
-                placeholder="Rechercher (nom, telephone, email)..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                icone={<Search size={16} />}
-              />
+      <div className="gm-stats-row">
+        <div className="gm-stat-mini">
+          <div className="gm-stat-mini-icon">👥</div>
+          <div>
+            <div className="gm-stat-mini-val">{allClients.length}</div>
+            <div className="gm-stat-mini-lbl">Total clients</div>
+          </div>
+        </div>
+        <div className="gm-stat-mini">
+          <div className="gm-stat-mini-icon" style={{ color: 'var(--gm-success)' }}>✅</div>
+          <div>
+            <div className="gm-stat-mini-val" style={{ color: 'var(--gm-success)' }}>{nbActifs}</div>
+            <div className="gm-stat-mini-lbl">Clients actifs</div>
+          </div>
+        </div>
+        <div className="gm-stat-mini">
+          <div className="gm-stat-mini-icon" style={{ color: 'var(--gm-warning)' }}>🔍</div>
+          <div>
+            <div className="gm-stat-mini-val" style={{ color: nbKycPending > 0 ? 'var(--gm-warning)' : undefined }}>
+              {nbKycPending}
             </div>
-            <Select
-              placeholder="Tous statuts"
-              value={filtreStatut}
-              onChange={(e) => setFiltreStatut(e.target.value)}
-              options={[
-                { value: 'actif', label: 'Actifs' },
-                { value: 'inactif', label: 'Inactifs' },
-                { value: 'bloque', label: 'Bloques' },
-              ]}
-            />
-            <Select
-              placeholder="Tous KYC"
-              value={filtreKyc}
-              onChange={(e) => setFiltreKyc(e.target.value)}
-              options={[
-                { value: 'verifie', label: 'Verifies' },
-                { value: 'en_attente', label: 'En attente' },
-                { value: 'rejete', label: 'Rejetes' },
-              ]}
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            {isLoading ? 'Chargement...' : `${clients.length} client(s) trouve(s)`}
-          </p>
-        </div>
-        <Table colonnes={colonnes} donnees={clientsPage} messageVide="Aucun client trouve" />
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-          <p className="text-xs text-gray-500">{clients.length} client(s) — Page {page} / {totalPages || 1}</p>
-          <div className="flex gap-1">
-            <button className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-surface disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Précédent</button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-              <button key={p} onClick={() => setPage(p)} className={`px-3 py-1.5 text-xs rounded-lg font-medium ${p === page ? 'bg-primary text-sidebar' : 'border border-gray-200 text-gray-600 hover:bg-surface'}`}>{p}</button>
-            ))}
-            <button className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-surface disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Suivant</button>
+            <div className="gm-stat-mini-lbl">KYC en attente</div>
           </div>
         </div>
-      </Card>
+        <div className="gm-stat-mini">
+          <div className="gm-stat-mini-icon">💵</div>
+          <div>
+            <div className="gm-stat-mini-val">{formatMontant(totalVolume)}</div>
+            <div className="gm-stat-mini-lbl">Volume total · {nbInactifs} inactif(s)</div>
+          </div>
+        </div>
+      </div>
 
-      <Modal ouvert={modalOuvert} onFermer={() => { setModalOuvert(false); setFormClient(FORM_INIT_CLIENT); setErreurClient(''); setSuccesClient(''); }} titre="Nouveau client" taille="md">
+      <div className="gm-filters-bar">
+        <div className="gm-search-wrap">
+          <span className="gm-si">🔍</span>
+          <input
+            type="text"
+            placeholder="Rechercher par nom, téléphone, email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="gm-filter-select"
+          value={filtreStatut}
+          onChange={(e) => setFiltreStatut(e.target.value)}
+        >
+          <option value="">Tous les statuts</option>
+          <option value="actif">Actifs</option>
+          <option value="inactif">Inactifs</option>
+          <option value="bloque">Bloqués</option>
+        </select>
+        <select
+          className="gm-filter-select"
+          value={filtreKyc}
+          onChange={(e) => setFiltreKyc(e.target.value)}
+        >
+          <option value="">Tous les KYC</option>
+          <option value="verifie">Vérifiés</option>
+          <option value="en_attente">En attente</option>
+          <option value="rejete">Rejetés</option>
+        </select>
+        <span style={{ fontSize: 12, color: 'var(--gm-text-2)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
+          {isLoading ? 'Chargement…' : `${clients.length} résultat(s)`}
+        </span>
+      </div>
+
+      <GmTableWrap>
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Ville</th>
+                <th>Opérateur</th>
+                <th style={{ textAlign: 'right' }}>Solde wallet</th>
+                <th style={{ textAlign: 'right' }}>Transactions</th>
+                <th style={{ textAlign: 'right' }}>Volume total</th>
+                <th>KYC</th>
+                <th>Statut</th>
+                <th>Inscription</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr>
+                  <td colSpan={10} style={{ textAlign: 'center', color: 'var(--gm-text-2)', padding: '28px 16px' }}>
+                    Chargement…
+                  </td>
+                </tr>
+              )}
+              {!isLoading && clientsPage.length === 0 && (
+                <tr>
+                  <td colSpan={10} style={{ textAlign: 'center', color: 'var(--gm-text-2)', padding: '28px 16px' }}>
+                    Aucun client trouvé
+                  </td>
+                </tr>
+              )}
+              {!isLoading && clientsPage.map((c) => {
+                const initiales = `${c.prenom?.[0] ?? ''}${c.nom?.[0] ?? ''}`.toUpperCase() || '—';
+                const clsOp = classeOperateur(c.operateur);
+                return (
+                  <tr key={c.id}>
+                    <td>
+                      <div className="gm-client-cell">
+                        <div className="gm-avatar" style={{ background: couleurAvatar(c.id) }}>{initiales}</div>
+                        <div>
+                          <div className="gm-client-name">{c.prenom} {c.nom}</div>
+                          <div className="gm-client-id">{c.telephone}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12 }}>{c.ville || '—'}</td>
+                    <td>
+                      {c.operateur
+                        ? <span className={clsOp ? `gm-op-badge ${clsOp}` : 'gm-op-badge'}>{c.operateur}</span>
+                        : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatMontant(c.soldeWallet)}
+                    </td>
+                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{c.nbTransactions}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--gm-text-2)', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatMontant(c.montantTotal)}
+                    </td>
+                    <td>
+                      <GmStatusPill statut={KYC_STATUTS[c.kycStatut] ?? 'pending'}>
+                        {KYC_LABELS[c.kycStatut] ?? c.kycStatut}
+                      </GmStatusPill>
+                    </td>
+                    <td>
+                      <span className={`gm-status-pill ${STATUT_PILLS[c.statut] ?? 'gm-pill-offline'}`}>
+                        {STATUT_LABELS[c.statut] ?? c.statut}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>
+                      {c.createdAt ? formatDate(c.createdAt) : '—'}
+                    </td>
+                    <td>
+                      <div className="gm-action-btns">
+                        <button className="gm-action-btn" type="button">Voir</button>
+                        {c.kycStatut === 'en_attente' && (
+                          <button className="gm-action-btn" type="button">Vérifier KYC</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="gm-table-footer">
+          <span className="gm-pag-info">
+            {clients.length === 0
+              ? 'Aucun client'
+              : `Affichage de ${debut}–${fin} sur ${clients.length} client(s) — Page ${page} / ${totalPages || 1}`}
+          </span>
+          <div className="gm-pag-controls">
+            <button
+              className="gm-action-btn"
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              ← Précédent
+            </button>
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={p === page ? 'gm-pag-btn gm-active' : 'gm-pag-btn'}
+                onClick={() => setPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              className="gm-action-btn"
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Suivant →
+            </button>
+          </div>
+        </div>
+      </GmTableWrap>
+
+      <Modal
+        ouvert={modalOuvert}
+        onFermer={() => { setModalOuvert(false); setFormClient(FORM_INIT_CLIENT); setErreurClient(''); setSuccesClient(''); }}
+        titre="Nouveau client"
+        taille="md"
+      >
         <form className="space-y-4" onSubmit={handleSubmitClient}>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Prénom *" placeholder="Prénom" value={formClient.prenom} onChange={(e) => setFormClient((f) => ({ ...f, prenom: e.target.value }))} required />
@@ -253,6 +360,6 @@ export default function ClientsPage() {
           </div>
         </form>
       </Modal>
-    </div>
+    </>
   );
 }

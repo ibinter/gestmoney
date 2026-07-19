@@ -1,18 +1,15 @@
 'use client';
 // ============================================================
 // PAGE COMMISSIONS — GESTMONEY
+// Présentation fidèle à /mockup/commissions.html (classes gm-*).
+// Toutes les valeurs proviennent des données réelles (useCommissions).
 // ============================================================
-import React, { useState, useEffect } from 'react';
-import { Download, CheckCircle, Clock, TrendingUp } from 'lucide-react';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { StatCard } from '@/components/ui/StatCard';
-import { Table, Colonne } from '@/components/ui/Table';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCommissions, useValiderCommissions, usePayerCommissions } from '@/hooks/useCommissions';
 import { Commission } from '@/types';
 import { formatMontant, formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
+import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
 
 const STATUT_LABELS: Record<string, string> = {
   calculee: 'Calculee',
@@ -20,20 +17,42 @@ const STATUT_LABELS: Record<string, string> = {
   payee: 'Payee',
 };
 
-const STATUT_COULEURS: Record<string, 'success' | 'warning' | 'info' | 'neutral'> = {
-  calculee: 'warning',
-  validee: 'info',
-  payee: 'success',
+const STATUT_PILL: Record<string, { cls: string; label: string }> = {
+  calculee: { cls: 'gm-pill-pending', label: '⏳ En attente' },
+  validee: { cls: 'gm-pill-validated', label: '🔵 Validé' },
+  payee: { cls: 'gm-pill-paid', label: '✅ Payé' },
 };
+
+const AVATAR_COLORS = ['#16a34a', '#2563eb', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#be185d', '#b45309'];
+
+function couleurAvatar(cle: string): string {
+  let h = 0;
+  for (let i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
+}
+
+function initiales(nom: string): string {
+  const parts = nom.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '—';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
+type Onglet = 'agents' | 'historique' | 'objectifs';
 
 export default function CommissionsPage() {
   const [filtrePeriode, setFiltrePeriode] = useState('');
   const [selectionnees, setSelectionnees] = useState<string[]>([]);
   const [succes, setSucces] = useState('');
   const [page, setPage] = useState(1);
+  const [onglet, setOnglet] = useState<Onglet>('agents');
+  const [modalOuverte, setModalOuverte] = useState(false);
   const LIMIT = 20;
 
-  const { data: commissions = [], isLoading } = useCommissions(filtrePeriode || undefined);
+  const { data: resultat, isLoading } = useCommissions(filtrePeriode || undefined);
+  const commissions = resultat?.items ?? [];
+  // Repli sur fixtures : on l'affiche, jamais de faux montants silencieux.
+  const donneesFictives = resultat?.isMock ?? false;
 
   const totalPages = Math.ceil(commissions.length / LIMIT);
   const commissionsPage = commissions.slice((page - 1) * LIMIT, page * LIMIT);
@@ -41,6 +60,8 @@ export default function CommissionsPage() {
   useEffect(() => setPage(1), [filtrePeriode]);
   const valider = useValiderCommissions();
   const payer = usePayerCommissions();
+
+  const enCours = valider.isPending || payer.isPending;
 
   const handleValider = async (ids: string[]) => {
     await valider.mutateAsync(ids);
@@ -56,242 +77,556 @@ export default function CommissionsPage() {
     setTimeout(() => setSucces(''), 3000);
   };
 
+  // Logique de traitement groupé — inchangée
+  const aValider = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'calculee').map((c) => c.id);
+  const aPayer = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'validee').map((c) => c.id);
+
+  const traiterSelection = async () => {
+    setModalOuverte(false);
+    if (aValider.length) await handleValider(aValider);
+    if (aPayer.length) await handlePayer(aPayer);
+  };
+
   const totalCalculees = commissions.filter((c) => c.statut === 'calculee').reduce((s, c) => s + c.montantCommission, 0);
   const totalValidees = commissions.filter((c) => c.statut === 'validee').reduce((s, c) => s + c.montantCommission, 0);
   const totalPayees = commissions.filter((c) => c.statut === 'payee').reduce((s, c) => s + c.montantCommission, 0);
   const nbCalculees = commissions.filter((c) => c.statut === 'calculee').length;
+  const nbValidees = commissions.filter((c) => c.statut === 'validee').length;
+  const nbPayees = commissions.filter((c) => c.statut === 'payee').length;
+  const totalGeneral = totalCalculees + totalValidees + totalPayees;
+  const nbAgents = new Set(commissions.map((c) => c.agentId || c.agentNom).filter(Boolean)).size;
+  const pctPaye = totalGeneral > 0 ? Math.round((totalPayees / totalGeneral) * 100) : 0;
 
-  const colonnes: Colonne<Commission>[] = [
-    {
-      key: 'periode',
-      titre: 'Periode',
-      rendu: (v) => <span className="text-xs font-mono text-gray-600">{String(v)}</span>,
-    },
-    {
-      key: 'agentNom',
-      titre: 'Agent',
-      triable: true,
-    },
-    {
-      key: 'agenceNom',
-      titre: 'Agence',
-    },
-    {
-      key: 'nbTransactions',
-      titre: 'Nb transactions',
-      align: 'right',
-      rendu: (v) => <span className="font-mono text-sm">{Number(v).toLocaleString('fr-FR')}</span>,
-    },
-    {
-      key: 'montantTransactions',
-      titre: 'Vol. transactions',
-      align: 'right',
-      rendu: (v) => <span className="text-sm text-gray-600">{formatMontant(Number(v))}</span>,
-    },
-    {
-      key: 'tauxCommission',
-      titre: 'Taux',
-      align: 'right',
-      rendu: (v) => <span className="text-sm">{Number(v)} %</span>,
-    },
-    {
-      key: 'montantCommission',
-      titre: 'Commission',
-      triable: true,
-      align: 'right',
-      rendu: (v) => <span className="font-bold text-text-main">{formatMontant(Number(v))}</span>,
-    },
-    {
-      key: 'statut',
-      titre: 'Statut',
-      rendu: (v) => (
-        <Badge couleur={STATUT_COULEURS[String(v)] || 'neutral'} point>
-          {STATUT_LABELS[String(v)] || String(v)}
-        </Badge>
+  const montantSelection = commissions
+    .filter((c) => selectionnees.includes(c.id))
+    .reduce((s, c) => s + c.montantCommission, 0);
+
+  const historique = useMemo(
+    () =>
+      commissions
+        .filter((c) => c.statut === 'payee')
+        .slice()
+        .sort((a, b) => (b.datePaiement ?? '').localeCompare(a.datePaiement ?? '')),
+    [commissions],
+  );
+
+  const topAgent = useMemo(
+    () =>
+      commissions.reduce<Commission | null>(
+        (best, c) => (best === null || c.montantCommission > best.montantCommission ? c : best),
+        null,
       ),
-    },
-    {
-      key: 'datePaiement',
-      titre: 'Date paiement',
-      rendu: (v) =>
-        v ? (
-          <span className="text-xs text-gray-500">{formatDate(String(v))}</span>
-        ) : (
-          <span className="text-xs text-gray-400">—</span>
-        ),
-    },
-    {
-      key: 'id',
-      titre: 'Actions',
-      rendu: (_, ligne) => (
-        <div className="flex gap-1">
-          {ligne.statut === 'calculee' && (
-            <button
-              className="text-xs text-success hover:underline font-medium"
-              onClick={() => handleValider([ligne.id])}
-              disabled={valider.isPending}
-            >
-              Valider
-            </button>
-          )}
-          {ligne.statut === 'validee' && (
-            <button
-              className="text-xs text-primary hover:underline font-medium"
-              onClick={() => handlePayer([ligne.id])}
-              disabled={payer.isPending}
-            >
-              Payer
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ];
+    [commissions],
+  );
+
+  const exporter = () =>
+    exporterCsv(
+      commissions,
+      [
+        { titre: 'Agent', valeur: (c) => c.agentNom },
+        { titre: 'Agence', valeur: (c) => c.agenceNom },
+        { titre: 'Période', valeur: (c) => c.periode },
+        { titre: 'Transactions', valeur: (c) => c.nbTransactions },
+        { titre: 'Montant transactions (FCFA)', valeur: (c) => c.montantTransactions },
+        { titre: 'Taux (%)', valeur: (c) => c.tauxCommission },
+        { titre: 'Commission (FCFA)', valeur: (c) => c.montantCommission },
+        { titre: 'Statut', valeur: (c) => STATUT_LABELS[c.statut] ?? c.statut },
+        { titre: 'Date paiement', valeur: (c) => (c.datePaiement ? formatDate(c.datePaiement) : '') },
+      ],
+      'commissions',
+    );
+
+  const toutesPageSelectionnees =
+    commissionsPage.length > 0 && commissionsPage.every((c) => selectionnees.includes(c.id));
+
+  const basculerToutPage = (coche: boolean) => {
+    const ids = commissionsPage.map((c) => c.id);
+    setSelectionnees((prev) =>
+      coche ? Array.from(new Set([...prev, ...ids])) : prev.filter((id) => !ids.includes(id)),
+    );
+  };
+
+  const basculerLigne = (id: string, coche: boolean) =>
+    setSelectionnees((prev) => (coche ? [...prev, id] : prev.filter((x) => x !== id)));
 
   return (
-    <div className="space-y-6">
-      {/* En-tete */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-main">Commissions</h1>
-          <p className="text-sm text-gray-500">Suivi et validation des commissions agents</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variante="ghost"
-            taille="sm"
-            icone={<Download size={15} />}
-            onClick={() => exporterCsv(commissions, [
-              { titre: 'Agent', valeur: (c) => c.agentNom },
-              { titre: 'Agence', valeur: (c) => c.agenceNom },
-              { titre: 'Période', valeur: (c) => c.periode },
-              { titre: 'Transactions', valeur: (c) => c.nbTransactions },
-              { titre: 'Montant transactions (FCFA)', valeur: (c) => c.montantTransactions },
-              { titre: 'Taux (%)', valeur: (c) => c.tauxCommission },
-              { titre: 'Commission (FCFA)', valeur: (c) => c.montantCommission },
-              { titre: 'Statut', valeur: (c) => STATUT_LABELS[c.statut] ?? c.statut },
-              { titre: 'Date paiement', valeur: (c) => c.datePaiement ? formatDate(c.datePaiement) : '' },
-            ], 'commissions')}
-          >
-            Exporter CSV
-          </Button>
-          {selectionnees.length > 0 && (
-            <Button
+    <>
+      <GmPageHeader
+        fil={['🏠 Accueil', 'Commissions']}
+        titre="💰 Commissions"
+        sousTitre="Calcul, validation et paiement des commissions agents"
+        actions={
+          <>
+            <GmButton variante="outline" petit onClick={exporter}>
+              📥 Exporter CSV
+            </GmButton>
+            <GmButton
               variante="primary"
-              taille="sm"
-              icone={<CheckCircle size={15} />}
-              loading={valider.isPending || payer.isPending}
-              onClick={() => {
-                const aValider = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'calculee').map((c) => c.id);
-                const aPayer = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'validee').map((c) => c.id);
-                if (aValider.length) handleValider(aValider);
-                if (aPayer.length) handlePayer(aPayer);
-              }}
+              petit
+              disabled={selectionnees.length === 0 || enCours}
+              style={{ opacity: selectionnees.length === 0 ? 0.5 : 1 }}
+              onClick={() => setModalOuverte(true)}
             >
-              Valider {selectionnees.length} paiement(s)
-            </Button>
-          )}
+              💳 Traiter la sélection
+            </GmButton>
+          </>
+        }
+      />
+
+      {/* L'API commissions est injoignable : les montants ci-dessous sont des
+          données de démonstration. Ne jamais les présenter comme réels. */}
+      {donneesFictives && (
+        <div
+          className="gm-alert-banner"
+          role="status"
+          style={{
+            background: 'rgba(245,158,11,0.10)',
+            border: '1px solid rgba(245,158,11,0.35)',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>⚠️</span>
+          <div>
+            <strong>Données de démonstration</strong> — le service des commissions
+            est injoignable. Les montants affichés sont fictifs et ne doivent
+            servir ni à valider ni à payer quoi que ce soit.
+          </div>
+        </div>
+      )}
+
+      {/* STATS — valeurs calculées sur les données réelles */}
+      <div className="gm-stats-row">
+        <div className="gm-stat-card gm-total">
+          <div className="gm-stat-value">{formatMontant(totalGeneral)}</div>
+          <div className="gm-stat-label">Total commissions</div>
+          <div className="gm-stat-sub">{commissions.length} commission(s)</div>
+        </div>
+        <div className="gm-stat-card gm-success">
+          <div className="gm-stat-value">{formatMontant(totalPayees)}</div>
+          <div className="gm-stat-label">Payées</div>
+          <div className="gm-stat-sub">
+            {nbPayees} commission(s){totalGeneral > 0 ? ` — ${pctPaye}% du total` : ''}
+          </div>
+        </div>
+        <div className="gm-stat-card gm-amount">
+          <div className="gm-stat-value">{formatMontant(totalValidees)}</div>
+          <div className="gm-stat-label">Validées (à payer)</div>
+          <div className="gm-stat-sub">{nbValidees} commission(s)</div>
+        </div>
+        <div className="gm-stat-card gm-pending">
+          <div className="gm-stat-value">{formatMontant(totalCalculees)}</div>
+          <div className="gm-stat-label">En attente de validation</div>
+          <div className="gm-stat-sub">{nbCalculees} commission(s)</div>
+        </div>
+        <div className="gm-stat-card">
+          <div className="gm-stat-value">{nbAgents || '—'}</div>
+          <div className="gm-stat-label">Agents concernés</div>
+          <div className="gm-stat-sub">
+            {filtrePeriode ? `Période ${filtrePeriode}` : 'Toutes périodes'}
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard
-          titre="A calculer"
-          valeur={formatMontant(totalCalculees)}
-          sousTexte={`${nbCalculees} commission(s)`}
-          icone={<Clock size={18} />}
-          couleur="warning"
-        />
-        <StatCard
-          titre="Validees"
-          valeur={formatMontant(totalValidees)}
-          icone={<TrendingUp size={18} />}
-          couleur="primary"
-        />
-        <StatCard
-          titre="Payees"
-          valeur={formatMontant(totalPayees)}
-          icone={<CheckCircle size={18} />}
-          couleur="success"
-        />
-        <StatCard
-          titre="Total commissions"
-          valeur={commissions.length.toString()}
-          sousTexte="toutes periodes"
-          icone="💰"
-          couleur="default"
-        />
+      {/* ONGLETS */}
+      <div className="gm-tabs-bar">
+        <button
+          className={`gm-tab-btn${onglet === 'agents' ? ' gm-active' : ''}`}
+          onClick={() => setOnglet('agents')}
+        >
+          💰 Commissions agents
+        </button>
+        <button
+          className={`gm-tab-btn${onglet === 'historique' ? ' gm-active' : ''}`}
+          onClick={() => setOnglet('historique')}
+        >
+          📅 Historique paiements
+        </button>
+        <button
+          className={`gm-tab-btn${onglet === 'objectifs' ? ' gm-active' : ''}`}
+          onClick={() => setOnglet('objectifs')}
+        >
+          🎯 Objectifs
+        </button>
       </div>
 
-      {/* Tableau */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Liste des commissions</CardTitle>
-          <div className="flex gap-2 items-center">
-            <select
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
-              value={filtrePeriode}
-              onChange={(e) => setFiltrePeriode(e.target.value)}
-            >
+      {succes && (
+        <div className="gm-actions-bar" style={{ color: '#16a34a', fontSize: 13, fontWeight: 600 }}>
+          ✅ {succes}
+        </div>
+      )}
+
+      {/* ONGLET : COMMISSIONS AGENTS */}
+      <div className={`gm-tab-content${onglet === 'agents' ? ' gm-active' : ''}`}>
+        <div className="gm-actions-bar">
+          <div className="gm-filter-group" style={{ maxWidth: 200, flex: 'none' }}>
+            <select value={filtrePeriode} onChange={(e) => setFiltrePeriode(e.target.value)}>
               <option value="">Toutes periodes</option>
               <option value="2024-01">Janvier 2024</option>
               <option value="2024-02">Fevrier 2024</option>
               <option value="2024-03">Mars 2024</option>
             </select>
           </div>
-        </CardHeader>
-
-        {succes && (
-          <div className="mx-4 mb-3 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">{succes}</div>
-        )}
-        {selectionnees.length > 0 && (
-          <div className="mx-4 mb-3 bg-primary/10 rounded-xl p-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-text-main">
-              {selectionnees.length} commission(s) selectionnee(s)
+          {selectionnees.length > 0 && (
+            <span className="gm-selected-count">
+              <strong>
+                {selectionnees.length} sélectionnée(s) — {formatMontant(montantSelection)}
+              </strong>
             </span>
-            <div className="flex gap-2">
-              <Button
-                taille="sm"
-                variante="primary"
-                icone={<CheckCircle size={14} />}
-                loading={valider.isPending || payer.isPending}
-                onClick={() => {
-                  const aValider = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'calculee').map((c) => c.id);
-                  const aPayer = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'validee').map((c) => c.id);
-                  if (aValider.length) handleValider(aValider);
-                  if (aPayer.length) handlePayer(aPayer);
-                }}
-              >
-                Valider paiement
-              </Button>
-              <Button taille="sm" variante="ghost" onClick={() => setSelectionnees([])}>
-                Deselectionner
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <Table
-          colonnes={colonnes}
-          donnees={commissionsPage}
-          loading={isLoading}
-          selectionnable
-          selectionnees={selectionnees}
-          onSelectionChange={setSelectionnees}
-          messageVide="Aucune commission trouvee pour cette periode"
-        />
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-          <p className="text-xs text-gray-500">{commissions.length} commission(s) — Page {page} / {totalPages || 1}</p>
-          <div className="flex gap-1">
-            <button className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-surface disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Précédent</button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-              <button key={p} onClick={() => setPage(p)} className={`px-3 py-1.5 text-xs rounded-lg font-medium ${p === page ? 'bg-primary text-sidebar' : 'border border-gray-200 text-gray-600 hover:bg-surface'}`}>{p}</button>
-            ))}
-            <button className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-surface disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Suivant</button>
+          )}
+          <GmButton
+            variante="outline"
+            petit
+            disabled={commissionsPage.length === 0}
+            onClick={() => basculerToutPage(true)}
+          >
+            ☑️ Tout sélectionner
+          </GmButton>
+          <GmButton
+            variante="outline"
+            petit
+            disabled={aValider.length === 0 || enCours}
+            style={{ opacity: aValider.length === 0 ? 0.5 : 1 }}
+            onClick={() => handleValider(aValider)}
+          >
+            ✅ Valider ({aValider.length})
+          </GmButton>
+          <GmButton
+            variante="primary"
+            petit
+            disabled={aPayer.length === 0 || enCours}
+            style={{ opacity: aPayer.length === 0 ? 0.5 : 1 }}
+            onClick={() => setModalOuverte(true)}
+          >
+            💳 Payer ({aPayer.length})
+          </GmButton>
+          <div className="gm-actions-bar-right">
+            {selectionnees.length > 0 && (
+              <GmButton variante="ghost" petit onClick={() => setSelectionnees([])}>
+                Désélectionner
+              </GmButton>
+            )}
+            <GmButton variante="outline" petit onClick={exporter}>
+              📥 Exporter CSV
+            </GmButton>
           </div>
         </div>
-      </Card>
-    </div>
+
+        <GmTableWrap>
+          <table>
+            <thead>
+              <tr>
+                <th className="gm-cb">
+                  <input
+                    type="checkbox"
+                    checked={toutesPageSelectionnees}
+                    onChange={(e) => basculerToutPage(e.target.checked)}
+                    aria-label="Tout sélectionner"
+                  />
+                </th>
+                <th>Agent</th>
+                <th>Agence</th>
+                <th>Période</th>
+                <th style={{ textAlign: 'right' }}>Transactions</th>
+                <th style={{ textAlign: 'right' }}>Vol. transactions</th>
+                <th style={{ textAlign: 'right' }}>Taux</th>
+                <th style={{ textAlign: 'right' }}>Commission</th>
+                <th>Date paiement</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr>
+                  <td colSpan={11} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
+                    Chargement des commissions…
+                  </td>
+                </tr>
+              )}
+              {!isLoading && commissionsPage.length === 0 && (
+                <tr>
+                  <td colSpan={11} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
+                    Aucune commission trouvee pour cette periode
+                  </td>
+                </tr>
+              )}
+              {!isLoading &&
+                commissionsPage.map((c) => {
+                  const selectionnee = selectionnees.includes(c.id);
+                  const pill = STATUT_PILL[c.statut] ?? { cls: 'gm-pill-pending', label: c.statut };
+                  return (
+                    <tr key={c.id} className={selectionnee ? 'gm-selected' : undefined}>
+                      <td className="gm-cb">
+                        <input
+                          type="checkbox"
+                          checked={selectionnee}
+                          onChange={(e) => basculerLigne(c.id, e.target.checked)}
+                          aria-label={`Sélectionner ${c.agentNom}`}
+                        />
+                      </td>
+                      <td>
+                        <div className="gm-avatar-cell">
+                          <div
+                            className="gm-avatar"
+                            style={{ background: couleurAvatar(c.agentId || c.agentNom || c.id) }}
+                          >
+                            {initiales(c.agentNom)}
+                          </div>
+                          <strong>{c.agentNom || '—'}</strong>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: 12 }}>{c.agenceNom || '—'}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--gm-text-2)' }}>
+                        {c.periode || '—'}
+                      </td>
+                      <td className="gm-amount-cell" style={{ textAlign: 'right' }}>
+                        {c.nbTransactions.toLocaleString('fr-FR')}
+                      </td>
+                      <td
+                        className="gm-amount-cell"
+                        style={{ textAlign: 'right', color: 'var(--gm-text-2)', fontWeight: 500 }}
+                      >
+                        {formatMontant(c.montantTransactions)}
+                      </td>
+                      <td style={{ textAlign: 'right', color: 'var(--gm-primary)', fontWeight: 700 }}>
+                        {c.tauxCommission} %
+                      </td>
+                      <td className="gm-amount-cell" style={{ textAlign: 'right', fontWeight: 700 }}>
+                        {formatMontant(c.montantCommission)}
+                      </td>
+                      <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>
+                        {c.datePaiement ? formatDate(c.datePaiement) : '—'}
+                      </td>
+                      <td>
+                        <span className={`gm-status-pill ${pill.cls}`}>{pill.label}</span>
+                      </td>
+                      <td>
+                        <div className="gm-action-btns">
+                          {c.statut === 'calculee' && (
+                            <button
+                              className="gm-action-btn"
+                              onClick={() => handleValider([c.id])}
+                              disabled={valider.isPending}
+                            >
+                              ✅ Valider
+                            </button>
+                          )}
+                          {c.statut === 'validee' && (
+                            <button
+                              className="gm-action-btn"
+                              onClick={() => handlePayer([c.id])}
+                              disabled={payer.isPending}
+                            >
+                              💳 Payer
+                            </button>
+                          )}
+                          {c.statut === 'payee' && (
+                            <span style={{ fontSize: 11, color: 'var(--gm-text-2)' }}>—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+
+          <div className="gm-pagination">
+            <div className="gm-pag-info">
+              {commissions.length} commission(s) — Page {page} / {totalPages || 1}
+            </div>
+            <div className="gm-pag-controls">
+              <button className="gm-pag-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                ‹
+              </button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  className={`gm-pag-btn${p === page ? ' gm-active' : ''}`}
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                className="gm-pag-btn"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        </GmTableWrap>
+      </div>
+
+      {/* ONGLET : HISTORIQUE DES PAIEMENTS */}
+      <div className={`gm-tab-content${onglet === 'historique' ? ' gm-active' : ''}`}>
+        <GmTableWrap>
+          <table>
+            <thead>
+              <tr>
+                <th>Date paiement</th>
+                <th>Agent</th>
+                <th>Agence</th>
+                <th>Période</th>
+                <th style={{ textAlign: 'right' }}>Montant</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historique.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
+                    Aucun paiement de commission enregistré
+                  </td>
+                </tr>
+              )}
+              {historique.map((c) => (
+                <tr key={c.id}>
+                  <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>
+                    {c.datePaiement ? formatDate(c.datePaiement) : '—'}
+                  </td>
+                  <td>
+                    <div className="gm-avatar-cell">
+                      <div
+                        className="gm-avatar"
+                        style={{ background: couleurAvatar(c.agentId || c.agentNom || c.id) }}
+                      >
+                        {initiales(c.agentNom)}
+                      </div>
+                      <strong>{c.agentNom || '—'}</strong>
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 12 }}>{c.agenceNom || '—'}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--gm-text-2)' }}>
+                    {c.periode || '—'}
+                  </td>
+                  <td
+                    className="gm-amount-cell"
+                    style={{ textAlign: 'right', fontWeight: 700, color: 'var(--gm-success)' }}
+                  >
+                    {formatMontant(c.montantCommission)}
+                  </td>
+                  <td>
+                    <span className="gm-status-pill gm-pill-paid">✅ Payé</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </GmTableWrap>
+      </div>
+
+      {/* ONGLET : OBJECTIFS */}
+      <div className={`gm-tab-content${onglet === 'objectifs' ? ' gm-active' : ''}`}>
+        <div className="gm-charts-grid">
+          <div className="gm-chart-card">
+            <div className="gm-chart-title">🎯 Avancement des paiements</div>
+            <div className="gm-chart-sub">Part des commissions déjà payées</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--gm-primary)', marginBottom: 6 }}>
+              {totalGeneral > 0 ? `${pctPaye}%` : '—'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--gm-text-2)', marginBottom: 12 }}>
+              {formatMontant(totalPayees)} / {formatMontant(totalGeneral)}
+            </div>
+            <div className="gm-progress-bar">
+              <div className="gm-progress-fill" style={{ width: `${pctPaye}%` }} />
+            </div>
+          </div>
+
+          <div className="gm-chart-card">
+            <div className="gm-chart-title">🥇 Commission la plus élevée</div>
+            <div className="gm-chart-sub">
+              {filtrePeriode ? `Période ${filtrePeriode}` : 'Toutes périodes'}
+            </div>
+            {topAgent ? (
+              <>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+                  {topAgent.agentNom || '—'}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--gm-text-2)', marginBottom: 4 }}>
+                  {topAgent.agenceNom || '—'}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gm-primary)' }}>
+                  {formatMontant(topAgent.montantCommission)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--gm-text-2)', marginTop: 4 }}>
+                  {formatMontant(topAgent.montantTransactions)} de volume
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: 'var(--gm-text-2)' }}>—</div>
+            )}
+          </div>
+
+          <div className="gm-chart-card">
+            <div className="gm-chart-title">📊 Répartition par statut</div>
+            <div className="gm-chart-sub">{commissions.length} commission(s)</div>
+            <div className="gm-tariff-tier">
+              <span className="gm-tariff-range">⏳ En attente ({nbCalculees})</span>
+              <span className="gm-tariff-rate">{formatMontant(totalCalculees)}</span>
+            </div>
+            <div className="gm-tariff-tier">
+              <span className="gm-tariff-range">🔵 Validées ({nbValidees})</span>
+              <span className="gm-tariff-rate">{formatMontant(totalValidees)}</span>
+            </div>
+            <div className="gm-tariff-tier">
+              <span className="gm-tariff-range">✅ Payées ({nbPayees})</span>
+              <span className="gm-tariff-rate">{formatMontant(totalPayees)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MODALE DE CONFIRMATION — montants réels de la sélection */}
+      <div
+        className={`gm-modal-overlay${modalOuverte ? ' gm-open' : ''}`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setModalOuverte(false);
+        }}
+      >
+        <div className="gm-modal">
+          <div className="gm-modal-header">
+            <div className="gm-modal-title">💳 Confirmation</div>
+            <button className="gm-modal-close" onClick={() => setModalOuverte(false)} aria-label="Fermer">
+              ✕
+            </button>
+          </div>
+          <div className="gm-modal-body">
+            <p style={{ fontSize: 13, color: 'var(--gm-text-2)', marginBottom: 16 }}>
+              Vous êtes sur le point de traiter les commissions sélectionnées.
+            </p>
+            <div className="gm-modal-summary-row">
+              <span>Commissions sélectionnées</span>
+              <span style={{ fontWeight: 600 }}>{selectionnees.length}</span>
+            </div>
+            <div className="gm-modal-summary-row">
+              <span>À valider</span>
+              <span style={{ fontWeight: 600 }}>{aValider.length}</span>
+            </div>
+            <div className="gm-modal-summary-row">
+              <span>À marquer payées</span>
+              <span style={{ fontWeight: 600 }}>{aPayer.length}</span>
+            </div>
+            <div className="gm-modal-summary-row">
+              <span style={{ fontSize: 14 }}>Montant total sélectionné</span>
+              <span style={{ color: 'var(--gm-success)' }}>{formatMontant(montantSelection)}</span>
+            </div>
+          </div>
+          <div className="gm-modal-footer">
+            <GmButton variante="outline" onClick={() => setModalOuverte(false)}>
+              Annuler
+            </GmButton>
+            <GmButton
+              variante="primary"
+              disabled={enCours || (aValider.length === 0 && aPayer.length === 0)}
+              onClick={traiterSelection}
+            >
+              {enCours ? 'Traitement…' : '✅ Confirmer'}
+            </GmButton>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

@@ -1,26 +1,32 @@
 'use client';
 // ============================================================
 // DASHBOARD PRINCIPAL — GESTMONEY
+// Présentation fidèle à /mockup/index.html (classes gm-*)
 // Dashboard adaptatif par rôle utilisateur
 // Rôles : SUPER_ADMIN / ADMIN | MANAGER | AGENT/CAISSIER | AUDITEUR
 // ============================================================
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  RefreshCw, CreditCard, Users, Building2, TrendingUp, Wallet,
-  AlertTriangle, CheckCircle, BarChart2, FileText, Plus,
-  ShieldCheck, ArrowRight, UserPlus,
-} from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { SkeletonCard } from '@/components/ui/Skeleton';
-import { KpiCard } from '@/components/ui/KpiCard';
 import { MiniChart } from '@/components/ui/MiniChart';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { useAuthStore } from '@/store/authStore';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
+import type { Transaction } from '@/hooks/useDashboardStats';
 import { formatMontant } from '@/lib/formatters';
-import { clsx } from 'clsx';
+import {
+  GmButton,
+  GmCard,
+  GmCardGrid,
+  GmMetric,
+  GmMetricSub,
+  GmPageHeader,
+  GmSectionTitle,
+  GmStatusPill,
+  GmTableWrap,
+  type GmTrend,
+} from '@/components/gm';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,34 +45,168 @@ const TYPE_LABELS: Record<string, string> = {
   cash_in: 'Cash In', cash_out: 'Cash Out', paiement: 'Paiement',
 };
 
-const STATUT_STYLES: Record<string, string> = {
-  success: 'bg-[#009E00]/10 text-[#009E00]',
-  pending: 'bg-[#FFD000]/15 text-[#806B00]',
-  failed:  'bg-[#E60000]/10 text-[#E60000]',
+/** Classe de badge `gm-badge-*` selon le type d'opération (voir mockup-system.css). */
+function badgeClass(type: string): string {
+  switch (type) {
+    case 'depot': return 'gm-badge gm-badge-depot';
+    case 'retrait': return 'gm-badge gm-badge-retrait';
+    case 'cash_in': return 'gm-badge gm-badge-cashin';
+    case 'cash_out': return 'gm-badge gm-badge-cashout';
+    case 'transfert': return 'gm-badge gm-badge-transfert';
+    default: return 'gm-badge';
+  }
+}
+
+const OPERATEUR_COULEURS: Record<string, string> = {
+  orange_money: '#FF6B00',
+  mtn_momo: '#FFCC00',
+  wave: '#1DA7E8',
+  moov: '#00A651',
+  airtel: '#E60000',
 };
 
-// ─── Sous-composants de section ───────────────────────────────────────────────
+function libelleOperateur(op: string): string {
+  return op.replace(/_/g, ' ');
+}
 
-function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+const STATUT_LABELS: Record<Transaction['statut'], string> = {
+  success: 'Succès',
+  pending: 'En attente',
+  failed: 'Échouée',
+};
+
+/** Trend de carte à partir d'un pourcentage de variation réel. */
+function trendVariation(pct: number | undefined): GmTrend | undefined {
+  if (pct === undefined || pct === null || Number.isNaN(pct)) return undefined;
+  return {
+    sens: pct >= 0 ? 'up' : 'down',
+    label: `${pct >= 0 ? '↑' : '↓'} ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs hier`,
+    infobulle: 'Variation par rapport à la veille',
+  };
+}
+
+const CHIFFRE = (n: number) => n.toLocaleString('fr-FR');
+const TIRET = '—';
+
+// ─── Blocs réutilisables ──────────────────────────────────────────────────────
+
+function GrilleSquelette({ n = 4 }: { n?: number }) {
   return (
-    <div className="flex items-center justify-between mb-3">
-      <h2 className="text-sm font-semibold text-text-main uppercase tracking-wider">{children}</h2>
-      {action}
+    <GmCardGrid>
+      {[...Array(n)].map((_, i) => <SkeletonCard key={i} />)}
+    </GmCardGrid>
+  );
+}
+
+/** Bannière d'alertes — même anatomie que `.ai-banner` de la maquette. */
+function BanniereAlertes({
+  titre,
+  message,
+  actions,
+}: {
+  titre: string;
+  message: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="gm-ai-banner">
+      <div className="gm-ai-icon">⚠️</div>
+      <div className="gm-ai-content">
+        <div className="gm-ai-label">{titre}</div>
+        <div className="gm-ai-message">{message}</div>
+      </div>
+      {actions && <div className="gm-ai-actions">{actions}</div>}
     </div>
   );
 }
 
-function AlertBadge({ count, label, couleur = 'warning' }: { count: number; label: string; couleur?: 'warning' | 'danger' }) {
-  if (count === 0) return null;
+/** Tableau « Activité récente » — colonnes de la maquette, données réelles. */
+function TableauTransactions({
+  transactions,
+  colonneAgent = true,
+}: {
+  transactions: Transaction[];
+  colonneAgent?: boolean;
+}) {
+  if (transactions.length === 0) {
+    return (
+      <GmTableWrap>
+        <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: 13, color: 'var(--gm-text-2)' }}>
+          Aucune transaction sur la période.
+        </div>
+      </GmTableWrap>
+    );
+  }
   return (
-    <div className={clsx(
-      'flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium',
-      couleur === 'danger'
-        ? 'bg-[#E60000]/08 border-[#E60000]/20 text-[#E60000]'
-        : 'bg-[#FFD000]/10 border-[#FFD000]/30 text-[#806B00] dark:text-[#FFD000]',
-    )}>
-      <AlertTriangle size={15} className="flex-shrink-0" />
-      <span>{count} {label}</span>
+    <GmTableWrap>
+      <div style={{ overflowX: 'auto' }}>
+        <table>
+          <thead>
+            <tr>
+              <th>Heure</th>
+              <th>Type</th>
+              {colonneAgent && <th>Agent</th>}
+              <th>Opérateur</th>
+              <th>Client</th>
+              <th>Montant</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.map((tx) => (
+              <tr key={tx.id}>
+                <td style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>{formatRelative(tx.date)}</td>
+                <td><span className={badgeClass(tx.type)}>{TYPE_LABELS[tx.type] ?? tx.type}</span></td>
+                {colonneAgent && (
+                  <td>
+                    <strong>{tx.agentNom || TIRET}</strong>
+                    {tx.agenceNom && (
+                      <>
+                        <br />
+                        <span style={{ fontSize: 11, color: 'var(--gm-text-2)' }}>{tx.agenceNom}</span>
+                      </>
+                    )}
+                  </td>
+                )}
+                <td>
+                  <span className="gm-op-logo">
+                    <span
+                      className="gm-op-dot"
+                      style={{ background: OPERATEUR_COULEURS[tx.operateur] ?? 'var(--gm-text-2)' }}
+                    />
+                    {libelleOperateur(tx.operateur)}
+                  </span>
+                </td>
+                <td style={{ fontSize: 12 }}>{tx.clientNom || TIRET}</td>
+                <td style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                  {CHIFFRE(tx.montant)} XOF
+                </td>
+                <td>
+                  <GmStatusPill statut={tx.statut}>● {STATUT_LABELS[tx.statut]}</GmStatusPill>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </GmTableWrap>
+  );
+}
+
+/** Encart sparkline 7 jours (donnée réelle `sparklineData`). */
+function CarteSparkline({ data }: { data: number[] }) {
+  return (
+    <div className="gm-section-card" style={{ marginBottom: 24 }}>
+      <div className="gm-section-head">
+        <div>
+          <div className="gm-section-title">Transactions — 7 derniers jours</div>
+          <div className="gm-section-sub">Nombre de transactions par jour</div>
+        </div>
+      </div>
+      <div style={{ padding: '16px 20px' }}>
+        {/* couleur en littéral : MiniChart dérive un id de dégradé à partir de la valeur */}
+        <MiniChart data={data} color="#F5B800" height={56} className="w-full" />
+      </div>
     </div>
   );
 }
@@ -74,430 +214,414 @@ function AlertBadge({ count, label, couleur = 'warning' }: { count: number; labe
 // ─── Vue SUPER_ADMIN / ADMIN ─────────────────────────────────────────────────
 
 function DashboardAdmin() {
-  const { stats, isLoading, isMock, refresh } = useDashboardStats();
+  const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
+
+  if (isLoading) return <GrilleSquelette n={6} />;
+
+  const alertes = [
+    (stats?.alertesFloatBas ?? 0) > 0 && `${stats?.alertesFloatBas} float bas`,
+    (stats?.alertesAgentsInactifs ?? 0) > 0 && `${stats?.alertesAgentsInactifs} agent(s) inactif(s)`,
+    (stats?.commissionsAValider ?? 0) > 0 && `${stats?.commissionsAValider} commission(s) à valider`,
+  ].filter(Boolean) as string[];
 
   return (
-    <div className="space-y-6">
-      {/* KPIs */}
-      <section data-tour="dashboard-kpi">
-        <SectionTitle action={
-          isMock && (
-            <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">
-              Données démo
-            </span>
-          )
-        }>
-          Vue d'ensemble — aujourd'hui
-        </SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            titre="Transactions"
-            valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')}
-            delta={stats?.variationPct}
-            icone={CreditCard}
-            variante="primary"
-            isLoading={isLoading}
-            onClick={() => router.push('/dashboard/transactions')}
-          />
-          <KpiCard
-            titre="Volume (XOF)"
-            valeur={isLoading ? '—' : formatMontant(stats?.volumeJour ?? 0)}
-            delta={stats?.variationPct}
-            icone={Wallet}
-            variante="success"
-            isLoading={isLoading}
-          />
-          <KpiCard
-            titre="Agents actifs"
-            valeur={isLoading ? '—' : `${stats?.nbAgentsActifs ?? 0}`}
-            sousTitre={`sur ${(stats?.nbAgentsActifs ?? 0) + (stats?.alertesAgentsInactifs ?? 0)} agents total`}
-            icone={Users}
-            variante="neutral"
-            isLoading={isLoading}
-            onClick={() => router.push('/dashboard/agents')}
-          />
-          <KpiCard
-            titre="Agences actives"
-            valeur={isLoading ? '—' : `${stats?.nbAgencesActives ?? 0}`}
-            icone={Building2}
-            variante="neutral"
-            isLoading={isLoading}
-            onClick={() => router.push('/dashboard/agences')}
-          />
-        </div>
-      </section>
+    <>
+      <GmCardGrid>
+        {/* Transactions */}
+        <GmCard
+          icone="💳"
+          titre="Transactions"
+          trend={trendVariation(stats?.variationPct)}
+          onClick={() => router.push('/dashboard/transactions')}
+          actions={
+            <>
+              <GmButton petit onClick={go('/dashboard/transactions?type=depot')}>+ Dépôt</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/transactions?type=retrait')}>+ Retrait</GmButton>
+            </>
+          }
+        >
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+          <GmMetricSub icone="💰">
+            <strong style={{ color: 'var(--gm-text)' }}>{formatMontant(stats?.volumeJour ?? 0)}</strong> traités
+          </GmMetricSub>
+        </GmCard>
 
-      {/* Sparkline 7 jours */}
-      {!isLoading && stats?.sparklineData && (
-        <section className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-text-main">Transactions — 7 derniers jours</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Nombre de transactions par jour</p>
-            </div>
-            <TrendingUp size={16} className="text-[#009E00]" />
-          </div>
-          <MiniChart
-            data={stats.sparklineData}
-            color="#009E00"
-            height={56}
-            className="w-full"
-          />
-          <div className="flex justify-between mt-2">
-            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((j) => (
-              <span key={j} className="text-[10px] text-gray-400">{j}</span>
-            ))}
-          </div>
-        </section>
+        {/* Volume */}
+        <GmCard
+          icone="💵"
+          titre="Volume du jour"
+          trend={trendVariation(stats?.variationPct)}
+          onClick={() => router.push('/dashboard/transactions')}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>Voir rapports</GmButton>}
+        >
+          <GmMetric valeur={formatMontant(stats?.volumeJour ?? 0)} label="XOF traités aujourd'hui" />
+          <GmMetricSub icone="📈">
+            Moyenne par transaction :{' '}
+            <strong style={{ color: 'var(--gm-text)' }}>
+              {(stats?.nbTransactionsJour ?? 0) > 0
+                ? formatMontant(Math.round((stats?.volumeJour ?? 0) / (stats?.nbTransactionsJour ?? 1)))
+                : TIRET}
+            </strong>
+          </GmMetricSub>
+        </GmCard>
+
+        {/* Agents */}
+        <GmCard
+          icone="👤"
+          titre="Agents"
+          trend={{ sens: 'up', label: `${stats?.nbAgentsActifs ?? 0} actifs` }}
+          onClick={() => router.push('/dashboard/agents')}
+          actions={
+            <>
+              <GmButton petit onClick={go('/dashboard/agents')}>Voir agents</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/agents')}>+ Créer agent</GmButton>
+            </>
+          }
+        >
+          <GmMetric valeur={CHIFFRE(stats?.nbAgentsActifs ?? 0)} label="agents actifs" />
+          <GmMetricSub icone="🔴">
+            {(stats?.alertesAgentsInactifs ?? 0) > 0 ? (
+              <span style={{ color: 'var(--gm-warning)' }}>
+                {stats?.alertesAgentsInactifs} agent(s) inactif(s)
+              </span>
+            ) : (
+              'Aucun agent inactif'
+            )}
+          </GmMetricSub>
+        </GmCard>
+
+        {/* Agences */}
+        <GmCard
+          icone="🏪"
+          titre="Agences"
+          trend={{ sens: 'up', label: `${stats?.nbAgencesActives ?? 0} actives` }}
+          onClick={() => router.push('/dashboard/agences')}
+          actions={
+            <>
+              <GmButton petit onClick={go('/dashboard/agences')}>Voir agences</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/agences')}>+ Nouvelle agence</GmButton>
+            </>
+          }
+        >
+          <GmMetric valeur={CHIFFRE(stats?.nbAgencesActives ?? 0)} label="agences actives" />
+          <GmMetricSub icone="👥">
+            {CHIFFRE(stats?.nbAgentsActifs ?? 0)} agents actifs répartis
+          </GmMetricSub>
+        </GmCard>
+
+        {/* Commissions */}
+        <GmCard
+          icone="💰"
+          titre="Commissions"
+          trend={
+            (stats?.commissionsAValider ?? 0) > 0
+              ? { sens: 'warn', label: `${stats?.commissionsAValider} à valider` }
+              : { sens: 'up', label: 'À jour' }
+          }
+          onClick={() => router.push('/dashboard/commissions')}
+          actions={
+            <>
+              <GmButton petit onClick={go('/dashboard/commissions')}>Valider</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/commissions')}>Historique</GmButton>
+            </>
+          }
+        >
+          <GmMetric valeur={CHIFFRE(stats?.commissionsAValider ?? 0)} label="commission(s) en attente de validation" />
+        </GmCard>
+
+        {/* Float opérateurs */}
+        <GmCard
+          icone="🏦"
+          titre="Float opérateurs"
+          trend={
+            (stats?.alertesFloatBas ?? 0) > 0
+              ? { sens: 'warn', label: `⚠️ ${stats?.alertesFloatBas} float bas` }
+              : { sens: 'up', label: 'Niveaux OK' }
+          }
+          onClick={() => router.push('/dashboard/float')}
+          actions={
+            <>
+              <GmButton petit onClick={go('/dashboard/float')}>Réapprovisionner</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/float')}>Voir float</GmButton>
+            </>
+          }
+        >
+          <GmMetric valeur={CHIFFRE(stats?.alertesFloatBas ?? 0)} label="opérateur(s) sous le seuil" />
+          <GmMetricSub icone="📊">Détail des soldes par opérateur dans la page Float</GmMetricSub>
+        </GmCard>
+      </GmCardGrid>
+
+      {/* Sparkline 7 jours — données réelles */}
+      {stats?.sparklineData && stats.sparklineData.length > 0 && (
+        <CarteSparkline data={stats.sparklineData} />
       )}
 
-      {/* Alertes */}
-      {!isLoading && (
-        <section>
-          <SectionTitle>Alertes</SectionTitle>
-          <div className="flex flex-wrap gap-3">
-            <AlertBadge count={stats?.alertesAgentsInactifs ?? 0} label="agent(s) inactif(s)" couleur="warning" />
-            <AlertBadge count={stats?.alertesFloatBas ?? 0} label="float bas" couleur="danger" />
-            <AlertBadge count={stats?.commissionsAValider ?? 0} label="commission(s) à valider" couleur="warning" />
-            {(stats?.alertesAgentsInactifs === 0 && stats?.alertesFloatBas === 0 && stats?.commissionsAValider === 0) && (
-              <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#009E00]/20 bg-[#009E00]/08 text-sm font-medium text-[#009E00]">
-                <CheckCircle size={15} />
-                <span>Aucune alerte active — tout est en ordre</span>
-              </div>
-            )}
-          </div>
-        </section>
+      {/* Bannière d'alertes — dérivée des vraies stats */}
+      {alertes.length > 0 && (
+        <BanniereAlertes
+          titre="Alertes"
+          message={<>Points à traiter : <strong>{alertes.join(' · ')}</strong>.</>}
+          actions={
+            <>
+              <button className="gm-btn-ai gm-btn-ai-primary" onClick={() => router.push('/dashboard/float')}>
+                Agir maintenant
+              </button>
+              <button className="gm-btn-ai gm-btn-ai-ghost" onClick={() => router.push('/dashboard/commissions')}>
+                Voir commissions
+              </button>
+            </>
+          }
+        />
       )}
 
       {/* Activité récente */}
-      <section>
-        <SectionTitle action={
-          <button onClick={() => router.push('/dashboard/transactions')} className="text-xs text-[#009E00] hover:underline flex items-center gap-1">
-            Tout voir <ArrowRight size={12} />
-          </button>
-        }>
-          Activité récente
-        </SectionTitle>
-        {isLoading ? (
-          <div className="space-y-2">
-            {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : (
-          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="text-left px-4 py-3 font-medium">Type</th>
-                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Client</th>
-                    <th className="text-right px-4 py-3 font-medium">Montant</th>
-                    <th className="text-center px-4 py-3 font-medium">Statut</th>
-                    <th className="text-right px-4 py-3 font-medium hidden md:table-cell">Heure</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
-                  {(stats?.transactionsRecentes ?? []).slice(0, 10).map((tx) => (
-                    <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-text-main">{TYPE_LABELS[tx.type] ?? tx.type}</span>
-                        <span className="text-xs text-gray-400 block">{tx.operateur.replace('_', ' ')}</span>
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell text-gray-600 dark:text-gray-400">{tx.clientNom}</td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-text-main">
-                        {tx.montant.toLocaleString('fr-FR')}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', STATUT_STYLES[tx.statut])}>
-                          {tx.statut === 'success' ? 'Succès' : tx.statut === 'pending' ? 'En cours' : 'Échoué'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-400 hidden md:table-cell">
-                        {formatRelative(tx.date)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Liens rapides */}
-      <section>
-        <SectionTitle>Accès rapides</SectionTitle>
-        <div className="flex flex-wrap gap-3" data-tour="new-transaction">
-          <Button variante="primary" icone={<Plus size={15} />} onClick={() => router.push('/dashboard/transactions?type=depot')}>
-            Nouvelle transaction
-          </Button>
-          <Button variante="outline" icone={<UserPlus size={15} />} onClick={() => router.push('/dashboard/agents')}>
-            Ajouter un agent
-          </Button>
-          <Button variante="ghost" icone={<BarChart2 size={15} />} onClick={() => router.push('/dashboard/rapports')} data-tour="rapports-link">
-            Rapports
-          </Button>
-        </div>
-      </section>
-    </div>
+      <GmSectionTitle
+        action={
+          <a
+            href="/dashboard/transactions"
+            style={{ fontSize: 12, color: 'var(--gm-primary)', textDecoration: 'none', fontWeight: 500 }}
+          >
+            Voir tout →
+          </a>
+        }
+      >
+        Activité récente
+      </GmSectionTitle>
+      <TableauTransactions transactions={(stats?.transactionsRecentes ?? []).slice(0, 10)} />
+    </>
   );
 }
 
 // ─── Vue MANAGER ─────────────────────────────────────────────────────────────
 
 function DashboardManager() {
-  const { stats, isLoading, isMock, refresh } = useDashboardStats();
+  const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
+
+  if (isLoading) return <GrilleSquelette n={3} />;
 
   return (
-    <div className="space-y-6">
-      <section data-tour="dashboard-kpi">
-        <SectionTitle action={isMock && (
-          <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">Données démo</span>
-        )}>
-          Mon agence — aujourd'hui
-        </SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <KpiCard titre="Mes transactions" valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')} delta={stats?.variationPct} icone={CreditCard} variante="primary" isLoading={isLoading} />
-          <KpiCard titre="Volume agence" valeur={isLoading ? '—' : formatMontant(stats?.volumeAgence ?? 0)} icone={Wallet} variante="success" isLoading={isLoading} />
-          <KpiCard titre="Agents supervisés" valeur={isLoading ? '—' : `${stats?.nbAgentsSupervisés ?? 0}`} icone={Users} variante="neutral" isLoading={isLoading} onClick={() => router.push('/dashboard/agents')} />
-        </div>
-      </section>
+    <>
+      <GmCardGrid>
+        <GmCard
+          icone="💳"
+          titre="Transactions agence"
+          trend={trendVariation(stats?.variationPct)}
+          onClick={() => router.push('/dashboard/transactions')}
+          actions={<GmButton petit onClick={go('/dashboard/transactions?type=depot')}>+ Transaction</GmButton>}
+        >
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+        </GmCard>
 
-      {/* Alerte float agence */}
-      {!isLoading && stats?.alerteFloatAgence && (
-        <AlertBadge count={1} label="alerte float — votre agence est en dessous du seuil" couleur="danger" />
+        <GmCard
+          icone="💵"
+          titre="Volume agence"
+          onClick={() => router.push('/dashboard/rapports')}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>Rapports</GmButton>}
+        >
+          <GmMetric valeur={formatMontant(stats?.volumeAgence ?? 0)} label="XOF sur mon agence" />
+        </GmCard>
+
+        <GmCard
+          icone="👥"
+          titre="Mon équipe"
+          trend={{ sens: 'up', label: `${stats?.nbAgentsSupervisés ?? 0} supervisés` }}
+          onClick={() => router.push('/dashboard/agents')}
+          actions={<GmButton petit onClick={go('/dashboard/agents')}>Voir agents</GmButton>}
+        >
+          <GmMetric valeur={CHIFFRE(stats?.nbAgentsSupervisés ?? 0)} label="agents supervisés" />
+        </GmCard>
+      </GmCardGrid>
+
+      {stats?.alerteFloatAgence && (
+        <BanniereAlertes
+          titre="Alerte float"
+          message={<>Le float de <strong>votre agence</strong> est en dessous du seuil configuré.</>}
+          actions={
+            <button className="gm-btn-ai gm-btn-ai-primary" onClick={() => router.push('/dashboard/float')}>
+              Réapprovisionner
+            </button>
+          }
+        />
       )}
 
-      {/* Performances agents */}
-      <section>
-        <SectionTitle>Performances de mon équipe</SectionTitle>
-        {isLoading ? <SkeletonCard /> : (
-          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="text-left px-4 py-3 font-medium">Agent</th>
-                    <th className="text-center px-4 py-3 font-medium">Transactions</th>
-                    <th className="text-right px-4 py-3 font-medium">Volume</th>
-                    <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Commission</th>
-                    <th className="text-center px-4 py-3 font-medium">Statut</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
-                  {(stats?.performancesAgents ?? []).map((agent) => (
-                    <tr key={agent.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
-                      <td className="px-4 py-3 font-medium text-text-main">{agent.nom}</td>
-                      <td className="px-4 py-3 text-center tabular-nums">{agent.nbTransactions}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-main">{agent.volume.toLocaleString('fr-FR')}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-[#009E00] hidden sm:table-cell">{agent.commission.toLocaleString('fr-FR')}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', agent.statut === 'actif' ? 'bg-[#009E00]/10 text-[#009E00]' : 'bg-gray-100 text-gray-500')}>
-                          {agent.statut === 'actif' ? 'Actif' : 'Inactif'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
-    </div>
+      <GmSectionTitle>Performances de mon équipe</GmSectionTitle>
+      <GmTableWrap>
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Transactions</th>
+                <th>Volume</th>
+                <th>Commission</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(stats?.performancesAgents ?? []).map((agent) => (
+                <tr key={agent.id}>
+                  <td><strong>{agent.nom}</strong></td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums' }}>{CHIFFRE(agent.nbTransactions)}</td>
+                  <td style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{CHIFFRE(agent.volume)} XOF</td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums' }}>{CHIFFRE(agent.commission)} XOF</td>
+                  <td>
+                    <span className={agent.statut === 'actif' ? 'gm-op-status gm-status-ok' : 'gm-op-status gm-status-warn'}>
+                      {agent.statut === 'actif' ? 'Actif' : 'Inactif'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </GmTableWrap>
+    </>
   );
 }
 
 // ─── Vue AGENT / CAISSIER ────────────────────────────────────────────────────
 
 function DashboardAgent() {
-  const user = useAuthStore((s) => s.user);
-  const { stats, isLoading, isMock, refresh } = useDashboardStats();
+  const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
+
+  if (isLoading) return <GrilleSquelette n={3} />;
+
+  const floatBas = (stats?.monFloat ?? 0) < 100000;
 
   return (
-    <div className="space-y-6">
-      <section data-tour="dashboard-kpi">
-        <SectionTitle action={isMock && (
-          <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">Données démo</span>
-        )}>
-          Mon activité — aujourd'hui
-        </SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <KpiCard titre="Mes transactions" valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')} delta={stats?.variationPct} icone={CreditCard} variante="primary" isLoading={isLoading} />
-          <KpiCard titre="Mon volume" valeur={isLoading ? '—' : formatMontant(stats?.volumeJour ?? 0)} icone={Wallet} variante="success" isLoading={isLoading} />
-          <KpiCard titre="Ma commission (mois)" valeur={isLoading ? '—' : formatMontant(stats?.maCommissionMois ?? 0)} icone={TrendingUp} variante="neutral" isLoading={isLoading} sousTitre="Ce mois" />
-        </div>
-      </section>
-
-      {/* Float disponible */}
-      {!isLoading && (
-        <div className={clsx(
-          'flex items-center justify-between px-5 py-4 rounded-xl border',
-          (stats?.monFloat ?? 0) < 100000
-            ? 'bg-[#E60000]/08 border-[#E60000]/20'
-            : 'bg-[#009E00]/08 border-[#009E00]/20',
-        )}>
-          <div className="flex items-center gap-3">
-            <Wallet size={20} className={(stats?.monFloat ?? 0) < 100000 ? 'text-[#E60000]' : 'text-[#009E00]'} />
-            <div>
-              <p className="text-sm font-semibold text-text-main">Float disponible</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {(stats?.monFloat ?? 0) < 100000 ? 'Seuil bas — contactez votre manager' : 'Niveau correct'}
-              </p>
-            </div>
-          </div>
-          <p className="text-lg font-bold tabular-nums text-text-main">
-            {formatMontant(stats?.monFloat ?? 0)}
-          </p>
-        </div>
-      )}
-
-      {/* Bouton principale */}
-      <div data-tour="new-transaction">
-        <Button
-          variante="primary"
-          taille="lg"
-          icone={<Plus size={18} />}
-          onClick={() => router.push('/dashboard/transactions?type=depot')}
-          className="w-full sm:w-auto"
+    <>
+      <GmCardGrid>
+        <GmCard
+          icone="💳"
+          titre="Mes transactions"
+          trend={trendVariation(stats?.variationPct)}
+          onClick={() => router.push('/dashboard/transactions')}
+          actions={
+            <>
+              <GmButton petit onClick={go('/dashboard/transactions?type=depot')}>+ Dépôt</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/transactions?type=retrait')}>+ Retrait</GmButton>
+            </>
+          }
         >
-          Nouvelle transaction
-        </Button>
-      </div>
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+          <GmMetricSub icone="💰">
+            <strong style={{ color: 'var(--gm-text)' }}>{formatMontant(stats?.volumeJour ?? 0)}</strong> traités
+          </GmMetricSub>
+        </GmCard>
 
-      {/* Mes dernières transactions */}
-      <section>
-        <SectionTitle action={
-          <button onClick={() => router.push('/dashboard/transactions')} className="text-xs text-[#009E00] hover:underline flex items-center gap-1">
-            Tout voir <ArrowRight size={12} />
-          </button>
-        }>
-          Mes dernières transactions
-        </SectionTitle>
-        {isLoading ? <SkeletonCard /> : (
-          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="text-left px-4 py-3 font-medium">Type</th>
-                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Client</th>
-                    <th className="text-right px-4 py-3 font-medium">Montant</th>
-                    <th className="text-center px-4 py-3 font-medium">Statut</th>
-                    <th className="text-right px-4 py-3 font-medium hidden md:table-cell">Heure</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
-                  {(stats?.mesTransactions ?? []).map((tx) => (
-                    <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-text-main">{TYPE_LABELS[tx.type] ?? tx.type}</span>
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell text-gray-600 dark:text-gray-400">{tx.clientNom}</td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-text-main">
-                        {tx.montant.toLocaleString('fr-FR')}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', STATUT_STYLES[tx.statut])}>
-                          {tx.statut === 'success' ? 'Succès' : tx.statut === 'pending' ? 'En cours' : 'Échoué'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-400 hidden md:table-cell">
-                        {formatRelative(tx.date)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
-    </div>
+        <GmCard
+          icone="🏦"
+          titre="Mon float"
+          trend={floatBas ? { sens: 'warn', label: '⚠️ Seuil bas' } : { sens: 'up', label: 'Niveau correct' }}
+          onClick={() => router.push('/dashboard/float')}
+          actions={<GmButton petit onClick={go('/dashboard/float')}>Demander un réappro</GmButton>}
+        >
+          <GmMetric valeur={formatMontant(stats?.monFloat ?? 0)} label="XOF disponibles" />
+          <GmMetricSub icone={floatBas ? '🔴' : '🟢'}>
+            {floatBas ? 'Seuil bas — contactez votre manager' : 'Niveau correct'}
+          </GmMetricSub>
+        </GmCard>
+
+        <GmCard
+          icone="📈"
+          titre="Ma commission"
+          onClick={() => router.push('/dashboard/commissions')}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/commissions')}>Détail</GmButton>}
+        >
+          <GmMetric valeur={formatMontant(stats?.maCommissionMois ?? 0)} label="XOF ce mois" />
+        </GmCard>
+      </GmCardGrid>
+
+      <GmSectionTitle
+        action={
+          <a
+            href="/dashboard/transactions"
+            style={{ fontSize: 12, color: 'var(--gm-primary)', textDecoration: 'none', fontWeight: 500 }}
+          >
+            Voir tout →
+          </a>
+        }
+      >
+        Mes dernières transactions
+      </GmSectionTitle>
+      <TableauTransactions transactions={stats?.mesTransactions ?? []} colonneAgent={false} />
+    </>
   );
 }
 
 // ─── Vue AUDITEUR / VIEWER ───────────────────────────────────────────────────
 
 function DashboardAuditeur() {
-  const { stats, isLoading, isMock, refresh } = useDashboardStats();
+  const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
+
+  if (isLoading) return <GrilleSquelette n={3} />;
 
   return (
-    <div className="space-y-6">
-      <section data-tour="dashboard-kpi">
-        <SectionTitle action={isMock && (
-          <span className="text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">Données démo</span>
-        )}>
-          Tableau d'audit
-        </SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <KpiCard titre="Opérations auditées" valeur={isLoading ? '—' : (stats?.operationsAuditees ?? 0).toLocaleString('fr-FR')} icone={ShieldCheck} variante="neutral" isLoading={isLoading} />
-          <KpiCard titre="Transactions (jour)" valeur={isLoading ? '—' : (stats?.nbTransactionsJour ?? 0).toLocaleString('fr-FR')} delta={stats?.variationPct} icone={CreditCard} variante="primary" isLoading={isLoading} />
-          <KpiCard titre="Volume (XOF)" valeur={isLoading ? '—' : formatMontant(stats?.volumeJour ?? 0)} icone={Wallet} variante="success" isLoading={isLoading} />
-        </div>
-      </section>
+    <>
+      <GmCardGrid>
+        <GmCard
+          icone="🛡️"
+          titre="Opérations auditées"
+          onClick={() => router.push('/dashboard/rapports')}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>Exporter</GmButton>}
+        >
+          <GmMetric valeur={CHIFFRE(stats?.operationsAuditees ?? 0)} label="opérations auditées" />
+        </GmCard>
 
-      {/* Journal d'audit */}
-      <section>
-        <SectionTitle>Journal d'audit récent</SectionTitle>
-        {isLoading ? <SkeletonCard /> : (
-          <div className="bg-white dark:bg-[hsl(0_0%_12%)] rounded-card shadow-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-white/08 text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="text-left px-4 py-3 font-medium">Action</th>
-                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Utilisateur</th>
-                    <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Ressource</th>
-                    <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">IP</th>
-                    <th className="text-right px-4 py-3 font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-white/05">
-                  {(stats?.journalAudit ?? []).map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-white/03 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs bg-gray-100 dark:bg-white/08 px-2 py-0.5 rounded text-text-main">
-                          {entry.action}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell text-xs text-gray-600 dark:text-gray-400 truncate max-w-[160px]">
-                        {entry.utilisateur}
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-500 truncate max-w-[140px]">
-                        {entry.ressource}
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-xs font-mono text-gray-400">
-                        {entry.ip}
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
-                        {formatRelative(entry.date)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
+        <GmCard
+          icone="💳"
+          titre="Transactions du jour"
+          trend={trendVariation(stats?.variationPct)}
+          onClick={() => router.push('/dashboard/transactions')}
+        >
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+        </GmCard>
 
-      {/* Liens rapides */}
-      <section>
-        <SectionTitle>Accès rapides</SectionTitle>
-        <div className="flex flex-wrap gap-3" data-tour="rapports-link">
-          <Button variante="primary" icone={<BarChart2 size={15} />} onClick={() => router.push('/dashboard/rapports')}>
-            Voir les rapports
-          </Button>
-          <Button variante="outline" icone={<FileText size={15} />} onClick={() => router.push('/dashboard/rapports')}>
-            Exporter
-          </Button>
+        <GmCard
+          icone="💵"
+          titre="Volume du jour"
+          onClick={() => router.push('/dashboard/rapports')}
+        >
+          <GmMetric valeur={formatMontant(stats?.volumeJour ?? 0)} label="XOF traités" />
+        </GmCard>
+      </GmCardGrid>
+
+      <GmSectionTitle>Journal d'audit récent</GmSectionTitle>
+      <GmTableWrap>
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Utilisateur</th>
+                <th>Ressource</th>
+                <th>IP</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(stats?.journalAudit ?? []).map((entry) => (
+                <tr key={entry.id}>
+                  <td><span className="gm-badge gm-badge-cashin">{entry.action}</span></td>
+                  <td style={{ fontSize: 12 }}>{entry.utilisateur}</td>
+                  <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{entry.ressource}</td>
+                  <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{entry.ip}</td>
+                  <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{formatRelative(entry.date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </section>
-    </div>
+      </GmTableWrap>
+    </>
   );
 }
 
@@ -505,7 +629,8 @@ function DashboardAuditeur() {
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { refresh, isLoading, lastUpdated } = useDashboardStats();
+  const { refresh, isLoading, isMock, lastUpdated } = useDashboardStats();
+  const router = useRouter();
   const [mounted, setMounted] = React.useState(false);
 
   useEffect(() => {
@@ -522,51 +647,59 @@ export default function DashboardPage() {
     ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
     : '';
 
-  // Salutation selon l'heure
   const heure = new Date().getHours();
   const salutation = heure < 12 ? 'Bonjour' : heure < 18 ? 'Bon après-midi' : 'Bonsoir';
   const prenom = user?.prenom ?? user?.nom ?? 'vous';
 
   return (
-    <div className="space-y-6">
+    <>
       {/* Tour d'onboarding (première connexion) */}
       <OnboardingTour />
 
-      {/* En-tête */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-main">
-            {salutation}, {prenom} 👋
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+      <GmPageHeader
+        titre={`${salutation}, ${prenom} 👋`}
+        sousTitre={
+          <>
             Tableau de bord
-            {heureMAJ && <> — Mis à jour à {heureMAJ}</>}
-          </p>
-        </div>
-        <Button
-          variante="ghost"
-          taille="sm"
-          icone={<RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />}
-          onClick={() => refresh()}
-          loading={isLoading}
-        >
-          Actualiser
-        </Button>
-      </div>
+            {heureMAJ && <> — mis à jour à {heureMAJ}</>}
+            {isMock && <> · <span style={{ color: 'var(--gm-warning)' }}>données de démonstration</span></>}
+          </>
+        }
+        actions={
+          <>
+            <GmButton petit variante="outline" onClick={() => refresh()} disabled={isLoading}>
+              {isLoading ? '⏳ Chargement…' : '🔄 Actualiser'}
+            </GmButton>
+            <GmButton
+              petit
+              data-tour="new-transaction"
+              onClick={() => router.push('/dashboard/transactions?type=depot')}
+            >
+              + Nouvelle transaction
+            </GmButton>
+            <GmButton
+              petit
+              variante="ghost"
+              data-tour="rapports-link"
+              onClick={() => router.push('/dashboard/rapports')}
+            >
+              📊 Rapports
+            </GmButton>
+          </>
+        }
+      />
 
       {/* Checklist d'onboarding (nouveaux comptes uniquement) */}
-      {(isAdmin) && <OnboardingChecklist />}
+      {isAdmin && <OnboardingChecklist />}
 
       {/* Dashboard adaptatif par rôle */}
-      {isAdmin   && <DashboardAdmin />}
-      {isManager && <DashboardManager />}
-      {isAgent   && <DashboardAgent />}
-      {isAuditeur && <DashboardAuditeur />}
-
-      {/* Fallback si rôle inconnu */}
-      {!isAdmin && !isManager && !isAgent && !isAuditeur && (
-        <DashboardAdmin />
-      )}
-    </div>
+      <div data-tour="dashboard-kpi">
+        {isAdmin && <DashboardAdmin />}
+        {isManager && <DashboardManager />}
+        {isAgent && <DashboardAgent />}
+        {isAuditeur && <DashboardAuditeur />}
+        {!isAdmin && !isManager && !isAgent && !isAuditeur && <DashboardAdmin />}
+      </div>
+    </>
   );
 }

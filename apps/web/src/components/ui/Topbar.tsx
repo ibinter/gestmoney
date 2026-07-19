@@ -1,10 +1,13 @@
 'use client';
+// ============================================================
+// TOPBAR — GESTMONEY
+// Rendu aligné sur la maquette mockup/index.html (classes gm-*)
+// Marque + recherche globale + date + notifications + profil
+// ============================================================
 import React, { useState } from 'react';
-import { Bell, ChevronDown, LogOut, Settings, User, Menu, Search } from 'lucide-react';
-import { Logo } from '@/components/ui/Logo';
+import { ChevronDown, Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LangSwitch, useT } from '@/lib/i18n';
-import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
@@ -35,107 +38,135 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     router.push('/login');
   };
 
+  const ouvrirRecherche = () =>
+    window.dispatchEvent(new CustomEvent('open-command-palette'));
+
+  const initiales = user ? `${user.prenom[0] ?? ''}${user.nom[0] ?? ''}` : 'U';
+
   return (
-    <header className="h-16 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-      {/* Gauche : burger mobile + logo + breadcrumb */}
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <button
-          onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-xl hover:bg-surface text-gray-500 hover:text-text-main transition-colors flex-shrink-0"
-          aria-label="Ouvrir le menu"
-        >
-          <Menu size={20} />
-        </button>
-        <Logo variante="compact" className="hidden sm:block flex-shrink-0" />
-        {/* Séparateur vertical */}
-        <span className="hidden md:block w-px h-5 bg-gray-200 dark:bg-white/10 flex-shrink-0" />
-        {/* Fil d'Ariane (desktop) */}
-        <div className="hidden md:block min-w-0">
-          <Breadcrumb />
+    <header className="gm-topbar !static !z-30 !px-4 sm:!px-6 flex-shrink-0">
+      {/* Burger mobile */}
+      <button
+        type="button"
+        onClick={onMenuClick}
+        className="lg:hidden p-2 -ml-1 rounded-[10px] text-[color:var(--gm-text-2)] hover:bg-[color:var(--gm-bg)] transition-colors flex-shrink-0"
+        aria-label="Ouvrir le menu"
+      >
+        <Menu size={20} />
+      </button>
+
+      {/* Marque */}
+      <Link href="/dashboard" className="gm-topbar-brand" aria-label="GESTMONEY — accueil">
+        <div className="gm-topbar-icon" aria-hidden="true">🪙</div>
+        <div className="gm-topbar-name">
+          GEST<span>MONEY</span>
         </div>
-        <p className="text-xs text-gray-400 md:hidden capitalize truncate">{dateNow}</p>
+      </Link>
+
+      {/* Recherche globale (ouvre la palette de commandes) */}
+      <div className="gm-topbar-search">
+        <span className="gm-search-icon" aria-hidden="true">🔍</span>
+        <input
+          id="cmd-k-trigger"
+          type="text"
+          readOnly
+          value=""
+          onClick={ouvrirRecherche}
+          onFocus={ouvrirRecherche}
+          placeholder={t.topbar.search}
+          aria-label={t.topbar.search}
+          className="cursor-pointer"
+        />
       </div>
 
-      {/* Droite */}
-      <div className="flex items-center gap-2">
-        {/* Recherche globale Cmd+K */}
-        <button
-          id="cmd-k-trigger"
-          onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-        >
-          <Search size={14} />
-          <span>{t.topbar.search}</span>
-          <kbd className="ml-2 text-xs bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-gray-500 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
-        </button>
+      {/* Zone droite */}
+      <div className="gm-topbar-right">
+        <div className="gm-topbar-date capitalize">{dateNow}</div>
 
-        {/* Switcher de langue */}
-        <LangSwitch className="hidden md:flex items-center px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-white/20 hover:text-text-main transition-colors" />
+        <LangSwitch className="hidden md:flex items-center px-2.5 py-1.5 rounded-[10px] border-[1.5px] border-[color:var(--gm-border)] text-xs font-semibold text-[color:var(--gm-text-2)] hover:border-[color:var(--gm-primary)] transition-colors" />
 
-        {/* Theme toggle */}
         <ThemeToggle />
 
         {/* Notifications */}
         <Link
           href="/dashboard/notifications"
-          className="relative p-2 rounded-xl hover:bg-surface text-gray-500 hover:text-text-main transition-colors"
+          className="gm-notif-btn"
+          aria-label={`${t.nav.notifications}${nbNonLues > 0 ? ` (${nbNonLues} non lues)` : ''}`}
         >
-          <Bell size={20} />
+          <span aria-hidden="true">🔔</span>
           {nbNonLues > 0 && (
-            <span className="absolute top-1 right-1 w-4 h-4 bg-danger text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {nbNonLues > 9 ? '9+' : nbNonLues}
-            </span>
+            <span className="gm-notif-badge">{nbNonLues > 9 ? '9+' : nbNonLues}</span>
           )}
         </Link>
 
-        {/* Menu utilisateur */}
+        {/* Profil */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => setMenuOuvert((v) => !v)}
-            className="flex items-center gap-2 p-2 rounded-xl hover:bg-surface transition-colors"
+            className="gm-profile-btn"
+            aria-haspopup="menu"
+            aria-expanded={menuOuvert}
+            aria-label="Menu utilisateur"
           >
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-sidebar font-bold text-sm uppercase">
-              {user ? user.prenom[0] + user.nom[0] : 'U'}
-            </div>
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-text-main leading-none">
+            <div className="gm-profile-avatar uppercase">{initiales}</div>
+            <div className="gm-profile-info hidden md:block text-left">
+              <div className="gm-profile-name">
                 {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
-              </p>
-              <p className="text-xs text-gray-500 capitalize">{user?.role || 'admin'}</p>
+              </div>
+              <div className="gm-profile-agency capitalize">{user?.role ?? 'admin'}</div>
             </div>
-            <ChevronDown size={16} className={clsx('text-gray-400 transition-transform', menuOuvert && 'rotate-180')} />
+            <span className="gm-profile-chevron">
+              <ChevronDown
+                size={12}
+                className={clsx('transition-transform', menuOuvert && 'rotate-180')}
+                aria-hidden="true"
+              />
+            </span>
           </button>
 
           {menuOuvert && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOuvert(false)} />
-              <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
+              <div
+                className="gm-profile-dropdown gm-open !absolute !top-full !right-0 !mt-2 !w-52 z-50"
+                role="menu"
+              >
                 <Link
                   href="/dashboard/profile"
+                  role="menuitem"
                   onClick={() => setMenuOuvert(false)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-surface transition-colors"
+                  className="gm-profile-dd-item no-underline text-[color:var(--gm-text)]"
                 >
-                  <User size={16} /> {t.topbar.myProfile}
+                  <span aria-hidden="true">👤</span> {t.topbar.myProfile}
                 </Link>
                 <Link
                   href="/dashboard/settings"
+                  role="menuitem"
                   onClick={() => setMenuOuvert(false)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-surface transition-colors"
+                  className="gm-profile-dd-item no-underline text-[color:var(--gm-text)]"
                 >
-                  <Settings size={16} /> {t.topbar.settings}
+                  <span aria-hidden="true">⚙️</span> {t.topbar.settings}
                 </Link>
-                <hr className="my-1 border-gray-100" />
-                {/* Switcher langue dans le menu déroulant (mobile) */}
-                <div className="px-4 py-2 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">{t.settings.language}</span>
-                  <LangSwitch className="text-xs font-semibold text-gray-600 hover:text-text-main transition-colors" />
-                </div>
-                <hr className="my-1 border-gray-100" />
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-red-50 transition-colors"
+                <Link
+                  href="/dashboard/performances"
+                  role="menuitem"
+                  onClick={() => setMenuOuvert(false)}
+                  className="gm-profile-dd-item no-underline text-[color:var(--gm-text)]"
                 >
-                  <LogOut size={16} /> {t.topbar.logout}
+                  <span aria-hidden="true">📊</span> {t.nav.performances}
+                </Link>
+                <div className="gm-profile-dd-item !text-[color:var(--gm-text-2)] justify-between">
+                  <span className="text-xs">{t.settings.language}</span>
+                  <LangSwitch className="text-xs font-semibold text-[color:var(--gm-text)]" />
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleLogout}
+                  className="gm-profile-dd-item w-full text-left"
+                >
+                  <span aria-hidden="true">🚪</span> {t.topbar.logout}
                 </button>
               </div>
             </>

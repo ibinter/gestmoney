@@ -1,19 +1,18 @@
 'use client';
 import React, { useState } from 'react';
-import { Plus, Search, MapPin, Phone, Users, Download } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { StatCard } from '@/components/ui/StatCard';
-import { Table, Colonne } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { GmPageHeader, GmButton } from '@/components/gm';
 import { formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
 import { useAgences, useCreateAgence, useToggleAgenceStatus } from '@/hooks/useAgences';
 import { Agence } from '@/types';
 
 const FORM_INIT = { nom: '', code: '', ville: '', adresse: '', telephone: '', responsable: '' };
+
+/** Palette de la maquette, utilisée pour distinguer visuellement les villes. */
+const COULEURS_VILLE = ['#F5B800', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#0EA5E9', '#D97706', '#22C55E'];
 
 export default function AgencesPage() {
   const [search, setSearch] = useState('');
@@ -37,6 +36,12 @@ export default function AgencesPage() {
   const totalAgents = allAgences.reduce((s, a) => s + a.nbAgents, 0);
   const totalEnLigne = allAgences.reduce((s, a) => s + a.nbAgentsEnLigne, 0);
 
+  // Villes réelles, triées par nombre d'agences décroissant.
+  const villes = Array.from(new Set(allAgences.map((a) => a.ville).filter(Boolean)));
+  const parVille = villes
+    .map((ville) => ({ ville, liste: allAgences.filter((a) => a.ville === ville) }))
+    .sort((a, b) => b.liste.length - a.liste.length);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErreur('');
@@ -58,170 +63,199 @@ export default function AgencesPage() {
     toggleStatut.mutate({ id: agence.id, active: !agence.active });
   };
 
-  const colonnes: Colonne<Agence>[] = [
-    {
-      key: 'nom',
-      titre: 'Agence',
-      triable: true,
-      rendu: (_, a) => (
-        <div>
-          <p className="font-semibold text-sm text-text-main">{a.nom}</p>
-          <p className="text-xs text-gray-400 font-mono">{a.code}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'ville',
-      titre: 'Localisation',
-      rendu: (_, a) => (
-        <div className="flex items-start gap-1">
-          <MapPin size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium">{a.ville}</p>
-            <p className="text-xs text-gray-400">{a.adresse}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'telephone',
-      titre: 'Contact',
-      rendu: (_, a) => (
-        <div>
-          <div className="flex items-center gap-1 text-sm">
-            <Phone size={11} className="text-gray-400" />
-            <span>{a.telephone}</span>
-          </div>
-          <p className="text-xs text-gray-400 mt-0.5">Resp. {a.responsableNom}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'nbAgents',
-      titre: 'Agents',
-      align: 'right',
-      rendu: (_, a) => (
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-1">
-            <Users size={12} className="text-gray-400" />
-            <span className="font-semibold text-sm">{a.nbAgents}</span>
-          </div>
-          <p className="text-xs text-success">{a.nbAgentsEnLigne} en ligne</p>
-        </div>
-      ),
-    },
-    {
-      key: 'active',
-      titre: 'Statut',
-      rendu: (v) => <Badge couleur={v ? 'success' : 'danger'}>{v ? 'Active' : 'Inactive'}</Badge>,
-    },
-    {
-      key: 'createdAt',
-      titre: 'Ouverture',
-      rendu: (v) => <span className="text-xs text-gray-400">{formatDate(String(v))}</span>,
-    },
-    {
-      key: 'id',
-      titre: 'Actions',
-      rendu: (_, a) => (
-        <div className="flex gap-2">
-          <button className="text-xs text-primary hover:underline font-medium">Voir</button>
-          <button
-            className={`text-xs font-medium hover:underline ${a.active ? 'text-danger' : 'text-success'}`}
-            onClick={() => handleToggle(a)}
-            disabled={toggleStatut.isPending}
-          >
-            {a.active ? 'Désactiver' : 'Activer'}
-          </button>
-        </div>
-      ),
-    },
-  ];
+  const handleExport = () =>
+    exporterCsv(agences, [
+      { titre: 'Nom', valeur: (a) => a.nom },
+      { titre: 'Code', valeur: (a) => a.code },
+      { titre: 'Ville', valeur: (a) => a.ville },
+      { titre: 'Adresse', valeur: (a) => a.adresse },
+      { titre: 'Téléphone', valeur: (a) => a.telephone },
+      { titre: 'Responsable', valeur: (a) => a.responsableNom },
+      { titre: 'Agents', valeur: (a) => a.nbAgents },
+      { titre: 'Agents en ligne', valeur: (a) => a.nbAgentsEnLigne },
+      { titre: 'Statut', valeur: (a) => a.active ? 'Active' : 'Inactive' },
+      { titre: 'Date création', valeur: (a) => formatDate(a.createdAt) },
+    ], 'agences');
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-main">Agences & Points de vente</h1>
-          <p className="text-sm text-gray-500">Gestion du réseau d&apos;agences</p>
+    <>
+      <GmPageHeader
+        fil={['Accueil', 'Agences']}
+        titre="🏪 Gestion des Agences"
+        sousTitre={
+          isLoading
+            ? 'Chargement du réseau…'
+            : `Réseau de ${nbActives} agence${nbActives > 1 ? 's' : ''} active${nbActives > 1 ? 's' : ''} — ${villes.length} ville${villes.length > 1 ? 's' : ''} couverte${villes.length > 1 ? 's' : ''}`
+        }
+        actions={
+          <>
+            <GmButton variante="outline" petit onClick={handleExport}>📥 Exporter</GmButton>
+            <GmButton variante="primary" petit onClick={() => setModalOuvert(true)}>+ Nouvelle agence</GmButton>
+          </>
+        }
+      />
+
+      {/* STATS — valeurs issues des données réelles */}
+      <div className="gm-stats-row">
+        <div className="gm-stat-card gm-total">
+          <div className="gm-stat-value">{isLoading ? '—' : nbActives}</div>
+          <div className="gm-stat-label">Agences actives</div>
+          <div className="gm-stat-sub">sur {allAgences.length} au total</div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variante="ghost"
-            taille="sm"
-            icone={<Download size={15} />}
-            onClick={() => exporterCsv(agences, [
-              { titre: 'Nom', valeur: (a) => a.nom },
-              { titre: 'Code', valeur: (a) => a.code },
-              { titre: 'Ville', valeur: (a) => a.ville },
-              { titre: 'Adresse', valeur: (a) => a.adresse },
-              { titre: 'Téléphone', valeur: (a) => a.telephone },
-              { titre: 'Responsable', valeur: (a) => a.responsableNom },
-              { titre: 'Agents', valeur: (a) => a.nbAgents },
-              { titre: 'Agents en ligne', valeur: (a) => a.nbAgentsEnLigne },
-              { titre: 'Statut', valeur: (a) => a.active ? 'Active' : 'Inactive' },
-              { titre: 'Date création', valeur: (a) => formatDate(a.createdAt) },
-            ], 'agences')}
-          >
-            Exporter
-          </Button>
-          <Button variante="primary" taille="sm" icone={<Plus size={15} />} onClick={() => setModalOuvert(true)}>
-            Nouvelle agence
-          </Button>
+        <div className="gm-stat-card gm-success">
+          <div className="gm-stat-value">{isLoading ? '—' : totalAgents}</div>
+          <div className="gm-stat-label">Agents au total</div>
+          <div className="gm-stat-sub">{totalEnLigne} en ligne maintenant</div>
+        </div>
+        <div className="gm-stat-card gm-amount">
+          <div className="gm-stat-value">{isLoading ? '—' : villes.length}</div>
+          <div className="gm-stat-label">Villes couvertes</div>
+          <div className="gm-stat-sub">{parVille[0] ? `Top : ${parVille[0].ville}` : '—'}</div>
+        </div>
+        <div className="gm-stat-card gm-pending">
+          <div className="gm-stat-value">{isLoading ? '—' : allAgences.length - nbActives}</div>
+          <div className="gm-stat-label">Agences inactives</div>
+          <div className="gm-stat-sub">à réactiver ou clôturer</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard titre="Agences actives" valeur={`${nbActives} / ${allAgences.length}`} icone="🏪" couleur="success" />
-        <StatCard titre="Total agents" valeur={totalAgents.toString()} icone={<Users size={18} />} couleur="primary" />
-        <StatCard titre="Agents en ligne" valeur={totalEnLigne.toString()} sousTexte={`sur ${totalAgents} total`} icone="🟢" couleur="default" />
-        <StatCard titre="Villes couvertes" valeur={String(new Set(allAgences.map((a) => a.ville)).size)} icone={<MapPin size={18} />} couleur="default" />
+      {/* RECHERCHE */}
+      <div className="gm-filters-bar">
+        <div className="gm-search-wrap">
+          <span className="gm-si">🔍</span>
+          <input
+            type="text"
+            placeholder="Rechercher une agence (nom, ville, code)…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <span className="gm-pag-info">
+          {isLoading ? 'Chargement…' : `${agences.length} agence(s) trouvée(s)`}
+        </span>
       </div>
 
-      {/* Carte visuelle par ville */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {['Abidjan', 'Bouake', 'San Pedro'].map((ville) => {
-          const liste = allAgences.filter((a) => a.ville === ville);
-          return (
-            <div key={ville} className="bg-white rounded-card shadow-card p-4">
-              <h3 className="font-semibold text-sm text-text-main mb-3 flex items-center gap-2">
-                <MapPin size={14} className="text-primary" /> {ville}
-              </h3>
-              <div className="space-y-2">
-                {liste.length === 0 && <p className="text-xs text-gray-400">Aucune agence</p>}
-                {liste.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600">{a.nom}</span>
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{a.nbAgentsEnLigne}/{a.nbAgents}</span>
-                      <div className={`w-2 h-2 rounded-full ${a.active ? 'bg-success' : 'bg-gray-300'}`} />
-                    </div>
+      <div className="gm-content-grid">
+        {/* CARTES AGENCES */}
+        <div className="gm-agences-grid">
+          {isLoading && <div className="gm-agence-card"><div className="gm-agence-city">Chargement des agences…</div></div>}
+
+          {!isLoading && agences.length === 0 && (
+            <div className="gm-agence-card"><div className="gm-agence-city">Aucune agence trouvée</div></div>
+          )}
+
+          {!isLoading && agences.map((a) => (
+            <div className="gm-agence-card" key={a.id}>
+              <div className="gm-agence-card-header">
+                <div>
+                  <div className="gm-agence-name">🏪 {a.nom}</div>
+                  <div className="gm-agence-city">
+                    📍 {a.ville || '—'}{a.adresse ? `, ${a.adresse}` : ''}
                   </div>
-                ))}
+                </div>
+                <span className={`gm-status-pill ${a.active ? 'gm-pill-active' : 'gm-pill-danger'}`}>
+                  {a.active ? '● Active' : '● Inactive'}
+                </span>
+              </div>
+
+              <div className="gm-agence-metrics">
+                <div className="gm-agence-metric">
+                  <div className="gm-agence-metric-value">{a.nbAgents}</div>
+                  <div className="gm-agence-metric-label">Agents</div>
+                </div>
+                <div className="gm-agence-metric">
+                  <div className="gm-agence-metric-value" style={{ color: 'var(--gm-success)' }}>{a.nbAgentsEnLigne}</div>
+                  <div className="gm-agence-metric-label">En ligne</div>
+                </div>
+                <div className="gm-agence-metric">
+                  <div className="gm-agence-metric-value" style={{ fontSize: 13 }}>{a.code || '—'}</div>
+                  <div className="gm-agence-metric-label">Code agence</div>
+                </div>
+                <div className="gm-agence-metric">
+                  <div className="gm-agence-metric-value" style={{ fontSize: 13 }}>
+                    {a.createdAt ? formatDate(a.createdAt) : '—'}
+                  </div>
+                  <div className="gm-agence-metric-label">Ouverture</div>
+                </div>
+              </div>
+
+              <div className="gm-agence-metric" style={{ marginBottom: 14 }}>
+                <div className="gm-agence-metric-label">
+                  📞 {a.telephone || '—'} · Resp. {a.responsableNom || '—'}
+                </div>
+              </div>
+
+              <div className="gm-agence-actions">
+                <button type="button" className="gm-agence-btn gm-primary">👁️ Voir détails</button>
+                <button
+                  type="button"
+                  className="gm-agence-btn"
+                  onClick={() => handleToggle(a)}
+                  disabled={toggleStatut.isPending}
+                  style={a.active ? { color: 'var(--gm-danger)' } : { color: 'var(--gm-success)' }}
+                >
+                  {a.active ? '⏸️ Désactiver' : '▶️ Activer'}
+                </button>
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      <Card padding="none">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <Input
-                placeholder="Rechercher une agence (nom, ville, code)..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                icone={<Search size={16} />}
-              />
-            </div>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            {isLoading ? 'Chargement...' : `${agences.length} agence(s) trouvée(s)`}
-          </p>
+          ))}
         </div>
-        <Table colonnes={colonnes} donnees={agences} messageVide="Aucune agence trouvée" />
-      </Card>
+
+        {/* RÉPARTITION PAR VILLE — villes réelles uniquement */}
+        <div className="gm-map-card">
+          <div className="gm-map-title">
+            🗺️ Répartition du réseau
+            <span style={{ fontSize: 11, color: 'var(--gm-text-2)', fontWeight: 400 }}>
+              {isLoading ? '—' : `${allAgences.length} point${allAgences.length > 1 ? 's' : ''}`}
+            </span>
+          </div>
+
+          {isLoading && <div className="gm-agence-city">Chargement…</div>}
+          {!isLoading && parVille.length === 0 && <div className="gm-agence-city">Aucune ville renseignée</div>}
+
+          {!isLoading && parVille.map(({ ville, liste }, i) => (
+            <div key={ville} style={{ marginBottom: 14 }}>
+              <div className="gm-agence-name" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <svg width="12" height="12" aria-hidden="true">
+                  <circle cx="6" cy="6" r="5" fill={COULEURS_VILLE[i % COULEURS_VILLE.length]} />
+                </svg>
+                {ville}
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gm-text-2)', fontWeight: 400 }}>
+                  {liste.length} agence{liste.length > 1 ? 's' : ''}
+                </span>
+              </div>
+              {liste.map((a) => (
+                <div key={a.id} className="gm-map-legend-item" style={{ justifyContent: 'space-between', width: '100%', padding: '3px 0' }}>
+                  <span>{a.nom}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <strong style={{ color: 'var(--gm-text)' }}>{a.nbAgentsEnLigne}/{a.nbAgents}</strong>
+                    <span
+                      style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: a.active ? 'var(--gm-success)' : 'var(--gm-border)',
+                        display: 'inline-block',
+                      }}
+                    />
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {!isLoading && parVille.length > 0 && (
+            <div className="gm-map-legend">
+              {parVille.map(({ ville }, i) => (
+                <div className="gm-map-legend-item" key={ville}>
+                  <svg width="12" height="12" aria-hidden="true">
+                    <circle cx="6" cy="6" r="5" fill={COULEURS_VILLE[i % COULEURS_VILLE.length]} />
+                  </svg>
+                  {ville}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <Modal ouvert={modalOuvert} onFermer={() => { setModalOuvert(false); setForm(FORM_INIT); setErreur(''); setSucces(''); }} titre="Nouvelle agence" taille="md">
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -249,6 +283,6 @@ export default function AgencesPage() {
           </div>
         </form>
       </Modal>
-    </div>
+    </>
   );
 }
