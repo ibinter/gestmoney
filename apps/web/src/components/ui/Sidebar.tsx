@@ -280,7 +280,15 @@ export function Sidebar({
       {!compact && <div className="gm-sidebar-context">{contextLabel}</div>}
 
       {/* ── Navigation ────────────────────────────────────────── */}
-      <nav className="flex-1 overflow-y-auto pb-2" aria-label="Navigation principale">
+      {/* `minHeight: 0` est indispensable : dans un conteneur flex en colonne,
+          un enfant `flex:1` garde `min-height:auto` et refuse de rétrécir sous
+          la hauteur de son contenu — le défilement ne s'activerait jamais.
+          En inline pour ne pas dépendre de l'ordre des couches CSS. */}
+      <nav
+        className="pb-2"
+        style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto' }}
+        aria-label="Navigation principale"
+      >
         {NAV_SECTIONS.map((section, si) => {
           const visibleItems = section.items.filter(canSeeItem);
           if (visibleItems.length === 0) return null;
@@ -432,9 +440,22 @@ export function Sidebar({
   return (
     <aside
       className={clsx(
-        'gm-sidebar !hidden lg:!flex !static !h-auto !z-auto !overflow-hidden flex-shrink-0 transition-all duration-300 ease-in-out',
+        'gm-sidebar !hidden lg:!flex flex-shrink-0 transition-all duration-300 ease-in-out',
         compact ? '!w-16' : '!w-[260px]'
       )}
+      // Géométrie en style inline volontairement : le CSS porté de la maquette
+      // (.gm-sidebar) et les utilitaires Tailwind en `!important` se
+      // disputaient la hauteur et le positionnement, et l'ordre des couches
+      // diffère entre dev et build de production — la sidebar s'étirait alors
+      // à la hauteur de son contenu (~2500px), sans défilement possible.
+      // L'inline tranche de façon déterministe des deux côtés.
+      style={{
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+        overflow: 'hidden',
+        zIndex: 30,
+      }}
       aria-label="Menu de navigation"
     >
       {contenu}
