@@ -19,38 +19,47 @@ Crée : l'exercice fiscal courant, 21 comptes SYSCOHADA, 16 écritures
 équilibrées et réparties sur l'année, ~185 entrées de journal d'audit.
 Le script est **idempotent** : le relancer ne duplique rien.
 
-### Rafraîchir l'alerte d'audit
+### Alerte d'audit — automatisée
 
 L'alerte `EXCESSIVE_ACTIVITY` porte sur une fenêtre **glissante d'une heure**
 (plus de 50 actions par utilisateur). Un pic seedé il y a plus d'une heure
-disparaît donc naturellement — ce n'est pas un bug. Avant une démonstration :
+disparaît donc naturellement — ce n'est pas un bug.
+
+Une tâche cron sur le VPS s'en charge **toutes les 30 minutes**, aucune action
+manuelle n'est requise :
+
+```
+*/30 * * * * /opt/gestmoney/cron-demo.sh     # journal : /var/log/gestmoney-demo.log
+```
+
+Pour forcer un rafraîchissement immédiat :
 
 ```bash
 docker exec -w /app/apps/api gestmoney_api node refresh-alerte-audit.js
 ```
 
-## Stock (ÉPHÉMÈRE — à rejouer après chaque redémarrage)
-
-`StockService` conserve ses données dans des **tableaux en mémoire**
-(`const products: IProduct[] = []`), pas en base. Le jeu de données disparaît
-donc à chaque redémarrage ou redéploiement du conteneur API.
+## Stock (persistant depuis le 20/07/2026)
 
 ```bash
 bash scripts/demo/seed-stock.sh
 ```
 
+À lancer **une seule fois** : `StockService` écrit désormais en base (modèles
+`Product`, `Inventory`, `StockMovement`), les données survivent aux
+redémarrages et redéploiements.
+
 Crée 12 produits (SIM, terminaux, accessoires, consommables), leur stock
 initial et quelques sorties. Quatre produits passent volontairement sous leur
 seuil pour déclencher les alertes de stock bas.
 
-Le script est idempotent (il sort si la démo est déjà présente). Pour repartir
-de zéro : `docker restart gestmoney_api`, puis le relancer.
+Le script est idempotent : il sort sans rien faire si la démo est déjà en
+place. Pour repartir de zéro, supprimer les produits en base puis le relancer.
 
 Les chaînes accentuées y sont écrites en échappement JSON (`unité`) : le
 passage par bash/curl sous Windows corrompait l'UTF-8 littéral.
 
-> Pour rendre ce module durable, il faudrait faire écrire `StockService` dans
-> Prisma (les modèles `Product`, `Inventory`, `StockMovement` existent déjà).
+> Restent volatils : **fournisseurs** et **bons de commande**, faute de modèles
+> `Supplier` / `PurchaseOrder` au schéma Prisma.
 
 ## Retirer les données de démonstration
 
