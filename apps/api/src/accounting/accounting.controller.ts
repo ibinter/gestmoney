@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,9 +21,14 @@ import { CreateJournalEntryDto } from './dto/journal-entry.dto';
 import { QueryLedgerDto } from './dto/query-ledger.dto';
 import { CreateFiscalYearDto, CloseFiscalYearDto } from './dto/fiscal-year.dto';
 import { ReconcileDto, CreateChartOfAccountDto, AutoEntryDto } from './dto/reconcile.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
+// Ce contrôleur n'avait AUCUNE garde : les endpoints comptables étaient
+// exposés sans authentification, et comme chaque handler lit `req.user.tenantId`
+// ils échouaient tous en 500 sur `undefined`. La garde corrige les deux.
 @ApiTags('Comptabilité SYSCOHADA')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('accounting')
 export class AccountingController {
   constructor(private readonly accountingService: AccountingService) {}
