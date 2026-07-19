@@ -1881,6 +1881,153 @@ enum PaiementStatut {
   EXPIRE
 }
 
+/// Configuration d'un moyen de paiement. RIEN n'est codé en dur : clés,
+/// numéros de réception, coordonnées bancaires et adresses de wallet vivent
+/// ici et sont modifiables depuis l'administration, sans redéploiement.
+/// `secrets` ne doit JAMAIS être renvoyé tel quel au client — voir
+/// PaymentConfigService, qui le masque.
+model PaymentMethodConfig {
+  id            String        @id @default(cuid())
+  /// null = configuration globale de la plateforme
+  tenantId      String?
+  methode       PaymentMethod
+  /// Discrimine les variantes d'une même méthode : ORANGE_MONEY, MTN, WAVE,
+  /// USDT_TRC20, WESTERN_UNION… Vide pour les méthodes sans variante.
+  variante      String        @default("")
+  libelle       String
+  actif         Boolean       @default(false)
+  /// Mode bac à sable des passerelles électroniques
+  sandbox       Boolean       @default(true)
+  /// Données NON sensibles, affichables au client : numéro de réception,
+  /// titulaire, IBAN, BIC, adresse de wallet, réseau, instructions…
+  parametres    Json          @default("{}")
+  /// Clés secrètes (API key, secret, webhook secret). Chiffré au repos.
+  secrets       Json          @default("{}")
+  /// Restrictions : [] = aucune restriction
+  paysAutorises String[]      @default([])
+  plansAutorises String[]     @default([])
+  devises       String[]      @default([])
+  ordreAffichage Int          @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([tenantId, methode, variante])
+  @@index([actif])
+  @@map("payment_method_configs")
+}
+
+enum PaymentMethod {
+  MOBILE_MONEY_MANUEL
+  PASSERELLE
+  VIREMENT_NATIONAL
+  VIREMENT_INTERNATIONAL
+  TRANSFERT_ARGENT
+  ESPECES_AGENCE
+  CHEQUE
+  CRYPTO
+  VOUCHER
+  PAIEMENT_LIVRAISON
+}
+
+/// Journal des modifications de configuration : qui a changé quoi et quand.
+model PaymentConfigAudit {
+  id         String   @id @default(cuid())
+  configId   String
+  userId     String?
+  champ      String
+  ancienneValeur String?
+  nouvelleValeur String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([configId])
+  @@index([createdAt])
+  @@map("payment_config_audits")
+}
+
+/// Preuve de paiement téléversée par le client (capture Mobile Money,
+/// bordereau de virement, MTCN, hash de transaction crypto…).
+/// Stockée hors de /public — jamais servie en statique.
+model PaymentProof {
+  id           String       @id @default(cuid())
+  paiementId   String
+  /// Chemin dans le stockage privé
+  cheminFichier String?
+  nomOriginal  String?
+  mimeType     String?
+  tailleOctets Int?
+  /// SHA256 du fichier : permet de détecter une preuve déjà soumise ailleurs
+  hashSha256   String?
+  /// Référence textuelle : MTCN, numéro de chèque, hash blockchain, code reçu
+  referenceTexte String?
+  statut       ProofStatut  @default(EN_ATTENTE)
+  motifRejet   String?
+  revuPar      String?
+  revuAt       DateTime?
+  createdAt    DateTime     @default(now())
+
+  @@index([paiementId])
+  @@index([hashSha256])
+  @@index([statut])
+  @@map("payment_proofs")
+}
+
+enum ProofStatut {
+  EN_ATTENTE
+  VALIDEE
+  REJETEE
+}
+
+/// Idempotence des webhooks : un même événement ne peut activer qu'une fois.
+/// La contrainte d'unicité est la garantie — pas un test applicatif, qui
+/// laisserait passer deux webhooks simultanés.
+model WebhookEvent {
+  id           String   @id @default(cuid())
+  provider     String
+  /// Identifiant fourni par la passerelle
+  eventId      String
+  signature    String?
+  payload      Json
+  traite       Boolean  @default(false)
+  traiteAt     DateTime?
+  erreur       String?
+  createdAt    DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([traite])
+  @@map("webhook_events")
+}
+
+/// Codes prépayés vendus par des revendeurs agréés. Usage unique.
+model Voucher {
+  id          String        @id @default(cuid())
+  tenantId    String?
+  /// Stocké en clair pour la recherche, mais généré aléatoirement (non devinable)
+  code        String        @unique
+  lot         String?
+  plan        String?
+  valeur      Decimal       @db.Decimal(15, 2)
+  devise      String        @default("XOF")
+  /// Durée d'abonnement accordée à l'utilisation
+  dureeJours  Int           @default(30)
+  statut      VoucherStatut @default(DISPONIBLE)
+  utilisePar  String?
+  utiliseAt   DateTime?
+  expireAt    DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([statut])
+  @@index([lot])
+  @@map("vouchers")
+}
+
+enum VoucherStatut {
+  DISPONIBLE
+  UTILISE
+  EXPIRE
+  ANNULE
+}
+
 // ==============================================================================
 // SARA — ASSISTANT IA
 // ==============================================================================
