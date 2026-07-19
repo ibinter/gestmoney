@@ -76,6 +76,23 @@ export interface IPurchaseOrder {
   updatedAt: Date;
 }
 
+/**
+ * Normalise la pagination. Les valeurs par défaut d'un paramètre (`page = 1`)
+ * ne s'appliquent qu'à `undefined` : un `null` les traverse et
+ * `slice((null - 1) * null, null * null)` vaut `slice(0, 0)`, soit une liste
+ * VIDE alors que `total` annonçait des éléments. C'est ce qui rendait
+ * l'inventaire, les produits et les mouvements invisibles côté application.
+ * On accepte donc aussi null, les chaînes et les valeurs hors bornes.
+ */
+function pagination(page: unknown, limit: unknown, limitParDefaut: number) {
+  const p = Math.trunc(Number(page));
+  const l = Math.trunc(Number(limit));
+  return {
+    page: Number.isFinite(p) && p > 0 ? p : 1,
+    limit: Number.isFinite(l) && l > 0 ? Math.min(l, 500) : limitParDefaut,
+  };
+}
+
 // ─── In-memory stores ─────────────────────────────────────────────────────────
 
 const products: IProduct[] = [];
@@ -113,8 +130,8 @@ export class StockService {
 
   findAllProducts(
     tenantId: string,
-    page = 1,
-    limit = 20,
+    page?: number,
+    limit?: number,
     category?: ProductCategory,
     search?: string,
   ) {
@@ -125,7 +142,8 @@ export class StockService {
       data = data.filter((p) => p.name.toLowerCase().includes(s) || p.sku.toLowerCase().includes(s));
     }
     const total = data.length;
-    return { data: data.slice((page - 1) * limit, page * limit), total, page, limit };
+    const { page: p, limit: l } = pagination(page, limit, 20);
+    return { data: data.slice((p - 1) * l, p * l), total, page: p, limit: l };
   }
 
   findProduct(id: string, tenantId: string): IProduct {
@@ -142,20 +160,21 @@ export class StockService {
 
   // ─── Inventaire ─────────────────────────────────────────────────────────────
 
-  getInventory(tenantId: string, agencyId?: string, page = 1, limit = 50) {
+  getInventory(tenantId: string, agencyId?: string, page?: number, limit?: number) {
     let items = Array.from(inventory.values()).filter((i) => i.tenantId === tenantId);
     if (agencyId) items = items.filter((i) => i.agencyId === agencyId);
 
     const total = items.length;
-    const paginated = items.slice((page - 1) * limit, page * limit);
+    const { page: p, limit: l } = pagination(page, limit, 50);
+    const paginated = items.slice((p - 1) * l, p * l);
 
     // Attacher produit
     const enriched = paginated.map((item) => ({
       ...item,
-      product: products.find((p) => p.id === item.productId),
+      product: products.find((prod) => prod.id === item.productId),
     }));
 
-    return { data: enriched, total, page, limit };
+    return { data: enriched, total, page: p, limit: l };
   }
 
   private getOrCreateInventory(tenantId: string, productId: string, agencyId: string): IInventoryItem {
@@ -240,8 +259,8 @@ export class StockService {
 
   getMovements(
     tenantId: string,
-    page = 1,
-    limit = 50,
+    page?: number,
+    limit?: number,
     productId?: string,
     agencyId?: string,
   ) {
@@ -251,7 +270,8 @@ export class StockService {
     data = data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     const total = data.length;
-    return { data: data.slice((page - 1) * limit, page * limit), total, page, limit };
+    const { page: p, limit: l } = pagination(page, limit, 50);
+    return { data: data.slice((p - 1) * l, p * l), total, page: p, limit: l };
   }
 
   // ─── Alertes stock bas ───────────────────────────────────────────────────────
@@ -322,12 +342,13 @@ export class StockService {
     return order;
   }
 
-  getPurchaseOrders(tenantId: string, page = 1, limit = 20) {
+  getPurchaseOrders(tenantId: string, page?: number, limit?: number) {
     const data = purchaseOrders
       .filter((o) => o.tenantId === tenantId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     const total = data.length;
-    return { data: data.slice((page - 1) * limit, page * limit), total, page, limit };
+    const { page: p, limit: l } = pagination(page, limit, 20);
+    return { data: data.slice((p - 1) * l, p * l), total, page: p, limit: l };
   }
 
   // ─── Valorisation ────────────────────────────────────────────────────────────
