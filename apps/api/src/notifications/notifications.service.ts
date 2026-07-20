@@ -133,10 +133,12 @@ export class NotificationsService {
   // ─── Historique notifications ────────────────────────────────────────────────
 
   async getHistory(tenantId: string, userId?: string, page = 1, limit = 20) {
+    // Le schéma nomme la colonne `recipient` (et non `destinataire`) ;
+    // `userId` est aussi renseigné pour les notifications PUSH.
     const where: any = { tenantId };
-    if (userId) where.destinataire = userId;
+    if (userId) where.OR = [{ recipient: userId }, { userId }];
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.notificationLog.findMany({
         where,
         skip: (page - 1) * limit,
@@ -145,6 +147,22 @@ export class NotificationsService {
       }),
       this.prisma.notificationLog.count({ where }),
     ]);
+
+    // Sortie en noms français : le front consomme déjà cette forme.
+    const data = rows.map((n) => ({
+      id: n.id,
+      canal: n.channel,
+      type: 'systeme',
+      destinataire: n.recipient,
+      titre: n.subject ?? n.channel,
+      description: n.body,
+      contenu: n.body,
+      statut: n.status,
+      erreur: n.error,
+      lue: false,
+      date: n.createdAt,
+      createdAt: n.createdAt,
+    }));
 
     return { data, total, page, limit };
   }

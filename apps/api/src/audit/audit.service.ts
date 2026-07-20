@@ -1,17 +1,18 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { AuditAction, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryAuditDto } from './dto/query-audit.dto';
 
 export interface AuditLogEntry {
   id: string;
   tenantId: string;
-  userId?: string;
+  userId?: string | null;
   action: string;
-  entityType?: string;
-  entityId?: string;
+  entityType?: string | null;
+  entityId?: string | null;
   details?: any;
-  ipAddress?: string;
-  userAgent?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   createdAt: Date;
 }
 
@@ -23,11 +24,79 @@ export interface SuspiciousActivity {
   severity: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
+/**
+ * Le modèle Prisma `AuditLog` expose `resource` / `resourceId` / `newValues`
+ * (et non `entityType` / `entityId` / `details`), et `action` est l'enum
+ * `AuditAction` — pas une chaîne libre. Les requêtes utilisent donc les noms
+ * réels, et la réponse HTTP conserve la forme historique attendue par le front.
+ */
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Valeurs autorisées par l'enum Prisma `AuditAction`. */
+  private static readonly ACTIONS = Object.values(AuditAction) as AuditAction[];
+
+  /** Actions de l'enum relevant de la sécurité (accès / cycle de vie compte). */
+  private static readonly SECURITY_ACTIONS: AuditAction[] = [
+    AuditAction.LOGIN,
+    AuditAction.LOGOUT,
+    AuditAction.SUSPEND,
+    AuditAction.ACTIVATE,
+  ];
+
+  /** Ressources considérées comme financières (l'enum action ne les distingue pas). */
+  private static readonly FINANCIAL_RESOURCES = [
+    'transaction',
+    'transactions',
+    'reversal',
+    'float',
+    'float_account',
+    'replenishment',
+    'replenishment_request',
+    'commission',
+    'commission_payment',
+    'payment',
+    'journal_entry',
+    'vault_operation',
+  ];
+
+  /** Convertit une chaîne en membre de l'enum, ou `undefined` si inconnue. */
+  private toAction(value?: string): AuditAction | undefined {
+    if (!value) return undefined;
+    const upper = value.toUpperCase() as AuditAction;
+    return AuditService.ACTIONS.includes(upper) ? upper : undefined;
+  }
+
+  /** Mappe une ligne Prisma vers la forme exposée par l'API. */
+  private toEntry(l: {
+    id: string;
+    tenantId: string;
+    userId: string | null;
+    action: AuditAction;
+    resource: string;
+    resourceId: string | null;
+    newValues: Prisma.JsonValue | null;
+    oldValues: Prisma.JsonValue | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    createdAt: Date;
+  }): AuditLogEntry {
+    return {
+      id: l.id,
+      tenantId: l.tenantId,
+      userId: l.userId,
+      action: l.action,
+      entityType: l.resource,
+      entityId: l.resourceId,
+      details: l.newValues ?? l.oldValues ?? null,
+      ipAddress: l.ipAddress,
+      userAgent: l.userAgent,
+      createdAt: l.createdAt,
+    };
+  }
 
   // ─── Enregistrement ───────────────────────────────────────────────────────────
 
@@ -40,15 +109,22 @@ export class AuditService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<void> {
+    const auditAction = this.toAction(action);
+    if (!auditAction) {
+      this.logger.warn(`Action audit inconnue ignorée: ${action}`);
+      return;
+    }
+
     try {
       await this.prisma.auditLog.create({
         data: {
           tenantId,
           userId,
-          action,
-          entityType: resource,
-          details: data ?? {},
-          // ipAddress et userAgent si le modèle le supporte
+          action: auditAction,
+          resource,
+          newValues: data ?? {},
+          ipAddress,
+          userAgent,
         },
       });
     } catch (err: any) {
@@ -64,15 +140,18 @@ export class AuditService {
   ): Promise<{ data: AuditLogEntry[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 50, action, userId, resource, startDate, endDate } = filters;
 
-    const where: any = { tenantId };
+    const where: Prisma.AuditLogWhereInput = { tenantId };
 
-    if (action) where.action = { contains: action, mode: 'insensitive' };
+    // `action` est un enum : pas de `contains`, uniquement une égalité valide.
+    const auditAction = this.toAction(action);
+    if (auditAction) where.action = auditAction;
     if (userId) where.userId = userId;
-    if (resource) where.entityType = resource;
+    if (resource) where.resource = resource;
     if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate);
+      where.createdAt = {
+        ...(startDate && { gte: new Date(startDate) }),
+        ...(endDate && { lte: new Date(endDate) }),
+      };
     }
 
     const skip = (page - 1) * limit;
@@ -87,13 +166,13 @@ export class AuditService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data: data as unknown as AuditLogEntry[], total, page, limit };
+    return { data: data.map((l) => this.toEntry(l)), total, page, limit };
   }
 
   async findById(id: string, tenantId: string): Promise<AuditLogEntry> {
     const log = await this.prisma.auditLog.findFirst({ where: { id, tenantId } });
     if (!log) throw new NotFoundException(`Entrée audit ${id} introuvable`);
-    return log as unknown as AuditLogEntry;
+    return this.toEntry(log);
   }
 
   async getByUser(userId: string, tenantId: string, page = 1, limit = 50) {
@@ -105,7 +184,7 @@ export class AuditService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    return { data: data.map((l) => this.toEntry(l)), total, page, limit };
   }
 
   // ─── Événements sécurité ──────────────────────────────────────────────────────
@@ -114,20 +193,9 @@ export class AuditService {
     tenantId: string,
     period: { start: Date; end: Date },
   ) {
-    const securityActions = [
-      'LOGIN',
-      'LOGOUT',
-      'LOGIN_FAILED',
-      'PASSWORD_RESET',
-      'TWO_FA_ENABLED',
-      'TWO_FA_DISABLED',
-      'ACCOUNT_LOCKED',
-      'TOKEN_REFRESHED',
-    ];
-
-    const where = {
+    const where: Prisma.AuditLogWhereInput = {
       tenantId,
-      action: { in: securityActions },
+      action: { in: AuditService.SECURITY_ACTIONS },
       createdAt: { gte: period.start, lte: period.end },
     };
 
@@ -145,8 +213,8 @@ export class AuditService {
     ]);
 
     return {
-      events: data,
-      summary: byAction.map((r) => ({ action: r.action, count: r._count.id })),
+      events: data.map((l) => this.toEntry(l)),
+      summary: byAction.map((r) => ({ action: r.action as string, count: r._count.id })),
     };
   }
 
@@ -157,24 +225,18 @@ export class AuditService {
     page = 1,
     limit = 50,
   ) {
-    const financialActions = [
-      'TRANSACTION_CREATED',
-      'TRANSACTION_COMPLETED',
-      'TRANSACTION_CANCELLED',
-      'TRANSACTION_REVERSED',
-      'FLOAT_REPLENISHMENT',
-      'COMMISSION_PAID',
-    ];
-
     const skip = (page - 1) * limit;
-    const where = { tenantId, action: { in: financialActions } };
+    const where: Prisma.AuditLogWhereInput = {
+      tenantId,
+      resource: { in: AuditService.FINANCIAL_RESOURCES },
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    return { data: data.map((l) => this.toEntry(l)), total, page, limit };
   }
 
   // ─── Détection activité suspecte ──────────────────────────────────────────────
@@ -198,21 +260,21 @@ export class AuditService {
       });
     }
 
-    // Trop d'échecs de connexion
-    const loginFailed = await this.prisma.auditLog.count({
+    // Volume de connexions anormal (l'enum ne distingue pas les échecs)
+    const logins = await this.prisma.auditLog.count({
       where: {
         tenantId,
         userId,
-        action: 'LOGIN_FAILED',
+        action: AuditAction.LOGIN,
         createdAt: { gte: new Date(Date.now() - 900000) }, // 15 min
       },
     });
 
-    if (loginFailed >= 5) {
+    if (logins >= 5) {
       alerts.push({
         userId,
-        reason: `${loginFailed} tentatives de connexion échouées en 15 minutes`,
-        count: loginFailed,
+        reason: `${logins} connexions en 15 minutes`,
+        count: logins,
         period: '15min',
         severity: 'HIGH',
       });
@@ -245,8 +307,8 @@ export class AuditService {
           l.createdAt.toISOString(),
           l.action,
           l.userId ?? '',
-          l.entityType ?? '',
-          JSON.stringify(l.details ?? {}),
+          l.resource ?? '',
+          JSON.stringify(l.newValues ?? {}),
         ].join(','),
       );
       return Buffer.from([headers.join(','), ...rows].join('\n'), 'utf-8');
@@ -261,7 +323,7 @@ th{background:#1a5276;color:white;padding:6px}td{padding:6px;border-bottom:1px s
 <p>Période: ${period.start.toLocaleDateString('fr-FR')} → ${period.end.toLocaleDateString('fr-FR')}</p>
 <table>
 <tr><th>Date</th><th>Action</th><th>Utilisateur</th><th>Entité</th></tr>
-${data.map((l) => `<tr><td>${l.createdAt.toLocaleString('fr-FR')}</td><td>${l.action}</td><td>${l.userId ?? '-'}</td><td>${l.entityType ?? '-'}</td></tr>`).join('')}
+${data.map((l) => `<tr><td>${l.createdAt.toLocaleString('fr-FR')}</td><td>${l.action}</td><td>${l.userId ?? '-'}</td><td>${l.resource ?? '-'}</td></tr>`).join('')}
 </table></body></html>`;
     return Buffer.from(html, 'utf-8');
   }
@@ -291,7 +353,7 @@ ${data.map((l) => `<tr><td>${l.createdAt.toLocaleString('fr-FR')}</td><td>${l.ac
 
     return {
       total,
-      byAction: byAction.map((r) => ({ action: r.action, count: r._count.id })),
+      byAction: byAction.map((r) => ({ action: r.action as string, count: r._count.id })),
       byUser: byUser.map((r) => ({ userId: r.userId, count: r._count.id })),
     };
   }
