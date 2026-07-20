@@ -30,6 +30,21 @@ export interface SuspiciousActivity {
  * `AuditAction` — pas une chaîne libre. Les requêtes utilisent donc les noms
  * réels, et la réponse HTTP conserve la forme historique attendue par le front.
  */
+/**
+ * Normalise la pagination. Une valeur par défaut de paramètre (`page = 1`) ne
+ * couvre que `undefined` : le contrôleur transmet `null` quand le paramètre de
+ * requête est absent, ce qui produit `take: null` et fait rejeter la requête
+ * par Prisma (« + take: Int »). C'est ce qui mettait /audit/financial en 500.
+ */
+function normaliserPagination(page?: unknown, limit?: unknown, limitParDefaut = 50) {
+  const p = Math.trunc(Number(page));
+  const l = Math.trunc(Number(limit));
+  return {
+    page: Number.isFinite(p) && p > 0 ? p : 1,
+    limit: Number.isFinite(l) && l > 0 ? Math.min(l, 500) : limitParDefaut,
+  };
+}
+
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
@@ -138,7 +153,8 @@ export class AuditService {
     filters: QueryAuditDto,
     tenantId: string,
   ): Promise<{ data: AuditLogEntry[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 50, action, userId, resource, startDate, endDate } = filters;
+    const { action, userId, resource, startDate, endDate } = filters;
+    const { page: p, limit: l } = normaliserPagination(filters.page, filters.limit);
 
     const where: Prisma.AuditLogWhereInput = { tenantId };
 
@@ -154,19 +170,19 @@ export class AuditService {
       };
     }
 
-    const skip = (page - 1) * limit;
+    const skip = (p - 1) * l;
 
     const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
         skip,
-        take: limit,
+        take: l,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data: data.map((l) => this.toEntry(l)), total, page, limit };
+    return { data: data.map((e) => this.toEntry(e)), total, page: p, limit: l };
   }
 
   async findById(id: string, tenantId: string): Promise<AuditLogEntry> {
@@ -175,16 +191,17 @@ export class AuditService {
     return this.toEntry(log);
   }
 
-  async getByUser(userId: string, tenantId: string, page = 1, limit = 50) {
-    const skip = (page - 1) * limit;
+  async getByUser(userId: string, tenantId: string, page?: number, limit?: number) {
+    const { page: p, limit: l } = normaliserPagination(page, limit);
+    const skip = (p - 1) * l;
     const where = { tenantId, userId };
 
     const [data, total] = await Promise.all([
-      this.prisma.auditLog.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      this.prisma.auditLog.findMany({ where, skip, take: l, orderBy: { createdAt: 'desc' } }),
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data: data.map((l) => this.toEntry(l)), total, page, limit };
+    return { data: data.map((e) => this.toEntry(e)), total, page: p, limit: l };
   }
 
   // ─── Événements sécurité ──────────────────────────────────────────────────────
@@ -222,21 +239,22 @@ export class AuditService {
 
   async getFinancialAudit(
     tenantId: string,
-    page = 1,
-    limit = 50,
+    page?: number,
+    limit?: number,
   ) {
-    const skip = (page - 1) * limit;
+    const { page: p, limit: l } = normaliserPagination(page, limit);
+    const skip = (p - 1) * l;
     const where: Prisma.AuditLogWhereInput = {
       tenantId,
       resource: { in: AuditService.FINANCIAL_RESOURCES },
     };
 
     const [data, total] = await Promise.all([
-      this.prisma.auditLog.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      this.prisma.auditLog.findMany({ where, skip, take: l, orderBy: { createdAt: 'desc' } }),
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data: data.map((l) => this.toEntry(l)), total, page, limit };
+    return { data: data.map((e) => this.toEntry(e)), total, page: p, limit: l };
   }
 
   // ─── Détection activité suspecte ──────────────────────────────────────────────
