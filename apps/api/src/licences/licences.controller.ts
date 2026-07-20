@@ -21,6 +21,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleType } from '../common/enums/role.enum';
+import { SansLicence } from '../common/decorators/sans-licence.decorator';
 import { LicencesService } from './licences.service';
 import { LicencesScheduler } from './licences.scheduler';
 import {
@@ -42,6 +43,9 @@ import {
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(RoleType.SUPER_ADMIN)
+// Consulter et régulariser sa licence ne peut pas dépendre de l'état de cette
+// licence : ce serait circulaire.
+@SansLicence()
 @Controller('licences')
 export class LicencesController {
   constructor(
@@ -50,6 +54,26 @@ export class LicencesController {
   ) {}
 
   // ─── Consultation ──────────────────────────────────────────────────────────
+
+  /**
+   * Statut de licence de SON PROPRE établissement.
+   *
+   * Déclarée AVANT `:tenantId/statut`, sinon le paramètre dynamique avale
+   * `/licences/mon-statut` et répond « Tenant mon-statut non trouvé » (404).
+   *
+   * `@Roles()` (liste vide) neutralise le `@Roles(SUPER_ADMIN)` de la classe :
+   * `RolesGuard` laisse passer quand aucun rôle n'est exigé. Tout utilisateur
+   * authentifié doit pouvoir savoir où en est son abonnement — c'est ce que le
+   * bandeau d'avertissement du front interroge, et il n'expose que le tenant
+   * porté par le JWT, jamais celui d'un autre.
+   */
+  @Get('mon-statut')
+  @Roles()
+  @ApiOperation({ summary: 'Statut de licence de son propre établissement' })
+  @ApiResponse({ status: 200, description: 'Statut consolidé de la licence' })
+  getMonStatut(@CurrentUser('tenantId') tenantId: string) {
+    return this.licencesService.getStatutLicence(tenantId);
+  }
 
   @Get(':tenantId/statut')
   @ApiOperation({ summary: "Consulter le statut de licence d'un établissement" })

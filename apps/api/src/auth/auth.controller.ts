@@ -28,11 +28,16 @@ import {
   Verify2FADto,
 } from './dto/reset-password.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { SansLicence } from '../common/decorators/sans-licence.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
 import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Auth')
+// Connexion, inscription, refresh, déconnexion. Sans cette exemption, un client
+// dont la licence a expiré ne pourrait même plus s'authentifier — donc plus
+// jamais atteindre l'écran de paiement.
+@SansLicence()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

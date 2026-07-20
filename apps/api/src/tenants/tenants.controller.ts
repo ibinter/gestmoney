@@ -26,11 +26,16 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleType } from '../common/enums/role.enum';
+import { SansLicence } from '../common/decorators/sans-licence.decorator';
 
 @ApiTags('Tenants')
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(RoleType.SUPER_ADMIN)
+// Consultation de l'établissement : le front en a besoin pour afficher l'écran
+// de renouvellement (nom, plan, échéance) alors même que la licence est morte.
+// Ces routes restent par ailleurs réservées au SUPER_ADMIN via @Roles.
+@SansLicence()
 @Controller('tenants')
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

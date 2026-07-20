@@ -22,6 +22,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { SansLicence } from '../common/decorators/sans-licence.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { PaymentConfigService } from './payment-config.service';
 import { PaymentsService } from './payments.service';
@@ -40,6 +41,10 @@ import { ConsommerVoucherDto } from './dto/voucher.dto';
 @ApiTags('Paiements')
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard)
+// PAYER doit rester possible avec une licence expirée : c'est l'unique chemin
+// de retour vers un abonnement valide. Bloquer ici enfermerait le client dehors
+// définitivement — une fuite de revenus transformée en perte de revenus.
+@SansLicence()
 @Controller('payments')
 export class PaymentsController {
   constructor(

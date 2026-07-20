@@ -122,6 +122,80 @@ export class LicencesService {
     );
   }
 
+  // ─── Cache de statut ───────────────────────────────────────────────────────
+
+  /**
+   * Cache mémoire court du statut de licence, indexé par tenantId.
+   *
+   * ── Pourquoi ────────────────────────────────────────────────────────────────
+   * `LicenceGuard` est global : sans cache, CHAQUE requête HTTP de
+   * l'application déclencherait un `SELECT` supplémentaire sur `Tenant`. Sur un
+   * dashboard qui tire une dizaine d'endpoints au chargement, cela multiplie
+   * la charge base pour une donnée qui ne bouge que lors d'un paiement ou d'une
+   * action d'administration.
+   *
+   * ── Pourquoi un TTL COURT (30 s par défaut) ─────────────────────────────────
+   * Le statut dépend du TEMPS autant que des écritures : une licence bascule
+   * seule de ACTIVE à EXPIREE au passage de l'échéance, sans qu'aucune mutation
+   * n'ait lieu. Aucune invalidation événementielle ne peut couvrir ce cas ; seul
+   * un TTL borné le fait. 30 s plafonne donc l'accès indûment prolongé après
+   * expiration, tout en absorbant les rafales de requêtes d'une même page.
+   *
+   * ── Invalidation ────────────────────────────────────────────────────────────
+   * `construireStatut()` est le point de passage OBLIGÉ de toute transition
+   * (activation, renouvellement, suspension, révocation, grâce…). Y invalider
+   * l'entrée garantit qu'aucun chemin d'écriture ne peut être oublié — c'est
+   * l'inverse du recensement manuel, qui se désynchronise. On invalide plutôt
+   * qu'on ne réécrit : `construireStatut` s'exécute souvent DANS une
+   * transaction, et un `rollback` ultérieur laisserait sinon en cache un état
+   * qui n'a jamais existé.
+   *
+   * ── Portée ──────────────────────────────────────────────────────────────────
+   * Cache par processus. En déploiement multi-instances, chaque instance a le
+   * sien ; la fenêtre de divergence reste bornée par le TTL. Un cache partagé
+   * (Redis) serait ici une complexité sans bénéfice à cette échelle de temps.
+   */
+  private readonly cacheStatut = new Map<
+    string,
+    { valeur: StatutLicenceResultat; expireA: number }
+  >();
+
+  /** TTL du cache de statut, en millisecondes (LICENCE_CACHE_TTL_MS). */
+  private get cacheTtlMs(): number {
+    const brut = this.config.get<string | number>('LICENCE_CACHE_TTL_MS');
+    const valeur = typeof brut === 'string' ? Number(brut) : brut;
+    return Number.isFinite(valeur) && (valeur as number) >= 0
+      ? (valeur as number)
+      : 30_000;
+  }
+
+  /** Purge l'entrée de cache d'un tenant (ou tout le cache si non précisé). */
+  invaliderCacheStatut(tenantId?: string): void {
+    if (tenantId) this.cacheStatut.delete(tenantId);
+    else this.cacheStatut.clear();
+  }
+
+  /**
+   * Variante mise en cache de `getStatutLicence`, destinée au chemin chaud
+   * (la garde globale). Les appels métier doivent continuer d'utiliser
+   * `getStatutLicence` pour lire un état strictement à jour.
+   */
+  async getStatutLicenceCache(tenantId: string): Promise<StatutLicenceResultat> {
+    const ttl = this.cacheTtlMs;
+    const entree = this.cacheStatut.get(tenantId);
+    if (ttl > 0 && entree && entree.expireA > Date.now()) {
+      return entree.valeur;
+    }
+
+    const valeur = await this.getStatutLicence(tenantId);
+    // `getStatutLicence` passe par `construireStatut`, qui vient d'invalider
+    // l'entrée : on l'écrit donc APRÈS, jamais avant.
+    if (ttl > 0) {
+      this.cacheStatut.set(tenantId, { valeur, expireA: Date.now() + ttl });
+    }
+    return valeur;
+  }
+
   // ─── Lecture ───────────────────────────────────────────────────────────────
 
   /** Vue consolidée du statut de licence d'un tenant. */
@@ -632,6 +706,9 @@ export class LicencesService {
 
     if (!transition) return false;
 
+    // Ce chemin ne passe pas par `construireStatut` : invalidation explicite.
+    this.invaliderCacheStatut(tenantId);
+
     this.publier(LICENCE_EVENTS.PERIODE_GRACE, {
       tenantId,
       nomTenant: transition.nomTenant,
@@ -687,6 +764,9 @@ export class LicencesService {
     });
 
     if (!transition) return false;
+
+    // Ce chemin ne passe pas par `construireStatut` : invalidation explicite.
+    this.invaliderCacheStatut(tenantId);
 
     this.publier(LICENCE_EVENTS.EXPIREE, {
       tenantId,
@@ -892,6 +972,10 @@ export class LicencesService {
     subscriptionEndsAt: Date | null;
     settings: unknown;
   }): StatutLicenceResultat {
+    // Point de passage obligé de TOUTE transition de licence : invalider ici
+    // dispense de recenser un à un les chemins d'écriture (voir `cacheStatut`).
+    this.cacheStatut.delete(tenant.id);
+
     const meta = this.lireMeta(tenant.settings);
     const statut = this.deduireStatut(tenant, meta);
     const maintenant = new Date();

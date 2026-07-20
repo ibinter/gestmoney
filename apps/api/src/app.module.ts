@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { EventEmitterModule } from "@nestjs/event-emitter";
@@ -28,6 +29,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { AiModule } from "./ai/ai.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { LicencesModule } from "./licences/licences.module";
+import { LicenceGuard } from "./licences/licence.guard";
 
 @Module({
   imports: [
@@ -76,6 +78,16 @@ import { LicencesModule } from "./licences/licences.module";
     LicencesModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // ── Application de la licence, à l'échelle de TOUTE l'application ────────
+    // Enregistrée en global (« sécurisé par défaut ») : tout module ajouté
+    // demain est couvert sans intervention. Les routes qui doivent rester
+    // ouvertes quel que soit l'état de la licence — auth, paiements, licences,
+    // lecture des tenants, health — le déclarent avec `@SansLicence()`.
+    // Ses dépendances sont résolues dans ce contexte : `LicencesService` est
+    // exporté par `LicencesModule`, `JwtService` par `AuthModule`.
+    { provide: APP_GUARD, useClass: LicenceGuard },
+  ],
 })
 export class AppModule {}

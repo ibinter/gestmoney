@@ -14,6 +14,7 @@ import type { Request } from 'express';
 import { ApiExcludeEndpoint, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { WebhookService } from './webhook.service';
 import { PaymentsService } from './payments.service';
+import { SansLicence } from '../common/decorators/sans-licence.decorator';
 
 /**
  * Réception des notifications de paiement des passerelles.
@@ -42,6 +43,11 @@ import { PaymentsService } from './payments.service';
  * d'activer un abonnement sans preuve d'authenticité.
  */
 @ApiTags('Webhooks de paiement')
+// Notifications des passerelles : elles ne portent AUCUN JWT, donc aucun
+// tenant. La garde les laisserait déjà passer faute d'identité, mais on le
+// déclare explicitement — c'est par ce chemin que le paiement qui réactive la
+// licence est confirmé, il ne doit jamais devenir bloquable par inadvertance.
+@SansLicence()
 @Controller('webhooks')
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);

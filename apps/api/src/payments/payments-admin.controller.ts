@@ -27,6 +27,7 @@ import { ProofStatut, VoucherStatut } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { SansLicence } from '../common/decorators/sans-licence.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { RoleType } from '../common/enums/role.enum';
 import { IContexteAudit, PaymentConfigService } from './payment-config.service';
@@ -54,6 +55,9 @@ import { ListPaiementsQueryDto } from './dto/create-paiement.dto';
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+// Validation des preuves et des encaissements : même raison que
+// PaymentsController, côté opérateur. C'est ce chemin qui réactive les licences.
+@SansLicence()
 @Controller('admin/payments')
 export class PaymentsAdminController {
   constructor(
