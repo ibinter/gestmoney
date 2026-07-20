@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Topbar } from '@/components/ui/Topbar';
 import { Sidebar } from '@/components/ui/Sidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { BandeauLicence } from '@/components/layout/BandeauLicence';
 import { CommandPalette } from '@/components/ui/CommandPalette';
 import { Onboarding } from '@/components/ui/Onboarding';
 import { AssistantIA } from '@/components/ui/AssistantIA';
@@ -95,6 +96,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             max-w-[1600px] → largeur max pour les grands écrans
           */}
           <div className="max-w-[1600px] mx-auto px-3 sm:px-5 lg:px-6 py-4 sm:py-6 pb-20 md:pb-6">
+            {/* Avertissement non bloquant : ne s'affiche qu'en ESSAI finissant
+                ou en période de grâce, et se retire de lui-même sinon. */}
+            <BandeauLicence />
             {children}
           </div>
         </main>

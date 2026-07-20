@@ -6,6 +6,7 @@ import { formatMontant, formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
 import { useAgents, useCreateAgent, useToggleAgentStatus } from '@/hooks/useAgents';
 import { useAgences } from '@/hooks/useAgences';
+import { useT } from '@/lib/i18n';
 
 const FORM_INIT = { prenom: '', nom: '', email: '', telephone: '', agenceId: '', password: '' };
 
@@ -25,6 +26,7 @@ function initiales(a: Agent): string {
 type CleTri = 'nom' | 'agenceNom' | 'nbTransactionsAujourdhui' | 'montantTransactionsAujourdhui';
 
 export default function AgentsPage() {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [filtreAgence, setFiltreAgence] = useState('');
   const [filtreStatut, setFiltreStatut] = useState('');
@@ -98,7 +100,7 @@ export default function AgentsPage() {
     e.preventDefault();
     setErreur('');
     if (!form.prenom || !form.nom || !form.email || !form.telephone) {
-      setErreur('Veuillez remplir tous les champs obligatoires.');
+      setErreur(t.agents.modal.requiredFields);
       return;
     }
     try {
@@ -110,11 +112,11 @@ export default function AgentsPage() {
         agenceId: form.agenceId,
         password: form.password,
       });
-      setSucces(`Agent ${form.prenom} ${form.nom} créé avec succès.`);
+      setSucces(`${t.agents.modal.createdPrefix} ${form.prenom} ${form.nom} ${t.agents.modal.createdSuffix}`);
       setForm(FORM_INIT);
       setTimeout(() => { setModalNouvelAgent(false); setSucces(''); }, 1500);
     } catch {
-      setErreur('Erreur lors de la création. Réessayez.');
+      setErreur(t.common.createError);
     }
   };
 
@@ -124,17 +126,17 @@ export default function AgentsPage() {
 
   const handleExport = () =>
     exporterCsv(agents, [
-      { titre: 'Prénom', valeur: (a) => a.prenom },
-      { titre: 'Nom', valeur: (a) => a.nom },
-      { titre: 'Email', valeur: (a) => a.email },
-      { titre: 'Téléphone', valeur: (a) => a.telephone },
-      { titre: 'Agence', valeur: (a) => a.agenceNom },
-      { titre: 'Statut', valeur: (a) => (a.actif ? 'Actif' : 'Inactif') },
-      { titre: 'En ligne', valeur: (a) => (a.enLigne ? 'Oui' : 'Non') },
-      { titre: 'Tx aujourd\'hui', valeur: (a) => a.nbTransactionsAujourdhui },
-      { titre: 'Volume today (FCFA)', valeur: (a) => a.montantTransactionsAujourdhui },
-      { titre: 'Commission (FCFA)', valeur: (a) => a.commission },
-      { titre: 'Date création', valeur: (a) => formatDate(a.createdAt) },
+      { titre: t.common.firstName, valeur: (a) => a.prenom },
+      { titre: t.common.lastName, valeur: (a) => a.nom },
+      { titre: t.common.email, valeur: (a) => a.email },
+      { titre: t.common.phone, valeur: (a) => a.telephone },
+      { titre: t.common.agency, valeur: (a) => a.agenceNom },
+      { titre: t.common.statut, valeur: (a) => (a.actif ? t.common.active : t.common.inactive) },
+      { titre: t.common.online, valeur: (a) => (a.enLigne ? t.common.yes : t.common.no) },
+      { titre: t.agents.table.colTxToday, valeur: (a) => a.nbTransactionsAujourdhui },
+      { titre: `${t.agents.table.colVolumeToday} (FCFA)`, valeur: (a) => a.montantTransactionsAujourdhui },
+      { titre: `${t.common.commission} (FCFA)`, valeur: (a) => a.commission },
+      { titre: t.common.registration, valeur: (a) => formatDate(a.createdAt) },
     ], 'agents');
 
   const pagesAffichees = Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1);
@@ -142,41 +144,45 @@ export default function AgentsPage() {
   return (
     <>
       <GmPageHeader
-        fil={['🏠 Accueil', 'Agents']}
-        titre="👤 Gestion des Agents"
-        sousTitre="Suivi des performances, volumes et commissions par agent"
+        fil={[`🏠 ${t.common.home}`, t.agents.title]}
+        titre={`👤 ${t.agents.pageTitle}`}
+        sousTitre={t.agents.pageSubtitle}
         actions={
           <>
-            <GmButton variante="outline" petit onClick={handleExport}>📥 Exporter</GmButton>
-            <GmButton petit onClick={() => setModalNouvelAgent(true)}>+ Créer un agent</GmButton>
+            <GmButton variante="outline" petit onClick={handleExport}>📥 {t.common.export}</GmButton>
+            <GmButton petit onClick={() => setModalNouvelAgent(true)}>{t.agents.createAgent}</GmButton>
           </>
         }
       />
 
       {/* STATS */}
-      <div className="gm-stats-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      {/* Pas de style inline ici : une déclaration inline l'emporte sur les
+          @media de mockup-system.css et empêchait la grille de se replier
+          sur mobile (débordement mesuré à 449px pour 375px de large).
+          .gm-stats-row vaut déjà repeat(4, 1fr) par défaut. */}
+      <div className="gm-stats-row">
         <div className="gm-stat-card gm-s1">
           <div className="gm-stat-value">{nbActifs}</div>
-          <div className="gm-stat-label">Agents actifs</div>
+          <div className="gm-stat-label">{t.agents.stats.activeAgents}</div>
           <div className="gm-stat-sub">
-            {allAgences.length > 0 ? `Sur ${allAgences.length} agence(s)` : '—'}
+            {allAgences.length > 0 ? `${t.agents.stats.overAgencies} ${allAgences.length} ${t.agents.stats.agenciesSuffix}` : '—'}
           </div>
         </div>
         <div className="gm-stat-card gm-s2">
           <div className="gm-stat-value">{nbInactifs}</div>
-          <div className="gm-stat-label">Agents inactifs</div>
-          <div className="gm-stat-sub">Sur {allAgents.length} agent(s)</div>
+          <div className="gm-stat-label">{t.agents.stats.inactiveAgents}</div>
+          <div className="gm-stat-sub">{t.agents.stats.overAgents} {allAgents.length} {t.agents.stats.agentsSuffix}</div>
         </div>
         <div className="gm-stat-card gm-s3">
           <div className="gm-stat-value">{nbEnLigne}</div>
-          <div className="gm-stat-label">En ligne maintenant</div>
-          <div className="gm-stat-sub">{totalTransactions} transaction(s) auj.</div>
+          <div className="gm-stat-label">{t.agents.stats.onlineNow}</div>
+          <div className="gm-stat-sub">{totalTransactions} {t.agents.stats.txTodaySuffix}</div>
         </div>
         <div className="gm-stat-card gm-s4">
           <div className="gm-stat-value" style={{ fontSize: 14, paddingTop: 4 }}>
             {topAgent ? `${topAgent.prenom} ${topAgent.nom}` : '—'}
           </div>
-          <div className="gm-stat-label">Top agent (volume auj.)</div>
+          <div className="gm-stat-label">{t.agents.stats.topAgent}</div>
           <div className="gm-stat-sub">
             {topAgent
               ? `${formatMontant(topAgent.montantTransactionsAujourdhui)} — ${topAgent.agenceNom || '—'}`
@@ -189,7 +195,7 @@ export default function AgentsPage() {
       <div className="gm-stats-row" style={{ gridTemplateColumns: 'repeat(1, 1fr)' }}>
         <div className="gm-stat-card gm-s3">
           <div className="gm-stat-value">{formatMontant(totalCommissions)}</div>
-          <div className="gm-stat-label">Commissions dues (tous agents)</div>
+          <div className="gm-stat-label">{t.agents.stats.commissionsDue}</div>
         </div>
       </div>
 
@@ -197,29 +203,29 @@ export default function AgentsPage() {
       <div className="gm-filters-card">
         <div className="gm-filters-row">
           <div className="gm-filter-group">
-            <label htmlFor="f-agence">Agence</label>
+            <label htmlFor="f-agence">{t.common.agency}</label>
             <select id="f-agence" value={filtreAgence} onChange={(e) => setFiltreAgence(e.target.value)}>
-              <option value="">Toutes les agences</option>
+              <option value="">{t.agents.filters.allAgencies}</option>
               {optionsAgences.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
           <div className="gm-filter-group">
-            <label htmlFor="f-statut">Statut</label>
+            <label htmlFor="f-statut">{t.common.statut}</label>
             <select id="f-statut" value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)}>
-              <option value="">Tous statuts</option>
-              <option value="actif">Actifs</option>
-              <option value="inactif">Inactifs</option>
-              <option value="en_ligne">En ligne</option>
+              <option value="">{t.agents.filters.allStatus}</option>
+              <option value="actif">{t.agents.filters.actifs}</option>
+              <option value="inactif">{t.agents.filters.inactifs}</option>
+              <option value="en_ligne">{t.agents.filters.enLigne}</option>
             </select>
           </div>
           <div className="gm-filter-group gm-filter-search">
-            <label htmlFor="f-search">Recherche</label>
+            <label htmlFor="f-search">{t.transactions.filters.search}</label>
             <input
               id="f-search"
               type="text"
-              placeholder="Nom, email, téléphone…"
+              placeholder={t.agents.filters.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -231,7 +237,7 @@ export default function AgentsPage() {
                 petit
                 onClick={() => { setSearch(''); setFiltreAgence(''); setFiltreStatut(''); }}
               >
-                Effacer
+                {t.common.clear}
               </GmButton>
             </div>
           )}
@@ -243,34 +249,34 @@ export default function AgentsPage() {
         <div className="gm-table-toolbar">
           <div className="gm-table-toolbar-left">
             <span className="gm-selected-count">
-              {isLoading ? 'Chargement…' : <><strong>{agents.length}</strong> agent(s) trouvé(s)</>}
+              {isLoading ? t.common.loading : <><strong>{agents.length}</strong> {t.agents.table.found}</>}
             </span>
           </div>
-          <span className="gm-sort-note">Cliquez sur un en-tête pour trier</span>
+          <span className="gm-sort-note">{t.agents.table.sortHint}</span>
         </div>
 
         <GmTableWrap>
           <table>
             <thead>
               <tr>
-                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('nom')}>Agent</th>
-                <th>Téléphone</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('agenceNom')}>Agence</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('nbTransactionsAujourdhui')}>Transac. auj.</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('montantTransactionsAujourdhui')}>Volume auj.</th>
-                <th>Commission</th>
-                <th>Présence</th>
-                <th>Statut</th>
-                <th>Inscription</th>
-                <th>Actions</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('nom')}>{t.agents.table.colAgent}</th>
+                <th>{t.common.phone}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('agenceNom')}>{t.common.agency}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('nbTransactionsAujourdhui')}>{t.agents.table.colTxToday}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => basculerTri('montantTransactionsAujourdhui')}>{t.agents.table.colVolumeToday}</th>
+                <th>{t.common.commission}</th>
+                <th>{t.agents.table.colPresence}</th>
+                <th>{t.common.statut}</th>
+                <th>{t.common.registration}</th>
+                <th>{t.common.actions}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: 24 }}>Chargement…</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: 24 }}>{t.common.loading}</td></tr>
               )}
               {!isLoading && agentsPage.length === 0 && (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: 24 }}>Aucun agent trouvé</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: 24 }}>{t.agents.table.empty}</td></tr>
               )}
               {!isLoading && agentsPage.map((a) => (
                 <tr key={a.id}>
@@ -292,25 +298,25 @@ export default function AgentsPage() {
                   </td>
                   <td>
                     <span className={`gm-status-pill ${a.enLigne ? 'gm-pill-online' : 'gm-pill-offline'}`}>
-                      ● {a.enLigne ? 'En ligne' : 'Hors ligne'}
+                      ● {a.enLigne ? t.common.online : t.common.offline}
                     </span>
                   </td>
                   <td>
                     <span className={`gm-status-pill ${a.actif ? 'gm-pill-online' : 'gm-pill-suspended'}`}>
-                      {a.actif ? 'Actif' : 'Suspendu'}
+                      {a.actif ? t.common.active : t.common.suspended}
                     </span>
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{formatDate(a.createdAt)}</td>
                   <td>
                     <div className="gm-action-btns">
-                      <button type="button" className="gm-action-btn">👁️ Voir</button>
+                      <button type="button" className="gm-action-btn">{t.agents.table.viewAction}</button>
                       <button
                         type="button"
                         className={`gm-action-btn${a.actif ? ' gm-danger' : ''}`}
                         onClick={() => handleToggle(a)}
                         disabled={toggleStatut.isPending}
                       >
-                        {a.actif ? '🚫 Suspendre' : '✅ Activer'}
+                        {a.actif ? t.agents.table.suspend : t.agents.table.activate}
                       </button>
                     </div>
                   </td>
@@ -322,7 +328,7 @@ export default function AgentsPage() {
 
         <div className="gm-pagination">
           <span className="gm-pag-info">
-            {agents.length} agent(s) — Page {page} / {totalPages || 1}
+            {agents.length} {t.agents.table.pagerSuffix} — {t.common.page} {page} / {totalPages || 1}
           </span>
           <div className="gm-pag-controls">
             <button
@@ -364,46 +370,46 @@ export default function AgentsPage() {
       >
         <div className="gm-modal">
           <div className="gm-modal-head">
-            <div className="gm-modal-title">👤 Nouvel agent</div>
-            <button type="button" className="gm-modal-close" onClick={fermerModal} aria-label="Fermer">✕</button>
+            <div className="gm-modal-title">{t.agents.modal.title}</div>
+            <button type="button" className="gm-modal-close" onClick={fermerModal} aria-label={t.common.close}>✕</button>
           </div>
           <form onSubmit={handleSubmit}>
             <div className="gm-modal-body">
               <div className="gm-form-row-2">
                 <div className="gm-form-group">
-                  <label htmlFor="m-prenom">Prénom *</label>
-                  <input id="m-prenom" placeholder="Ex : Aminata" value={form.prenom}
+                  <label htmlFor="m-prenom">{t.agents.modal.firstNameRequired}</label>
+                  <input id="m-prenom" placeholder={t.agents.modal.firstNamePlaceholder} value={form.prenom}
                     onChange={(e) => setForm((f) => ({ ...f, prenom: e.target.value }))} required />
                 </div>
                 <div className="gm-form-group">
-                  <label htmlFor="m-nom">Nom *</label>
-                  <input id="m-nom" placeholder="Ex : Koné" value={form.nom}
+                  <label htmlFor="m-nom">{t.agents.modal.lastNameRequired}</label>
+                  <input id="m-nom" placeholder={t.agents.modal.lastNamePlaceholder} value={form.nom}
                     onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} required />
                 </div>
               </div>
               <div className="gm-form-group">
-                <label htmlFor="m-email">Email *</label>
-                <input id="m-email" type="email" placeholder="agent@exemple.com" value={form.email}
+                <label htmlFor="m-email">{t.agents.modal.emailRequired}</label>
+                <input id="m-email" type="email" placeholder={t.agents.modal.emailPlaceholder} value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
               </div>
               <div className="gm-form-group">
-                <label htmlFor="m-tel">Téléphone *</label>
+                <label htmlFor="m-tel">{t.agents.modal.phoneRequired}</label>
                 <input id="m-tel" type="tel" placeholder="+225 07 00 00 00 00" value={form.telephone}
                   onChange={(e) => setForm((f) => ({ ...f, telephone: e.target.value }))} required />
               </div>
               <div className="gm-form-group">
-                <label htmlFor="m-agence">Agence</label>
+                <label htmlFor="m-agence">{t.common.agency}</label>
                 <select id="m-agence" value={form.agenceId}
                   onChange={(e) => setForm((f) => ({ ...f, agenceId: e.target.value }))}>
-                  <option value="">Choisir une agence</option>
+                  <option value="">{t.agents.modal.agencyChoose}</option>
                   {optionsAgences.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
               </div>
               <div className="gm-form-group">
-                <label htmlFor="m-pass">Mot de passe temporaire *</label>
-                <input id="m-pass" type="password" placeholder="Minimum 8 caractères" value={form.password}
+                <label htmlFor="m-pass">{t.agents.modal.tempPassword}</label>
+                <input id="m-pass" type="password" placeholder={t.agents.modal.tempPasswordPlaceholder} value={form.password}
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} required />
               </div>
 
@@ -419,9 +425,9 @@ export default function AgentsPage() {
               )}
             </div>
             <div className="gm-modal-foot">
-              <GmButton type="button" variante="outline" onClick={fermerModal}>Annuler</GmButton>
+              <GmButton type="button" variante="outline" onClick={fermerModal}>{t.common.cancel}</GmButton>
               <GmButton type="submit" disabled={creerAgent.isPending}>
-                {creerAgent.isPending ? 'Création…' : '✅ Créer l’agent'}
+                {creerAgent.isPending ? t.common.creating : t.agents.modal.submit}
               </GmButton>
             </div>
           </form>

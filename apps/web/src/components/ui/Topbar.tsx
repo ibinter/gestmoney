@@ -91,6 +91,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <Link
           href="/dashboard/notifications"
           className="gm-notif-btn"
+          data-tour="notifications-btn"
           aria-label={`${t.nav.notifications}${nbNonLues > 0 ? ` (${nbNonLues} non lues)` : ''}`}
         >
           <span aria-hidden="true">🔔</span>
@@ -105,6 +106,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             type="button"
             onClick={() => setMenuOuvert((v) => !v)}
             className="gm-profile-btn"
+            data-tour="profile-menu"
             aria-haspopup="menu"
             aria-expanded={menuOuvert}
             aria-label="Menu utilisateur"

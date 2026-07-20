@@ -69,6 +69,30 @@ api.interceptors.response.use(
       }
     }
 
+    // ─── Licence inactive (402) ───────────────────────────────────────────────
+    // L'API refuse désormais les requêtes des établissements dont l'abonnement
+    // est expiré, suspendu, révoqué ou impayé (`LicenceGuard`, côté NestJS).
+    //
+    // Contrairement au 401, il n'y a RIEN à rejouer : aucune reprise
+    // automatique ne débloquera la situation, seul un paiement le fera. On
+    // envoie donc l'utilisateur vers l'écran de renouvellement.
+    //
+    // Le module paiements est exempté côté API (`@SansLicence()`) : la page
+    // d'abonnement continue de fonctionner et l'utilisateur peut régulariser.
+    // On ne redirige pas quand on y est déjà, sous peine de boucle de
+    // rechargement.
+    if (error.response?.status === 402) {
+      const cible: string =
+        error.response?.data?.renouvellementUrl ?? "/dashboard/abonnement";
+
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith(cible)
+      ) {
+        window.location.href = cible;
+      }
+    }
+
     return Promise.reject(error);
   },
 );

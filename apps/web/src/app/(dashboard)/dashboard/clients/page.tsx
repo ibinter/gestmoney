@@ -14,16 +14,15 @@ import { formatMontant, formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
 import { useClients, useCreateClient } from '@/hooks/useClients';
 import { Client } from '@/types';
+import { useT } from '@/lib/i18n';
 
 const FORM_INIT_CLIENT = { prenom: '', nom: '', telephone: '', email: '', ville: '' };
 
-const KYC_LABELS: Record<string, string> = { verifie: 'Vérifié', en_attente: 'En attente', rejete: 'Rejeté' };
 const KYC_STATUTS: Record<string, 'success' | 'pending' | 'failed'> = {
   verifie: 'success',
   en_attente: 'pending',
   rejete: 'failed',
 };
-const STATUT_LABELS: Record<string, string> = { actif: 'Actif', inactif: 'Inactif', bloque: 'Bloqué' };
 const STATUT_PILLS: Record<string, string> = {
   actif: 'gm-pill-online',
   inactif: 'gm-pill-offline',
@@ -50,6 +49,9 @@ function classeOperateur(op: string): string {
 }
 
 export default function ClientsPage() {
+  const t = useT();
+  const KYC_LABELS: Record<string, string> = t.clients.kycLabels;
+  const STATUT_LABELS: Record<string, string> = t.clients.statutLabels;
   const [search, setSearch] = useState('');
   const [filtreStatut, setFiltreStatut] = useState('');
   const [filtreKyc, setFiltreKyc] = useState('');
@@ -67,7 +69,7 @@ export default function ClientsPage() {
     e.preventDefault();
     setErreurClient('');
     if (!formClient.prenom || !formClient.nom || !formClient.telephone) {
-      setErreurClient('Prénom, nom et téléphone sont obligatoires.');
+      setErreurClient(t.clients.modal.requiredFields);
       return;
     }
     try {
@@ -78,11 +80,11 @@ export default function ClientsPage() {
         email: formClient.email || undefined,
         ville: formClient.ville || undefined,
       });
-      setSuccesClient(`Client ${formClient.prenom} ${formClient.nom} enregistré.`);
+      setSuccesClient(`${t.clients.modal.savedPrefix} ${formClient.prenom} ${formClient.nom} ${t.clients.modal.savedSuffix}`);
       setFormClient(FORM_INIT_CLIENT);
       setTimeout(() => { setModalOuvert(false); setSuccesClient(''); }, 1500);
     } catch {
-      setErreurClient('Erreur lors de l\'enregistrement. Réessayez.');
+      setErreurClient(t.clients.modal.saveError);
     }
   };
 
@@ -109,36 +111,36 @@ export default function ClientsPage() {
   const totalVolume = allClients.reduce((s, c) => s + c.montantTotal, 0);
 
   const exporter = () => exporterCsv(clients, [
-    { titre: 'Prénom', valeur: (c: Client) => c.prenom },
-    { titre: 'Nom', valeur: (c: Client) => c.nom },
-    { titre: 'Téléphone', valeur: (c: Client) => c.telephone },
-    { titre: 'Email', valeur: (c: Client) => c.email ?? '' },
-    { titre: 'Ville', valeur: (c: Client) => c.ville ?? '' },
-    { titre: 'KYC', valeur: (c: Client) => c.kycStatut },
-    { titre: 'Statut', valeur: (c: Client) => c.statut },
-    { titre: 'Opérateur', valeur: (c: Client) => c.operateur },
-    { titre: 'Solde wallet (FCFA)', valeur: (c: Client) => c.soldeWallet },
-    { titre: 'Transactions', valeur: (c: Client) => c.nbTransactions },
-    { titre: 'Volume (FCFA)', valeur: (c: Client) => c.montantTotal },
-    { titre: 'Date inscription', valeur: (c: Client) => formatDate(c.createdAt) },
+    { titre: t.common.firstName, valeur: (c: Client) => c.prenom },
+    { titre: t.common.lastName, valeur: (c: Client) => c.nom },
+    { titre: t.common.phone, valeur: (c: Client) => c.telephone },
+    { titre: t.common.email, valeur: (c: Client) => c.email ?? '' },
+    { titre: t.common.city, valeur: (c: Client) => c.ville ?? '' },
+    { titre: t.clients.table.colKyc, valeur: (c: Client) => c.kycStatut },
+    { titre: t.common.statut, valeur: (c: Client) => c.statut },
+    { titre: t.common.operator, valeur: (c: Client) => c.operateur },
+    { titre: `${t.clients.table.colWallet} (FCFA)`, valeur: (c: Client) => c.soldeWallet },
+    { titre: t.clients.table.colTransactions, valeur: (c: Client) => c.nbTransactions },
+    { titre: `${t.common.volume} (FCFA)`, valeur: (c: Client) => c.montantTotal },
+    { titre: t.common.registration, valeur: (c: Client) => formatDate(c.createdAt) },
   ], 'clients');
 
   return (
     <>
       <GmPageHeader
-        titre="Gestion des clients"
+        titre={t.clients.title}
         sousTitre={
           isLoading
-            ? 'Chargement des clients…'
-            : `${allClients.length} client(s) enregistré(s) — ${nbActifs} actif(s) · ${nbKycPending} KYC en attente`
+            ? t.clients.loading
+            : `${allClients.length} ${t.clients.registeredSuffix} — ${nbActifs} ${t.clients.activeSuffix} · ${nbKycPending} ${t.clients.kycPendingSuffix}`
         }
         actions={
           <>
             <GmButton variante="outline" petit onClick={exporter}>
-              <Download size={14} /> Exporter
+              <Download size={14} /> {t.common.export}
             </GmButton>
             <GmButton variante="primary" petit onClick={() => setModalOuvert(true)}>
-              <Plus size={14} /> Nouveau client
+              <Plus size={14} /> {t.clients.newClient}
             </GmButton>
           </>
         }
@@ -149,14 +151,14 @@ export default function ClientsPage() {
           <div className="gm-stat-mini-icon">👥</div>
           <div>
             <div className="gm-stat-mini-val">{allClients.length}</div>
-            <div className="gm-stat-mini-lbl">Total clients</div>
+            <div className="gm-stat-mini-lbl">{t.clients.stats.totalClients}</div>
           </div>
         </div>
         <div className="gm-stat-mini">
           <div className="gm-stat-mini-icon" style={{ color: 'var(--gm-success)' }}>✅</div>
           <div>
             <div className="gm-stat-mini-val" style={{ color: 'var(--gm-success)' }}>{nbActifs}</div>
-            <div className="gm-stat-mini-lbl">Clients actifs</div>
+            <div className="gm-stat-mini-lbl">{t.clients.stats.activeClients}</div>
           </div>
         </div>
         <div className="gm-stat-mini">
@@ -165,14 +167,14 @@ export default function ClientsPage() {
             <div className="gm-stat-mini-val" style={{ color: nbKycPending > 0 ? 'var(--gm-warning)' : undefined }}>
               {nbKycPending}
             </div>
-            <div className="gm-stat-mini-lbl">KYC en attente</div>
+            <div className="gm-stat-mini-lbl">{t.clients.stats.kycPending}</div>
           </div>
         </div>
         <div className="gm-stat-mini">
           <div className="gm-stat-mini-icon">💵</div>
           <div>
             <div className="gm-stat-mini-val">{formatMontant(totalVolume)}</div>
-            <div className="gm-stat-mini-lbl">Volume total · {nbInactifs} inactif(s)</div>
+            <div className="gm-stat-mini-lbl">{t.clients.stats.totalVolume} · {nbInactifs} {t.clients.stats.inactiveSuffix}</div>
           </div>
         </div>
       </div>
@@ -182,7 +184,7 @@ export default function ClientsPage() {
           <span className="gm-si">🔍</span>
           <input
             type="text"
-            placeholder="Rechercher par nom, téléphone, email…"
+            placeholder={t.clients.filters.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -192,23 +194,23 @@ export default function ClientsPage() {
           value={filtreStatut}
           onChange={(e) => setFiltreStatut(e.target.value)}
         >
-          <option value="">Tous les statuts</option>
-          <option value="actif">Actifs</option>
-          <option value="inactif">Inactifs</option>
-          <option value="bloque">Bloqués</option>
+          <option value="">{t.clients.filters.allStatus}</option>
+          <option value="actif">{t.clients.filters.actifs}</option>
+          <option value="inactif">{t.clients.filters.inactifs}</option>
+          <option value="bloque">{t.clients.filters.bloques}</option>
         </select>
         <select
           className="gm-filter-select"
           value={filtreKyc}
           onChange={(e) => setFiltreKyc(e.target.value)}
         >
-          <option value="">Tous les KYC</option>
-          <option value="verifie">Vérifiés</option>
-          <option value="en_attente">En attente</option>
-          <option value="rejete">Rejetés</option>
+          <option value="">{t.clients.filters.allKyc}</option>
+          <option value="verifie">{t.clients.filters.verifies}</option>
+          <option value="en_attente">{t.clients.filters.enAttente}</option>
+          <option value="rejete">{t.clients.filters.rejetes}</option>
         </select>
         <span style={{ fontSize: 12, color: 'var(--gm-text-2)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
-          {isLoading ? 'Chargement…' : `${clients.length} résultat(s)`}
+          {isLoading ? t.common.loading : `${clients.length} ${t.common.results}`}
         </span>
       </div>
 
@@ -217,30 +219,30 @@ export default function ClientsPage() {
           <table>
             <thead>
               <tr>
-                <th>Client</th>
-                <th>Ville</th>
-                <th>Opérateur</th>
-                <th style={{ textAlign: 'right' }}>Solde wallet</th>
-                <th style={{ textAlign: 'right' }}>Transactions</th>
-                <th style={{ textAlign: 'right' }}>Volume total</th>
-                <th>KYC</th>
-                <th>Statut</th>
-                <th>Inscription</th>
-                <th>Actions</th>
+                <th>{t.clients.table.colClient}</th>
+                <th>{t.common.city}</th>
+                <th>{t.common.operator}</th>
+                <th style={{ textAlign: 'right' }}>{t.clients.table.colWallet}</th>
+                <th style={{ textAlign: 'right' }}>{t.clients.table.colTransactions}</th>
+                <th style={{ textAlign: 'right' }}>{t.clients.table.colTotalVolume}</th>
+                <th>{t.clients.table.colKyc}</th>
+                <th>{t.common.statut}</th>
+                <th>{t.common.registration}</th>
+                <th>{t.common.actions}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', color: 'var(--gm-text-2)', padding: '28px 16px' }}>
-                    Chargement…
+                    {t.common.loading}
                   </td>
                 </tr>
               )}
               {!isLoading && clientsPage.length === 0 && (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', color: 'var(--gm-text-2)', padding: '28px 16px' }}>
-                    Aucun client trouvé
+                    {t.clients.table.empty}
                   </td>
                 </tr>
               )}
@@ -286,9 +288,9 @@ export default function ClientsPage() {
                     </td>
                     <td>
                       <div className="gm-action-btns">
-                        <button className="gm-action-btn" type="button">Voir</button>
+                        <button className="gm-action-btn" type="button">{t.common.view}</button>
                         {c.kycStatut === 'en_attente' && (
-                          <button className="gm-action-btn" type="button">Vérifier KYC</button>
+                          <button className="gm-action-btn" type="button">{t.clients.table.verifyKyc}</button>
                         )}
                       </div>
                     </td>
@@ -302,8 +304,8 @@ export default function ClientsPage() {
         <div className="gm-table-footer">
           <span className="gm-pag-info">
             {clients.length === 0
-              ? 'Aucun client'
-              : `Affichage de ${debut}–${fin} sur ${clients.length} client(s) — Page ${page} / ${totalPages || 1}`}
+              ? t.clients.table.noClient
+              : `${t.clients.table.showing} ${debut}–${fin} ${t.clients.table.onTotal} ${clients.length} ${t.clients.table.clientsSuffix} — ${t.common.page} ${page} / ${totalPages || 1}`}
           </span>
           <div className="gm-pag-controls">
             <button
@@ -312,7 +314,7 @@ export default function ClientsPage() {
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
             >
-              ← Précédent
+              {t.clients.table.prev}
             </button>
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
               <button
@@ -330,7 +332,7 @@ export default function ClientsPage() {
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
             >
-              Suivant →
+              {t.clients.table.next}
             </button>
           </div>
         </div>
@@ -339,24 +341,24 @@ export default function ClientsPage() {
       <Modal
         ouvert={modalOuvert}
         onFermer={() => { setModalOuvert(false); setFormClient(FORM_INIT_CLIENT); setErreurClient(''); setSuccesClient(''); }}
-        titre="Nouveau client"
+        titre={t.clients.modal.title}
         taille="md"
       >
         <form className="space-y-4" onSubmit={handleSubmitClient}>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Prénom *" placeholder="Prénom" value={formClient.prenom} onChange={(e) => setFormClient((f) => ({ ...f, prenom: e.target.value }))} required />
-            <Input label="Nom *" placeholder="Nom" value={formClient.nom} onChange={(e) => setFormClient((f) => ({ ...f, nom: e.target.value }))} required />
+            <Input label={t.clients.modal.firstNameRequired} placeholder={t.common.firstName} value={formClient.prenom} onChange={(e) => setFormClient((f) => ({ ...f, prenom: e.target.value }))} required />
+            <Input label={t.clients.modal.lastNameRequired} placeholder={t.common.lastName} value={formClient.nom} onChange={(e) => setFormClient((f) => ({ ...f, nom: e.target.value }))} required />
           </div>
-          <Input label="Téléphone *" type="tel" placeholder="+225 07 00 00 00 00" value={formClient.telephone} onChange={(e) => setFormClient((f) => ({ ...f, telephone: e.target.value }))} required />
-          <Input label="Email" type="email" placeholder="client@email.com" value={formClient.email} onChange={(e) => setFormClient((f) => ({ ...f, email: e.target.value }))} />
-          <Input label="Ville" placeholder="Abidjan" value={formClient.ville} onChange={(e) => setFormClient((f) => ({ ...f, ville: e.target.value }))} />
+          <Input label={t.clients.modal.phoneRequired} type="tel" placeholder="+225 07 00 00 00 00" value={formClient.telephone} onChange={(e) => setFormClient((f) => ({ ...f, telephone: e.target.value }))} required />
+          <Input label={t.common.email} type="email" placeholder={t.clients.modal.emailPlaceholder} value={formClient.email} onChange={(e) => setFormClient((f) => ({ ...f, email: e.target.value }))} />
+          <Input label={t.common.city} placeholder={t.clients.modal.cityPlaceholder} value={formClient.ville} onChange={(e) => setFormClient((f) => ({ ...f, ville: e.target.value }))} />
 
           {erreurClient && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">{erreurClient}</div>}
           {succesClient && <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">{succesClient}</div>}
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" variante="primary" fullWidth loading={creerClient.isPending}>Enregistrer le client</Button>
-            <Button type="button" variante="ghost" onClick={() => { setModalOuvert(false); setFormClient(FORM_INIT_CLIENT); setErreurClient(''); }}>Annuler</Button>
+            <Button type="submit" variante="primary" fullWidth loading={creerClient.isPending}>{t.clients.modal.submit}</Button>
+            <Button type="button" variante="ghost" onClick={() => { setModalOuvert(false); setFormClient(FORM_INIT_CLIENT); setErreurClient(''); }}>{t.common.cancel}</Button>
           </div>
         </form>
       </Modal>

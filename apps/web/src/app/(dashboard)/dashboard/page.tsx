@@ -15,6 +15,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import type { Transaction } from '@/hooks/useDashboardStats';
 import { formatMontant } from '@/lib/formatters';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 import {
   GmButton,
   GmCard,
@@ -30,20 +32,21 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string, t: Translations): string {
+  const r = t.dashboard.relative;
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'À l\'instant';
-  if (mins < 60) return `Il y a ${mins} min`;
+  if (mins < 1) return r.now;
+  if (mins < 60) return `${r.agoPrefix}${mins} ${r.min}${r.agoSuffix}`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `Il y a ${hrs}h`;
-  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short' }).format(new Date(iso));
+  if (hrs < 24) return `${r.agoPrefix}${hrs}${r.hour}${r.agoSuffix}`;
+  return new Intl.DateTimeFormat(t.dateLocale, { day: '2-digit', month: 'short' }).format(new Date(iso));
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  depot: 'Dépôt', retrait: 'Retrait', transfert: 'Transfert',
-  cash_in: 'Cash In', cash_out: 'Cash Out', paiement: 'Paiement',
-};
+/** Libellé traduit d'un type d'opération, avec repli sur le code brut. */
+function typeLabel(t: Translations, type: string): string {
+  return (t.dashboard.txTypes as Record<string, string>)[type] ?? type;
+}
 
 /** Classe de badge `gm-badge-*` selon le type d'opération (voir mockup-system.css). */
 function badgeClass(type: string): string {
@@ -69,19 +72,17 @@ function libelleOperateur(op: string): string {
   return op.replace(/_/g, ' ');
 }
 
-const STATUT_LABELS: Record<Transaction['statut'], string> = {
-  success: 'Succès',
-  pending: 'En attente',
-  failed: 'Échouée',
-};
+function statutLabel(t: Translations, statut: Transaction['statut']): string {
+  return t.dashboard.txStatuts[statut] ?? statut;
+}
 
 /** Trend de carte à partir d'un pourcentage de variation réel. */
-function trendVariation(pct: number | undefined): GmTrend | undefined {
+function trendVariation(pct: number | undefined, t: Translations): GmTrend | undefined {
   if (pct === undefined || pct === null || Number.isNaN(pct)) return undefined;
   return {
     sens: pct >= 0 ? 'up' : 'down',
-    label: `${pct >= 0 ? '↑' : '↓'} ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs hier`,
-    infobulle: 'Variation par rapport à la veille',
+    label: `${pct >= 0 ? '↑' : '↓'} ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% ${t.dashboard.vsYesterday}`,
+    infobulle: t.dashboard.variationTooltip,
   };
 }
 
@@ -128,11 +129,12 @@ function TableauTransactions({
   transactions: Transaction[];
   colonneAgent?: boolean;
 }) {
+  const t = useT();
   if (transactions.length === 0) {
     return (
       <GmTableWrap>
         <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: 13, color: 'var(--gm-text-2)' }}>
-          Aucune transaction sur la période.
+          {t.dashboard.noTransactionPeriod}
         </div>
       </GmTableWrap>
     );
@@ -143,20 +145,20 @@ function TableauTransactions({
         <table>
           <thead>
             <tr>
-              <th>Heure</th>
-              <th>Type</th>
-              {colonneAgent && <th>Agent</th>}
-              <th>Opérateur</th>
-              <th>Client</th>
-              <th>Montant</th>
-              <th>Statut</th>
+              <th>{t.dashboard.txTable.hour}</th>
+              <th>{t.dashboard.txTable.type}</th>
+              {colonneAgent && <th>{t.dashboard.txTable.agent}</th>}
+              <th>{t.dashboard.txTable.operator}</th>
+              <th>{t.dashboard.txTable.client}</th>
+              <th>{t.dashboard.txTable.amount}</th>
+              <th>{t.dashboard.txTable.status}</th>
             </tr>
           </thead>
           <tbody>
             {transactions.map((tx) => (
               <tr key={tx.id}>
-                <td style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>{formatRelative(tx.date)}</td>
-                <td><span className={badgeClass(tx.type)}>{TYPE_LABELS[tx.type] ?? tx.type}</span></td>
+                <td style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>{formatRelative(tx.date, t)}</td>
+                <td><span className={badgeClass(tx.type)}>{typeLabel(t, tx.type)}</span></td>
                 {colonneAgent && (
                   <td>
                     <strong>{tx.agentNom || TIRET}</strong>
@@ -182,7 +184,7 @@ function TableauTransactions({
                   {CHIFFRE(tx.montant)} XOF
                 </td>
                 <td>
-                  <GmStatusPill statut={tx.statut}>● {STATUT_LABELS[tx.statut]}</GmStatusPill>
+                  <GmStatusPill statut={tx.statut}>● {statutLabel(t, tx.statut)}</GmStatusPill>
                 </td>
               </tr>
             ))}
@@ -195,12 +197,13 @@ function TableauTransactions({
 
 /** Encart sparkline 7 jours (donnée réelle `sparklineData`). */
 function CarteSparkline({ data }: { data: number[] }) {
+  const t = useT();
   return (
     <div className="gm-section-card" style={{ marginBottom: 24 }}>
       <div className="gm-section-head">
         <div>
-          <div className="gm-section-title">Transactions — 7 derniers jours</div>
-          <div className="gm-section-sub">Nombre de transactions par jour</div>
+          <div className="gm-section-title">{t.dashboard.sparklineTitle}</div>
+          <div className="gm-section-sub">{t.dashboard.sparklineSub}</div>
         </div>
       </div>
       <div style={{ padding: '16px 20px' }}>
@@ -216,14 +219,15 @@ function CarteSparkline({ data }: { data: number[] }) {
 function DashboardAdmin() {
   const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={6} />;
 
   const alertes = [
-    (stats?.alertesFloatBas ?? 0) > 0 && `${stats?.alertesFloatBas} float bas`,
-    (stats?.alertesAgentsInactifs ?? 0) > 0 && `${stats?.alertesAgentsInactifs} agent(s) inactif(s)`,
-    (stats?.commissionsAValider ?? 0) > 0 && `${stats?.commissionsAValider} commission(s) à valider`,
+    (stats?.alertesFloatBas ?? 0) > 0 && `${stats?.alertesFloatBas} ${t.dashboard.labels.floatLow}`,
+    (stats?.alertesAgentsInactifs ?? 0) > 0 && `${stats?.alertesAgentsInactifs} ${t.dashboard.labels.inactiveAgents}`,
+    (stats?.commissionsAValider ?? 0) > 0 && `${stats?.commissionsAValider} ${t.dashboard.labels.commissionsToValidate}`,
   ].filter(Boolean) as string[];
 
   return (
@@ -232,33 +236,33 @@ function DashboardAdmin() {
         {/* Transactions */}
         <GmCard
           icone="💳"
-          titre="Transactions"
-          trend={trendVariation(stats?.variationPct)}
+          titre={t.dashboard.cards.transactions}
+          trend={trendVariation(stats?.variationPct, t)}
           onClick={() => router.push('/dashboard/transactions')}
           actions={
             <>
-              <GmButton petit onClick={go('/dashboard/transactions?type=depot')}>+ Dépôt</GmButton>
-              <GmButton petit variante="outline" onClick={go('/dashboard/transactions?type=retrait')}>+ Retrait</GmButton>
+              <GmButton petit onClick={go('/dashboard/transactions?type=depot')}>{t.dashboard.actionsLabels.depot}</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/transactions?type=retrait')}>{t.dashboard.actionsLabels.retrait}</GmButton>
             </>
           }
         >
-          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label={t.dashboard.labels.txToday} />
           <GmMetricSub icone="💰">
-            <strong style={{ color: 'var(--gm-text)' }}>{formatMontant(stats?.volumeJour ?? 0)}</strong> traités
+            <strong style={{ color: 'var(--gm-text)' }}>{formatMontant(stats?.volumeJour ?? 0)}</strong> {t.dashboard.labels.processed}
           </GmMetricSub>
         </GmCard>
 
         {/* Volume */}
         <GmCard
           icone="💵"
-          titre="Volume du jour"
-          trend={trendVariation(stats?.variationPct)}
+          titre={t.dashboard.cards.volumeDay}
+          trend={trendVariation(stats?.variationPct, t)}
           onClick={() => router.push('/dashboard/transactions')}
-          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>Voir rapports</GmButton>}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>{t.dashboard.actionsLabels.seeReports}</GmButton>}
         >
-          <GmMetric valeur={formatMontant(stats?.volumeJour ?? 0)} label="XOF traités aujourd'hui" />
+          <GmMetric valeur={formatMontant(stats?.volumeJour ?? 0)} label={t.dashboard.labels.xofProcessedToday} />
           <GmMetricSub icone="📈">
-            Moyenne par transaction :{' '}
+            {t.dashboard.labels.avgPerTx}{' '}
             <strong style={{ color: 'var(--gm-text)' }}>
               {(stats?.nbTransactionsJour ?? 0) > 0
                 ? formatMontant(Math.round((stats?.volumeJour ?? 0) / (stats?.nbTransactionsJour ?? 1)))
@@ -270,24 +274,24 @@ function DashboardAdmin() {
         {/* Agents */}
         <GmCard
           icone="👤"
-          titre="Agents"
-          trend={{ sens: 'up', label: `${stats?.nbAgentsActifs ?? 0} actifs` }}
+          titre={t.dashboard.cards.agents}
+          trend={{ sens: 'up', label: `${stats?.nbAgentsActifs ?? 0} ${t.dashboard.labels.actifs}` }}
           onClick={() => router.push('/dashboard/agents')}
           actions={
             <>
-              <GmButton petit onClick={go('/dashboard/agents')}>Voir agents</GmButton>
-              <GmButton petit variante="outline" onClick={go('/dashboard/agents')}>+ Créer agent</GmButton>
+              <GmButton petit onClick={go('/dashboard/agents')}>{t.dashboard.actionsLabels.seeAgents}</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/agents')}>{t.dashboard.actionsLabels.createAgent}</GmButton>
             </>
           }
         >
-          <GmMetric valeur={CHIFFRE(stats?.nbAgentsActifs ?? 0)} label="agents actifs" />
+          <GmMetric valeur={CHIFFRE(stats?.nbAgentsActifs ?? 0)} label={t.dashboard.labels.activeAgents} />
           <GmMetricSub icone="🔴">
             {(stats?.alertesAgentsInactifs ?? 0) > 0 ? (
               <span style={{ color: 'var(--gm-warning)' }}>
-                {stats?.alertesAgentsInactifs} agent(s) inactif(s)
+                {stats?.alertesAgentsInactifs} {t.dashboard.labels.inactiveAgents}
               </span>
             ) : (
-              'Aucun agent inactif'
+              t.dashboard.labels.noInactiveAgent
             )}
           </GmMetricSub>
         </GmCard>
@@ -295,61 +299,61 @@ function DashboardAdmin() {
         {/* Agences */}
         <GmCard
           icone="🏪"
-          titre="Agences"
-          trend={{ sens: 'up', label: `${stats?.nbAgencesActives ?? 0} actives` }}
+          titre={t.dashboard.cards.agences}
+          trend={{ sens: 'up', label: `${stats?.nbAgencesActives ?? 0} ${t.dashboard.labels.actives}` }}
           onClick={() => router.push('/dashboard/agences')}
           actions={
             <>
-              <GmButton petit onClick={go('/dashboard/agences')}>Voir agences</GmButton>
-              <GmButton petit variante="outline" onClick={go('/dashboard/agences')}>+ Nouvelle agence</GmButton>
+              <GmButton petit onClick={go('/dashboard/agences')}>{t.dashboard.actionsLabels.seeAgencies}</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/agences')}>{t.dashboard.actionsLabels.newAgency}</GmButton>
             </>
           }
         >
-          <GmMetric valeur={CHIFFRE(stats?.nbAgencesActives ?? 0)} label="agences actives" />
+          <GmMetric valeur={CHIFFRE(stats?.nbAgencesActives ?? 0)} label={t.dashboard.labels.activeAgencies} />
           <GmMetricSub icone="👥">
-            {CHIFFRE(stats?.nbAgentsActifs ?? 0)} agents actifs répartis
+            {CHIFFRE(stats?.nbAgentsActifs ?? 0)} {t.dashboard.labels.agentsSpread}
           </GmMetricSub>
         </GmCard>
 
         {/* Commissions */}
         <GmCard
           icone="💰"
-          titre="Commissions"
+          titre={t.dashboard.cards.commissions}
           trend={
             (stats?.commissionsAValider ?? 0) > 0
-              ? { sens: 'warn', label: `${stats?.commissionsAValider} à valider` }
-              : { sens: 'up', label: 'À jour' }
+              ? { sens: 'warn', label: `${stats?.commissionsAValider} ${t.dashboard.labels.toValidate}` }
+              : { sens: 'up', label: t.dashboard.labels.upToDate }
           }
           onClick={() => router.push('/dashboard/commissions')}
           actions={
             <>
-              <GmButton petit onClick={go('/dashboard/commissions')}>Valider</GmButton>
-              <GmButton petit variante="outline" onClick={go('/dashboard/commissions')}>Historique</GmButton>
+              <GmButton petit onClick={go('/dashboard/commissions')}>{t.dashboard.actionsLabels.validate}</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/commissions')}>{t.dashboard.actionsLabels.history}</GmButton>
             </>
           }
         >
-          <GmMetric valeur={CHIFFRE(stats?.commissionsAValider ?? 0)} label="commission(s) en attente de validation" />
+          <GmMetric valeur={CHIFFRE(stats?.commissionsAValider ?? 0)} label={t.dashboard.labels.commissionsPending} />
         </GmCard>
 
         {/* Float opérateurs */}
         <GmCard
           icone="🏦"
-          titre="Float opérateurs"
+          titre={t.dashboard.cards.floatOperateurs}
           trend={
             (stats?.alertesFloatBas ?? 0) > 0
-              ? { sens: 'warn', label: `⚠️ ${stats?.alertesFloatBas} float bas` }
-              : { sens: 'up', label: 'Niveaux OK' }
+              ? { sens: 'warn', label: `⚠️ ${stats?.alertesFloatBas} ${t.dashboard.labels.floatLow}` }
+              : { sens: 'up', label: t.dashboard.labels.levelsOk }
           }
           onClick={() => router.push('/dashboard/float')}
           actions={
             <>
-              <GmButton petit onClick={go('/dashboard/float')}>Réapprovisionner</GmButton>
-              <GmButton petit variante="outline" onClick={go('/dashboard/float')}>Voir float</GmButton>
+              <GmButton petit onClick={go('/dashboard/float')}>{t.dashboard.actionsLabels.refill}</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/float')}>{t.dashboard.actionsLabels.seeFloat}</GmButton>
             </>
           }
         >
-          <GmMetric valeur={CHIFFRE(stats?.alertesFloatBas ?? 0)} label="opérateur(s) sous le seuil" />
-          <GmMetricSub icone="📊">Détail des soldes par opérateur dans la page Float</GmMetricSub>
+          <GmMetric valeur={CHIFFRE(stats?.alertesFloatBas ?? 0)} label={t.dashboard.labels.operatorsBelowThreshold} />
+          <GmMetricSub icone="📊">{t.dashboard.labels.floatDetail}</GmMetricSub>
         </GmCard>
       </GmCardGrid>
 
@@ -361,15 +365,15 @@ function DashboardAdmin() {
       {/* Bannière d'alertes — dérivée des vraies stats */}
       {alertes.length > 0 && (
         <BanniereAlertes
-          titre="Alertes"
-          message={<>Points à traiter : <strong>{alertes.join(' · ')}</strong>.</>}
+          titre={t.dashboard.alerts}
+          message={<>{t.dashboard.pointsToHandle} : <strong>{alertes.join(' · ')}</strong>.</>}
           actions={
             <>
               <button className="gm-btn-ai gm-btn-ai-primary" onClick={() => router.push('/dashboard/float')}>
-                Agir maintenant
+                {t.dashboard.actNow}
               </button>
               <button className="gm-btn-ai gm-btn-ai-ghost" onClick={() => router.push('/dashboard/commissions')}>
-                Voir commissions
+                {t.dashboard.seeCommissions}
               </button>
             </>
           }
@@ -383,11 +387,11 @@ function DashboardAdmin() {
             href="/dashboard/transactions"
             style={{ fontSize: 12, color: 'var(--gm-primary)', textDecoration: 'none', fontWeight: 500 }}
           >
-            Voir tout →
+            {t.common.seeAll} →
           </a>
         }
       >
-        Activité récente
+        {t.dashboard.recentActivity}
       </GmSectionTitle>
       <TableauTransactions transactions={(stats?.transactionsRecentes ?? []).slice(0, 10)} />
     </>
@@ -399,6 +403,7 @@ function DashboardAdmin() {
 function DashboardManager() {
   const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={3} />;
@@ -408,57 +413,57 @@ function DashboardManager() {
       <GmCardGrid>
         <GmCard
           icone="💳"
-          titre="Transactions agence"
-          trend={trendVariation(stats?.variationPct)}
+          titre={t.dashboard.cards.txAgence}
+          trend={trendVariation(stats?.variationPct, t)}
           onClick={() => router.push('/dashboard/transactions')}
-          actions={<GmButton petit onClick={go('/dashboard/transactions?type=depot')}>+ Transaction</GmButton>}
+          actions={<GmButton petit onClick={go('/dashboard/transactions?type=depot')}>{t.dashboard.actionsLabels.newTransaction}</GmButton>}
         >
-          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label={t.dashboard.labels.txToday} />
         </GmCard>
 
         <GmCard
           icone="💵"
-          titre="Volume agence"
+          titre={t.dashboard.cards.volumeAgence}
           onClick={() => router.push('/dashboard/rapports')}
-          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>Rapports</GmButton>}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>{t.dashboard.actionsLabels.reports}</GmButton>}
         >
-          <GmMetric valeur={formatMontant(stats?.volumeAgence ?? 0)} label="XOF sur mon agence" />
+          <GmMetric valeur={formatMontant(stats?.volumeAgence ?? 0)} label={t.dashboard.labels.xofMyAgency} />
         </GmCard>
 
         <GmCard
           icone="👥"
-          titre="Mon équipe"
-          trend={{ sens: 'up', label: `${stats?.nbAgentsSupervisés ?? 0} supervisés` }}
+          titre={t.dashboard.cards.monEquipe}
+          trend={{ sens: 'up', label: `${stats?.nbAgentsSupervisés ?? 0} ${t.dashboard.labels.supervised}` }}
           onClick={() => router.push('/dashboard/agents')}
-          actions={<GmButton petit onClick={go('/dashboard/agents')}>Voir agents</GmButton>}
+          actions={<GmButton petit onClick={go('/dashboard/agents')}>{t.dashboard.actionsLabels.seeAgents}</GmButton>}
         >
-          <GmMetric valeur={CHIFFRE(stats?.nbAgentsSupervisés ?? 0)} label="agents supervisés" />
+          <GmMetric valeur={CHIFFRE(stats?.nbAgentsSupervisés ?? 0)} label={t.dashboard.labels.supervisedAgents} />
         </GmCard>
       </GmCardGrid>
 
       {stats?.alerteFloatAgence && (
         <BanniereAlertes
-          titre="Alerte float"
-          message={<>Le float de <strong>votre agence</strong> est en dessous du seuil configuré.</>}
+          titre={t.dashboard.floatAlert.title}
+          message={<>{t.dashboard.floatAlert.before} <strong>{t.dashboard.floatAlert.strong}</strong> {t.dashboard.floatAlert.after}</>}
           actions={
             <button className="gm-btn-ai gm-btn-ai-primary" onClick={() => router.push('/dashboard/float')}>
-              Réapprovisionner
+              {t.dashboard.actionsLabels.refill}
             </button>
           }
         />
       )}
 
-      <GmSectionTitle>Performances de mon équipe</GmSectionTitle>
+      <GmSectionTitle>{t.dashboard.teamPerformance}</GmSectionTitle>
       <GmTableWrap>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
-                <th>Agent</th>
-                <th>Transactions</th>
-                <th>Volume</th>
-                <th>Commission</th>
-                <th>Statut</th>
+                <th>{t.common.agent}</th>
+                <th>{t.dashboard.transactions}</th>
+                <th>{t.common.volume}</th>
+                <th>{t.common.commission}</th>
+                <th>{t.common.statut}</th>
               </tr>
             </thead>
             <tbody>
@@ -470,7 +475,7 @@ function DashboardManager() {
                   <td style={{ fontVariantNumeric: 'tabular-nums' }}>{CHIFFRE(agent.commission)} XOF</td>
                   <td>
                     <span className={agent.statut === 'actif' ? 'gm-op-status gm-status-ok' : 'gm-op-status gm-status-warn'}>
-                      {agent.statut === 'actif' ? 'Actif' : 'Inactif'}
+                      {agent.statut === 'actif' ? t.common.active : t.common.inactive}
                     </span>
                   </td>
                 </tr>
@@ -488,6 +493,7 @@ function DashboardManager() {
 function DashboardAgent() {
   const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={3} />;
@@ -499,42 +505,44 @@ function DashboardAgent() {
       <GmCardGrid>
         <GmCard
           icone="💳"
-          titre="Mes transactions"
-          trend={trendVariation(stats?.variationPct)}
+          titre={t.dashboard.cards.mesTransactions}
+          trend={trendVariation(stats?.variationPct, t)}
           onClick={() => router.push('/dashboard/transactions')}
           actions={
             <>
-              <GmButton petit onClick={go('/dashboard/transactions?type=depot')}>+ Dépôt</GmButton>
-              <GmButton petit variante="outline" onClick={go('/dashboard/transactions?type=retrait')}>+ Retrait</GmButton>
+              <GmButton petit onClick={go('/dashboard/transactions?type=depot')}>{t.dashboard.actionsLabels.depot}</GmButton>
+              <GmButton petit variante="outline" onClick={go('/dashboard/transactions?type=retrait')}>{t.dashboard.actionsLabels.retrait}</GmButton>
             </>
           }
         >
-          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label={t.dashboard.labels.txToday} />
           <GmMetricSub icone="💰">
-            <strong style={{ color: 'var(--gm-text)' }}>{formatMontant(stats?.volumeJour ?? 0)}</strong> traités
+            <strong style={{ color: 'var(--gm-text)' }}>{formatMontant(stats?.volumeJour ?? 0)}</strong> {t.dashboard.labels.processed}
           </GmMetricSub>
         </GmCard>
 
         <GmCard
           icone="🏦"
-          titre="Mon float"
-          trend={floatBas ? { sens: 'warn', label: '⚠️ Seuil bas' } : { sens: 'up', label: 'Niveau correct' }}
+          titre={t.dashboard.cards.monFloat}
+          trend={floatBas
+            ? { sens: 'warn', label: `⚠️ ${t.dashboard.labels.lowThreshold}` }
+            : { sens: 'up', label: t.dashboard.labels.levelOk }}
           onClick={() => router.push('/dashboard/float')}
-          actions={<GmButton petit onClick={go('/dashboard/float')}>Demander un réappro</GmButton>}
+          actions={<GmButton petit onClick={go('/dashboard/float')}>{t.dashboard.actionsLabels.requestRefill}</GmButton>}
         >
-          <GmMetric valeur={formatMontant(stats?.monFloat ?? 0)} label="XOF disponibles" />
+          <GmMetric valeur={formatMontant(stats?.monFloat ?? 0)} label={t.dashboard.labels.xofAvailable} />
           <GmMetricSub icone={floatBas ? '🔴' : '🟢'}>
-            {floatBas ? 'Seuil bas — contactez votre manager' : 'Niveau correct'}
+            {floatBas ? t.dashboard.labels.lowThresholdMsg : t.dashboard.labels.levelOk}
           </GmMetricSub>
         </GmCard>
 
         <GmCard
           icone="📈"
-          titre="Ma commission"
+          titre={t.dashboard.cards.maCommission}
           onClick={() => router.push('/dashboard/commissions')}
-          actions={<GmButton petit variante="outline" onClick={go('/dashboard/commissions')}>Détail</GmButton>}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/commissions')}>{t.dashboard.actionsLabels.detail}</GmButton>}
         >
-          <GmMetric valeur={formatMontant(stats?.maCommissionMois ?? 0)} label="XOF ce mois" />
+          <GmMetric valeur={formatMontant(stats?.maCommissionMois ?? 0)} label={t.dashboard.labels.xofThisMonth} />
         </GmCard>
       </GmCardGrid>
 
@@ -544,11 +552,11 @@ function DashboardAgent() {
             href="/dashboard/transactions"
             style={{ fontSize: 12, color: 'var(--gm-primary)', textDecoration: 'none', fontWeight: 500 }}
           >
-            Voir tout →
+            {t.common.seeAll} →
           </a>
         }
       >
-        Mes dernières transactions
+        {t.dashboard.myLastTransactions}
       </GmSectionTitle>
       <TableauTransactions transactions={stats?.mesTransactions ?? []} colonneAgent={false} />
     </>
@@ -560,6 +568,7 @@ function DashboardAgent() {
 function DashboardAuditeur() {
   const { stats, isLoading } = useDashboardStats();
   const router = useRouter();
+  const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={3} />;
@@ -569,42 +578,42 @@ function DashboardAuditeur() {
       <GmCardGrid>
         <GmCard
           icone="🛡️"
-          titre="Opérations auditées"
+          titre={t.dashboard.cards.operationsAuditees}
           onClick={() => router.push('/dashboard/rapports')}
-          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>Exporter</GmButton>}
+          actions={<GmButton petit variante="outline" onClick={go('/dashboard/rapports')}>{t.dashboard.actionsLabels.export}</GmButton>}
         >
-          <GmMetric valeur={CHIFFRE(stats?.operationsAuditees ?? 0)} label="opérations auditées" />
+          <GmMetric valeur={CHIFFRE(stats?.operationsAuditees ?? 0)} label={t.dashboard.labels.auditedOps} />
         </GmCard>
 
         <GmCard
           icone="💳"
-          titre="Transactions du jour"
-          trend={trendVariation(stats?.variationPct)}
+          titre={t.dashboard.cards.txDuJour}
+          trend={trendVariation(stats?.variationPct, t)}
           onClick={() => router.push('/dashboard/transactions')}
         >
-          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label="transactions aujourd'hui" />
+          <GmMetric valeur={CHIFFRE(stats?.nbTransactionsJour ?? 0)} label={t.dashboard.labels.txToday} />
         </GmCard>
 
         <GmCard
           icone="💵"
-          titre="Volume du jour"
+          titre={t.dashboard.cards.volumeDay}
           onClick={() => router.push('/dashboard/rapports')}
         >
-          <GmMetric valeur={formatMontant(stats?.volumeJour ?? 0)} label="XOF traités" />
+          <GmMetric valeur={formatMontant(stats?.volumeJour ?? 0)} label={t.dashboard.labels.xofProcessed} />
         </GmCard>
       </GmCardGrid>
 
-      <GmSectionTitle>Journal d'audit récent</GmSectionTitle>
+      <GmSectionTitle>{t.dashboard.auditTable.title}</GmSectionTitle>
       <GmTableWrap>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
-                <th>Action</th>
-                <th>Utilisateur</th>
-                <th>Ressource</th>
-                <th>IP</th>
-                <th>Date</th>
+                <th>{t.dashboard.auditTable.action}</th>
+                <th>{t.dashboard.auditTable.user}</th>
+                <th>{t.dashboard.auditTable.resource}</th>
+                <th>{t.dashboard.auditTable.ip}</th>
+                <th>{t.common.date}</th>
               </tr>
             </thead>
             <tbody>
@@ -614,7 +623,7 @@ function DashboardAuditeur() {
                   <td style={{ fontSize: 12 }}>{entry.utilisateur}</td>
                   <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{entry.ressource}</td>
                   <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{entry.ip}</td>
-                  <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{formatRelative(entry.date)}</td>
+                  <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{formatRelative(entry.date, t)}</td>
                 </tr>
               ))}
             </tbody>
@@ -631,6 +640,7 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { refresh, isLoading, isMock, lastUpdated } = useDashboardStats();
   const router = useRouter();
+  const t = useT();
   const [mounted, setMounted] = React.useState(false);
 
   useEffect(() => {
@@ -644,12 +654,16 @@ export default function DashboardPage() {
   const isAuditeur = role === 'viewer' || role === 'auditeur';
 
   const heureMAJ = mounted && lastUpdated
-    ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
+    ? new Intl.DateTimeFormat(t.dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
     : '';
 
   const heure = new Date().getHours();
-  const salutation = heure < 12 ? 'Bonjour' : heure < 18 ? 'Bon après-midi' : 'Bonsoir';
-  const prenom = user?.prenom ?? user?.nom ?? 'vous';
+  const salutation = heure < 12
+    ? t.dashboard.greetingMorning
+    : heure < 18
+      ? t.dashboard.greetingAfternoon
+      : t.dashboard.greetingEvening;
+  const prenom = user?.prenom ?? user?.nom ?? t.dashboard.you;
 
   return (
     <>
@@ -660,22 +674,22 @@ export default function DashboardPage() {
         titre={`${salutation}, ${prenom} 👋`}
         sousTitre={
           <>
-            Tableau de bord
-            {heureMAJ && <> — mis à jour à {heureMAJ}</>}
-            {isMock && <> · <span style={{ color: 'var(--gm-warning)' }}>données de démonstration</span></>}
+            {t.dashboard.title}
+            {heureMAJ && <> — {t.dashboard.updatedAtLabel} {heureMAJ}</>}
+            {isMock && <> · <span style={{ color: 'var(--gm-warning)' }}>{t.dashboard.demoData}</span></>}
           </>
         }
         actions={
           <>
             <GmButton petit variante="outline" onClick={() => refresh()} disabled={isLoading}>
-              {isLoading ? '⏳ Chargement…' : '🔄 Actualiser'}
+              {isLoading ? `⏳ ${t.common.loading}` : `🔄 ${t.common.refresh}`}
             </GmButton>
             <GmButton
               petit
               data-tour="new-transaction"
               onClick={() => router.push('/dashboard/transactions?type=depot')}
             >
-              + Nouvelle transaction
+              + {t.dashboard.newTransaction}
             </GmButton>
             <GmButton
               petit
@@ -683,7 +697,7 @@ export default function DashboardPage() {
               data-tour="rapports-link"
               onClick={() => router.push('/dashboard/rapports')}
             >
-              📊 Rapports
+              📊 {t.dashboard.reportsButton}
             </GmButton>
           </>
         }

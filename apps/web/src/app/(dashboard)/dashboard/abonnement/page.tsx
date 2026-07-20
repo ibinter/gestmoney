@@ -26,32 +26,34 @@ import {
   type StatutPaiement,
 } from '@/hooks/usePaiements';
 import { formatMontant, formatDateTime } from '@/lib/formatters';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 // ─── Libellés statiques (textes d'interface, pas des données) ────────────────
 
-/** Icône et intitulé de repli d'un moyen. Le libellé réel vient de l'API. */
-const METHODE_UI: Record<MethodePaiement, { icone: string; famille: string }> = {
-  MOBILE_MONEY_MANUEL: { icone: '📱', famille: 'Mobile Money (validation manuelle)' },
-  PASSERELLE: { icone: '💳', famille: 'Passerelle en ligne' },
-  VIREMENT_NATIONAL: { icone: '🏦', famille: 'Virement bancaire national' },
-  VIREMENT_INTERNATIONAL: { icone: '🌍', famille: 'Virement international' },
-  TRANSFERT_ARGENT: { icone: '💸', famille: "Transfert d'argent" },
-  ESPECES_AGENCE: { icone: '🏪', famille: 'Espèces en agence' },
-  CHEQUE: { icone: '🧾', famille: 'Chèque' },
-  CRYPTO: { icone: '₿', famille: 'Crypto-monnaie' },
-  VOUCHER: { icone: '🎟️', famille: 'Code prépayé' },
-  PAIEMENT_LIVRAISON: { icone: '🚚', famille: 'Paiement à la livraison' },
+/** Icône de repli d'un moyen. Le libellé réel vient de l'API. */
+const METHODE_ICONE: Record<MethodePaiement, string> = {
+  MOBILE_MONEY_MANUEL: '📱',
+  PASSERELLE: '💳',
+  VIREMENT_NATIONAL: '🏦',
+  VIREMENT_INTERNATIONAL: '🌍',
+  TRANSFERT_ARGENT: '💸',
+  ESPECES_AGENCE: '🏪',
+  CHEQUE: '🧾',
+  CRYPTO: '₿',
+  VOUCHER: '🎟️',
+  PAIEMENT_LIVRAISON: '🚚',
 };
 
-const STATUT_LABEL: Record<StatutPaiement, string> = {
-  EN_ATTENTE: 'En attente',
-  EN_COURS: 'En cours de vérification',
-  REUSSI: 'Réussi',
-  ECHOUE: 'Échoué',
-  REMBOURSE: 'Remboursé',
-  ANNULE: 'Annulé',
-  EXPIRE: 'Expiré',
-};
+/** Intitulé de famille traduit d'un moyen de paiement. */
+function familleMethode(t: Translations, methode: MethodePaiement): string {
+  return t.abonnement.familles[methode] ?? methode;
+}
+
+/** Libellé de statut traduit d'un paiement. */
+function statutLabel(t: Translations, statut: StatutPaiement): string {
+  return t.abonnement.statuts[statut] ?? statut;
+}
 
 /** Le kit n'expose que trois tons de pastille : on y ramène les 7 statuts. */
 function tonStatut(statut: StatutPaiement): 'success' | 'pending' | 'failed' {
@@ -77,60 +79,65 @@ const MOYENS_MANUELS: MethodePaiement[] = [
  * (l'administration est libre de son nommage). Seuls les champs REELLEMENT
  * présents sont affichés — rien n'est inventé, rien n'est complété.
  */
-const CHAMPS_PAR_METHODE: Record<MethodePaiement, Array<{ label: string; alias: string[] }>> = {
-  MOBILE_MONEY_MANUEL: [
-    { label: 'Opérateur', alias: ['operateur', 'reseau', 'operator'] },
-    { label: 'Numéro à créditer', alias: ['numero', 'numeroReception', 'numero_reception', 'telephone'] },
-    { label: 'Titulaire du compte', alias: ['titulaire', 'nomTitulaire', 'beneficiaire'] },
-  ],
-  PASSERELLE: [
-    { label: 'Fournisseur', alias: ['provider', 'fournisseur'] },
-  ],
-  VIREMENT_NATIONAL: [
-    { label: 'Banque', alias: ['banque', 'nomBanque'] },
-    { label: 'Titulaire du compte', alias: ['titulaire', 'nomTitulaire', 'beneficiaire'] },
-    { label: 'IBAN', alias: ['iban', 'IBAN'] },
-    { label: 'RIB', alias: ['rib', 'RIB'] },
-    { label: 'Numéro de compte', alias: ['numeroCompte', 'numero_compte', 'compte'] },
-    { label: 'Code BIC / SWIFT', alias: ['bic', 'BIC', 'swift', 'SWIFT'] },
-  ],
-  VIREMENT_INTERNATIONAL: [
-    { label: 'Banque', alias: ['banque', 'nomBanque'] },
-    { label: 'Titulaire du compte', alias: ['titulaire', 'nomTitulaire', 'beneficiaire'] },
-    { label: 'IBAN', alias: ['iban', 'IBAN'] },
-    { label: 'Code BIC / SWIFT', alias: ['bic', 'BIC', 'swift', 'SWIFT'] },
-    { label: 'Adresse de la banque', alias: ['adresseBanque', 'adresse_banque', 'adresse'] },
-    { label: 'Pays', alias: ['pays', 'paysBanque'] },
-  ],
-  TRANSFERT_ARGENT: [
-    { label: 'Enseigne', alias: ['enseigne', 'operateur', 'service'] },
-    { label: 'Bénéficiaire', alias: ['beneficiaire', 'titulaire', 'nomBeneficiaire'] },
-    { label: 'Ville', alias: ['ville'] },
-    { label: 'Pays', alias: ['pays'] },
-    { label: "Pièce d'identité à présenter", alias: ['piece', 'pieceIdentite', 'piece_identite'] },
-  ],
-  ESPECES_AGENCE: [
-    { label: 'Adresse', alias: ['adresse', 'localisation'] },
-    { label: 'Horaires', alias: ['horaires', 'horaire'] },
-    { label: 'Contact', alias: ['contact', 'telephone'] },
-  ],
-  CHEQUE: [
-    { label: "Chèque à l'ordre de", alias: ['ordre', 'ordreCheque', 'beneficiaire', 'titulaire'] },
-    { label: 'Banque', alias: ['banque'] },
-    { label: "Adresse d'envoi", alias: ['adresseEnvoi', 'adresse_envoi', 'adresse'] },
-  ],
-  CRYPTO: [
-    { label: 'Réseau', alias: ['reseau', 'network', 'chaine', 'blockchain'] },
-    { label: 'Actif', alias: ['actif', 'asset', 'crypto', 'jeton'] },
-    { label: 'Adresse du wallet', alias: ['adresse', 'adresseWallet', 'wallet', 'adresse_wallet'] },
-    { label: 'Mémo / Tag', alias: ['memo', 'tag', 'destinationTag'] },
-  ],
-  VOUCHER: [],
-  PAIEMENT_LIVRAISON: [
-    { label: 'Zones desservies', alias: ['zones', 'zone', 'couverture'] },
-    { label: 'Délai', alias: ['delai', 'delaiLivraison'] },
-    { label: 'Contact', alias: ['contact', 'telephone'] },
-  ],
+const champsParMethode = (
+  t: Translations,
+): Record<MethodePaiement, Array<{ label: string; alias: string[] }>> => {
+  const c = t.abonnement.champs;
+  return {
+    MOBILE_MONEY_MANUEL: [
+      { label: c.operateur, alias: ['operateur', 'reseau', 'operator'] },
+      { label: c.numeroACrediter, alias: ['numero', 'numeroReception', 'numero_reception', 'telephone'] },
+      { label: c.titulaire, alias: ['titulaire', 'nomTitulaire', 'beneficiaire'] },
+    ],
+    PASSERELLE: [
+      { label: c.fournisseur, alias: ['provider', 'fournisseur'] },
+    ],
+    VIREMENT_NATIONAL: [
+      { label: c.banque, alias: ['banque', 'nomBanque'] },
+      { label: c.titulaire, alias: ['titulaire', 'nomTitulaire', 'beneficiaire'] },
+      { label: c.iban, alias: ['iban', 'IBAN'] },
+      { label: c.rib, alias: ['rib', 'RIB'] },
+      { label: c.numeroCompte, alias: ['numeroCompte', 'numero_compte', 'compte'] },
+      { label: c.bic, alias: ['bic', 'BIC', 'swift', 'SWIFT'] },
+    ],
+    VIREMENT_INTERNATIONAL: [
+      { label: c.banque, alias: ['banque', 'nomBanque'] },
+      { label: c.titulaire, alias: ['titulaire', 'nomTitulaire', 'beneficiaire'] },
+      { label: c.iban, alias: ['iban', 'IBAN'] },
+      { label: c.bic, alias: ['bic', 'BIC', 'swift', 'SWIFT'] },
+      { label: c.adresseBanque, alias: ['adresseBanque', 'adresse_banque', 'adresse'] },
+      { label: c.pays, alias: ['pays', 'paysBanque'] },
+    ],
+    TRANSFERT_ARGENT: [
+      { label: c.enseigne, alias: ['enseigne', 'operateur', 'service'] },
+      { label: c.beneficiaire, alias: ['beneficiaire', 'titulaire', 'nomBeneficiaire'] },
+      { label: c.ville, alias: ['ville'] },
+      { label: c.pays, alias: ['pays'] },
+      { label: c.pieceIdentite, alias: ['piece', 'pieceIdentite', 'piece_identite'] },
+    ],
+    ESPECES_AGENCE: [
+      { label: c.adresse, alias: ['adresse', 'localisation'] },
+      { label: c.horaires, alias: ['horaires', 'horaire'] },
+      { label: c.contact, alias: ['contact', 'telephone'] },
+    ],
+    CHEQUE: [
+      { label: c.chequeOrdre, alias: ['ordre', 'ordreCheque', 'beneficiaire', 'titulaire'] },
+      { label: c.banque, alias: ['banque'] },
+      { label: c.adresseEnvoi, alias: ['adresseEnvoi', 'adresse_envoi', 'adresse'] },
+    ],
+    CRYPTO: [
+      { label: c.reseau, alias: ['reseau', 'network', 'chaine', 'blockchain'] },
+      { label: c.actif, alias: ['actif', 'asset', 'crypto', 'jeton'] },
+      { label: c.adresseWallet, alias: ['adresse', 'adresseWallet', 'wallet', 'adresse_wallet'] },
+      { label: c.memoTag, alias: ['memo', 'tag', 'destinationTag'] },
+    ],
+    VOUCHER: [],
+    PAIEMENT_LIVRAISON: [
+      { label: c.zones, alias: ['zones', 'zone', 'couverture'] },
+      { label: c.delai, alias: ['delai', 'delaiLivraison'] },
+      { label: c.contact, alias: ['contact', 'telephone'] },
+    ],
+  };
 };
 
 /** Clés traitées à part : jamais reprises dans le bloc « autres informations ». */
@@ -221,8 +228,9 @@ function LigneInfo({ label, valeur }: { label: string; valeur: React.ReactNode }
  * Aucune valeur d'exemple n'est produite en cas d'absence.
  */
 function BlocInstructions({ methode }: { methode: MethodeDisponible }) {
+  const t = useT();
   const parametres = methode.parametres ?? {};
-  const champs = CHAMPS_PAR_METHODE[methode.methode] ?? [];
+  const champs = champsParMethode(t)[methode.methode] ?? [];
 
   const renseignes = champs
     .map((champ) => ({ label: champ.label, valeur: lireParam(parametres, champ.alias) }))
@@ -258,14 +266,11 @@ function BlocInstructions({ methode }: { methode: MethodeDisponible }) {
   return (
     <div className="gm-section-card">
       <div className="gm-section-title">
-        <span>📄 Instructions de paiement</span>
+        <span>{t.abonnement.instructions.title}</span>
       </div>
 
       {vide ? (
-        <div style={CELLULE_VIDE}>
-          Aucune coordonnée n’a été publiée pour ce moyen de paiement. Contactez le support avant
-          d’effectuer un versement.
-        </div>
+        <div style={CELLULE_VIDE}>{t.abonnement.instructions.empty}</div>
       ) : (
         <>
           {instructions && (
@@ -280,7 +285,7 @@ function BlocInstructions({ methode }: { methode: MethodeDisponible }) {
 
           {pointsCollecte.length > 0 && (
             <LigneInfo
-              label="Points de collecte"
+              label={t.abonnement.instructions.collectPoints}
               valeur={
                 <ul style={{ margin: 0, paddingLeft: 18, fontWeight: 500 }}>
                   {pointsCollecte.map((point) => (
@@ -303,6 +308,7 @@ function BlocInstructions({ methode }: { methode: MethodeDisponible }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AbonnementPage() {
+  const t = useT();
   const methodesQuery = useMethodesPaiement();
   const paiementsQuery = useMesPaiements();
 
@@ -362,16 +368,13 @@ export default function AbonnementPage() {
 
     const valeur = Number(montant);
     if (!Number.isFinite(valeur) || valeur <= 0) {
-      setErreurCreation('Montant invalide : saisissez un montant strictement positif.');
+      setErreurCreation(t.abonnement.creation.invalidAmount);
       return;
     }
 
     const fournisseur = resoudreFournisseur(methodeChoisie);
     if (!fournisseur) {
-      setErreurCreation(
-        'Ce moyen de paiement n’est pas complètement configuré (fournisseur non déterminé). ' +
-          'Contactez le support.',
-      );
+      setErreurCreation(t.abonnement.creation.notConfigured);
       return;
     }
 
@@ -388,7 +391,7 @@ export default function AbonnementPage() {
       });
       setPaiementCree(paiement);
     } catch (erreur) {
-      setErreurCreation(messageErreurApi(erreur, 'Impossible de créer le paiement.'));
+      setErreurCreation(messageErreurApi(erreur, t.abonnement.creation.failed));
     }
   }
 
@@ -399,10 +402,7 @@ export default function AbonnementPage() {
     if (!paiementCree) return;
 
     if (!fichier) {
-      setErreurPreuve(
-        'Joignez une image ou un PDF de votre justificatif (10 Mo maximum). ' +
-          'La référence seule ne suffit pas.',
-      );
+      setErreurPreuve(t.abonnement.preuve.missingFile);
       return;
     }
 
@@ -412,14 +412,12 @@ export default function AbonnementPage() {
         fichier,
         referenceTexte: referenceTexte.trim() || undefined,
       });
-      setSuccesPreuve(
-        'Justificatif reçu. Un administrateur doit le vérifier : votre accès n’est pas activé immédiatement.',
-      );
+      setSuccesPreuve(t.abonnement.preuve.success);
       setFichier(null);
       setReferenceTexte('');
       void paiementsQuery.refetch();
     } catch (erreur) {
-      setErreurPreuve(messageErreurApi(erreur, 'Impossible d’envoyer le justificatif.'));
+      setErreurPreuve(messageErreurApi(erreur, t.abonnement.preuve.failed));
     }
   }
 
@@ -430,20 +428,20 @@ export default function AbonnementPage() {
 
     const code = codeVoucher.trim();
     if (code.length < 8) {
-      setErreurVoucher('Code invalide : 8 caractères minimum.');
+      setErreurVoucher(t.abonnement.voucher.invalid);
       return;
     }
 
     try {
       const resultat = await consommerVoucher.mutateAsync(code);
       setSuccesVoucher(
-        `Code accepté. Abonnement activé${
-          resultat.plan ? ` sur le plan ${resultat.plan}` : ''
-        } pour ${resultat.dureeJours} jour(s).`,
+        `${t.abonnement.voucher.acceptedPrefix}${
+          resultat.plan ? ` ${t.abonnement.voucher.onPlan} ${resultat.plan}` : ''
+        } ${t.abonnement.voucher.forPrefix} ${resultat.dureeJours} ${t.abonnement.voucher.forDays}`,
       );
       setCodeVoucher('');
     } catch (erreur) {
-      setErreurVoucher(messageErreurApi(erreur, 'Ce code n’a pas pu être utilisé.'));
+      setErreurVoucher(messageErreurApi(erreur, t.abonnement.voucher.failed));
     }
   }
 
@@ -456,14 +454,14 @@ export default function AbonnementPage() {
   return (
     <>
       <GmPageHeader
-        fil={['🏠 Accueil', 'Abonnement']}
-        titre="💠 Abonnement & paiement"
-        sousTitre="Réglez votre abonnement par le moyen de votre choix"
+        fil={[`🏠 ${t.common.home}`, t.nav.abonnement]}
+        titre={`💠 ${t.abonnement.title}`}
+        sousTitre={t.abonnement.subtitle}
         actions={
           <>
             {methodeChoisie && (
               <GmButton variante="outline" petit onClick={revenirAuChoix}>
-                ← Changer de moyen
+                {t.abonnement.changeMethod}
               </GmButton>
             )}
             <GmButton
@@ -474,7 +472,7 @@ export default function AbonnementPage() {
                 void paiementsQuery.refetch();
               }}
             >
-              🔄 Actualiser
+              🔄 {t.common.refresh}
             </GmButton>
           </>
         }
@@ -484,7 +482,7 @@ export default function AbonnementPage() {
       <div className="gm-alert-banner">
         <div className="gm-alert-icon">🔒</div>
         <div className="gm-alert-text">
-          <strong>Nous ne vous demanderons jamais votre code secret ou mot de passe.</strong>
+          <strong>{t.abonnement.securityNotice}</strong>
         </div>
       </div>
 
@@ -492,27 +490,24 @@ export default function AbonnementPage() {
       {!methodeChoisie && (
         <div className="gm-section-block">
           <div className="gm-section-title">
-            <span>💳 Choisissez un moyen de paiement</span>
+            <span>{t.abonnement.chooseMethod}</span>
           </div>
 
           {methodesQuery.isLoading ? (
-            <div style={CELLULE_VIDE}>Chargement des moyens de paiement…</div>
+            <div style={CELLULE_VIDE}>{t.abonnement.loadingMethods}</div>
           ) : methodesQuery.isError ? (
             <div className="gm-alert-banner">
               <div className="gm-alert-icon">⚠️</div>
               <div className="gm-alert-text">
-                <strong>Moyens de paiement indisponibles.</strong> Le service n’a pas répondu.
-                Utilisez « Actualiser » pour réessayer.
+                <strong>{t.abonnement.methodsUnavailable}</strong> {t.abonnement.methodsUnavailableSub}
               </div>
             </div>
           ) : methodes.length === 0 ? (
-            <div style={CELLULE_VIDE}>
-              Aucun moyen de paiement n’est actuellement proposé. Contactez le support.
-            </div>
+            <div style={CELLULE_VIDE}>{t.abonnement.noMethod}</div>
           ) : (
             <div className="gm-card-grid">
               {methodes.map((methode) => {
-                const ui = METHODE_UI[methode.methode];
+                const icone = METHODE_ICONE[methode.methode];
                 return (
                   <div
                     key={methode.id}
@@ -529,14 +524,14 @@ export default function AbonnementPage() {
                   >
                     <div className="gm-card-head">
                       <div className="gm-card-icon-title">
-                        <div className="gm-card-icon">{ui?.icone ?? '💠'}</div>
+                        <div className="gm-card-icon">{icone ?? '💠'}</div>
                         <div className="gm-card-title">{methode.libelle}</div>
                       </div>
-                      {methode.sandbox && <span className="gm-badge gm-badge-warn">Test</span>}
+                      {methode.sandbox && <span className="gm-badge gm-badge-warn">{t.abonnement.testBadge}</span>}
                     </div>
                     <div className="gm-card-metrics">
                       <div className="gm-metric-sub">
-                        <span>{ui?.famille ?? methode.methode}</span>
+                        <span>{familleMethode(t, methode.methode)}</span>
                       </div>
                       {methode.variante && (
                         <div className="gm-metric-sub">
@@ -545,13 +540,13 @@ export default function AbonnementPage() {
                       )}
                       {methode.devises.length > 0 && (
                         <div className="gm-metric-sub">
-                          <span>Devises : {methode.devises.join(', ')}</span>
+                          <span>{t.abonnement.currencies} {methode.devises.join(', ')}</span>
                         </div>
                       )}
                     </div>
                     <div className="gm-card-actions">
                       <GmButton variante="primary" petit onClick={() => choisirMethode(methode)}>
-                        Choisir
+                        {t.abonnement.choose}
                       </GmButton>
                     </div>
                   </div>
@@ -567,7 +562,7 @@ export default function AbonnementPage() {
         <div className="gm-section-block">
           <div className="gm-section-title">
             <span>
-              {METHODE_UI[methodeChoisie.methode]?.icone ?? '💠'} {methodeChoisie.libelle}
+              {METHODE_ICONE[methodeChoisie.methode] ?? '💠'} {methodeChoisie.libelle}
             </span>
           </div>
 
@@ -575,7 +570,7 @@ export default function AbonnementPage() {
             <div className="gm-alert-banner">
               <div className="gm-alert-icon">🧪</div>
               <div className="gm-alert-text">
-                Ce moyen est en mode test (bac à sable) : aucun encaissement réel n’est effectué.
+                {t.abonnement.sandboxNotice}
               </div>
             </div>
           )}
@@ -587,12 +582,12 @@ export default function AbonnementPage() {
           {estVoucher && (
             <div className="gm-section-card">
               <div className="gm-section-title">
-                <span>🎟️ Code prépayé</span>
+                <span>{t.abonnement.voucher.title}</span>
               </div>
               <form onSubmit={soumettreVoucher}>
                 <div className="gm-form-group">
                   <label className="gm-form-label" htmlFor="abo-voucher">
-                    Votre code
+                    {t.abonnement.voucher.label}
                   </label>
                   <input
                     id="abo-voucher"
@@ -604,10 +599,7 @@ export default function AbonnementPage() {
                     required
                   />
                 </div>
-                <div className="gm-alert-desc">
-                  Un code valide active votre abonnement immédiatement. Chaque code ne peut servir
-                  qu’une seule fois.
-                </div>
+                <div className="gm-alert-desc">{t.abonnement.voucher.hint}</div>
                 {erreurVoucher && (
                   <div className="gm-alert-desc" style={{ color: 'var(--gm-danger)' }}>
                     {erreurVoucher}
@@ -620,7 +612,7 @@ export default function AbonnementPage() {
                 )}
                 <div className="gm-card-actions">
                   <GmButton type="submit" variante="primary" disabled={consommerVoucher.isPending}>
-                    {consommerVoucher.isPending ? 'Vérification…' : 'Utiliser ce code'}
+                    {consommerVoucher.isPending ? t.common.checking : t.abonnement.voucher.submit}
                   </GmButton>
                 </div>
               </form>
@@ -631,13 +623,13 @@ export default function AbonnementPage() {
           {!estVoucher && !paiementCree && (
             <div className="gm-section-card">
               <div className="gm-section-title">
-                <span>🧮 Montant à régler</span>
+                <span>{t.abonnement.creation.title}</span>
               </div>
               <form onSubmit={soumettreCreation}>
                 <div className="gm-form-row">
                   <div className="gm-form-group">
                     <label className="gm-form-label" htmlFor="abo-montant">
-                      Montant
+                      {t.common.amount}
                     </label>
                     <input
                       id="abo-montant"
@@ -654,7 +646,7 @@ export default function AbonnementPage() {
                   {methodeChoisie.devises.length > 0 && (
                     <div className="gm-form-group">
                       <label className="gm-form-label" htmlFor="abo-devise">
-                        Devise
+                        {t.common.currency}
                       </label>
                       <select
                         id="abo-devise"
@@ -673,18 +665,10 @@ export default function AbonnementPage() {
                 </div>
 
                 {estPasserelle && (
-                  <div className="gm-alert-desc">
-                    Après création, vous serez redirigé vers le site du prestataire pour régler.
-                    Le retour depuis ce site n’active pas votre abonnement : l’activation n’a lieu
-                    qu’après confirmation vérifiée du prestataire auprès de nos serveurs.
-                  </div>
+                  <div className="gm-alert-desc">{t.abonnement.creation.gatewayNotice}</div>
                 )}
                 {estManuel && (
-                  <div className="gm-alert-desc">
-                    Effectuez le versement d’après les instructions ci-dessus, puis envoyez votre
-                    justificatif à l’étape suivante. La validation est faite par un administrateur :
-                    votre accès n’est pas immédiat.
-                  </div>
+                  <div className="gm-alert-desc">{t.abonnement.creation.manualNotice}</div>
                 )}
 
                 {erreurCreation && (
@@ -695,7 +679,7 @@ export default function AbonnementPage() {
 
                 <div className="gm-card-actions">
                   <GmButton type="submit" variante="primary" disabled={creerPaiement.isPending}>
-                    {creerPaiement.isPending ? 'Création…' : 'Créer le paiement'}
+                    {creerPaiement.isPending ? t.common.creating : t.abonnement.creation.submit}
                   </GmButton>
                 </div>
               </form>
@@ -706,34 +690,30 @@ export default function AbonnementPage() {
           {paiementCree && (
             <div className="gm-section-card">
               <div className="gm-section-title">
-                <span>✅ Paiement enregistré</span>
+                <span>{t.abonnement.preuve.title}</span>
               </div>
 
-              <LigneInfo label="Référence à rappeler" valeur={paiementCree.reference} />
+              <LigneInfo label={t.abonnement.preuve.referenceLabel} valeur={paiementCree.reference} />
               <LigneInfo
-                label="Montant"
+                label={t.common.amount}
                 valeur={formatMontant(paiementCree.montant, paiementCree.devise)}
               />
               <LigneInfo
-                label="Statut"
+                label={t.common.statut}
                 valeur={
                   <GmStatusPill statut={tonStatut(paiementCree.statut)}>
-                    {STATUT_LABEL[paiementCree.statut]}
+                    {statutLabel(t, paiementCree.statut)}
                   </GmStatusPill>
                 }
               />
 
               {estPasserelle ? (
-                <div className="gm-alert-desc">
-                  Réglez ce paiement chez le prestataire en rappelant la référence ci-dessus. Nous
-                  n’activons votre abonnement qu’après confirmation vérifiée du prestataire auprès
-                  de nos serveurs — le simple retour du navigateur ne suffit pas.
-                </div>
+                <div className="gm-alert-desc">{t.abonnement.preuve.gatewayNotice}</div>
               ) : (
                 <form onSubmit={soumettrePreuve} style={{ marginTop: 12 }}>
                   <div className="gm-form-group">
                     <label className="gm-form-label" htmlFor="abo-preuve">
-                      Justificatif (image ou PDF, 10 Mo maximum)
+                      {t.abonnement.preuve.fileLabel}
                     </label>
                     <input
                       id="abo-preuve"
@@ -745,8 +725,7 @@ export default function AbonnementPage() {
                   </div>
                   <div className="gm-form-group">
                     <label className="gm-form-label" htmlFor="abo-reference">
-                      Référence de l’opération (MTCN, n° de chèque, hash de transaction, code de
-                      reçu…)
+                      {t.abonnement.preuve.referenceFieldLabel}
                     </label>
                     <input
                       id="abo-reference"
@@ -759,10 +738,7 @@ export default function AbonnementPage() {
                     />
                   </div>
 
-                  <div className="gm-alert-desc">
-                    Votre justificatif est vérifié par un administrateur. L’envoi n’active pas
-                    l’abonnement : l’accès n’est pas immédiat.
-                  </div>
+                  <div className="gm-alert-desc">{t.abonnement.preuve.reviewNotice}</div>
 
                   {erreurPreuve && (
                     <div className="gm-alert-desc" style={{ color: 'var(--gm-danger)' }}>
@@ -777,7 +753,7 @@ export default function AbonnementPage() {
 
                   <div className="gm-card-actions">
                     <GmButton type="submit" variante="primary" disabled={televerserPreuve.isPending}>
-                      {televerserPreuve.isPending ? 'Envoi…' : 'Envoyer le justificatif'}
+                      {televerserPreuve.isPending ? t.common.sending : t.abonnement.preuve.submit}
                     </GmButton>
                   </div>
                 </form>
@@ -786,15 +762,15 @@ export default function AbonnementPage() {
               {/* Preuves déjà déposées pour ce paiement */}
               {preuvesQuery.isError ? (
                 <div className="gm-alert-desc" style={{ color: 'var(--gm-danger)' }}>
-                  Impossible de charger les justificatifs déjà envoyés.
+                  {t.abonnement.preuve.loadError}
                 </div>
               ) : preuvesQuery.isLoading ? (
-                <div style={CELLULE_VIDE}>Chargement des justificatifs…</div>
+                <div style={CELLULE_VIDE}>{t.abonnement.preuve.loading}</div>
               ) : (preuvesQuery.data ?? []).length > 0 ? (
                 <ul style={{ margin: '12px 0 0', paddingLeft: 18, fontSize: 12 }}>
                   {(preuvesQuery.data ?? []).map((preuve) => (
                     <li key={preuve.id}>
-                      {preuve.nomOriginal ?? 'Justificatif'} — {preuve.statut}
+                      {preuve.nomOriginal ?? t.abonnement.preuve.fallbackName} — {preuve.statut}
                       {preuve.motifRejet ? ` (${preuve.motifRejet})` : ''} ·{' '}
                       {formatDateTime(preuve.createdAt)}
                     </li>
@@ -809,36 +785,36 @@ export default function AbonnementPage() {
       {/* ─── Historique des paiements ────────────────────────────────────── */}
       <div className="gm-section-block">
         <div className="gm-section-title">
-          <span>🧾 Mes paiements</span>
+          <span>{t.abonnement.historique.title}</span>
         </div>
         <GmTableWrap>
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Référence</th>
-                <th>Montant</th>
-                <th>Canal</th>
-                <th>Statut</th>
+                <th>{t.common.date}</th>
+                <th>{t.common.reference}</th>
+                <th>{t.common.amount}</th>
+                <th>{t.abonnement.historique.colChannel}</th>
+                <th>{t.common.statut}</th>
               </tr>
             </thead>
             <tbody>
               {paiementsQuery.isLoading ? (
                 <tr>
                   <td colSpan={5} style={CELLULE_VIDE}>
-                    Chargement de vos paiements…
+                    {t.abonnement.historique.loading}
                   </td>
                 </tr>
               ) : paiementsQuery.isError ? (
                 <tr>
                   <td colSpan={5} style={{ ...CELLULE_VIDE, color: 'var(--gm-danger)' }}>
-                    Impossible de charger vos paiements.
+                    {t.abonnement.historique.error}
                   </td>
                 </tr>
               ) : paiements.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={CELLULE_VIDE}>
-                    Aucun paiement enregistré
+                    {t.abonnement.historique.empty}
                   </td>
                 </tr>
               ) : (
@@ -854,7 +830,7 @@ export default function AbonnementPage() {
                     <td style={{ fontSize: 12 }}>{paiement.provider}</td>
                     <td>
                       <GmStatusPill statut={tonStatut(paiement.statut)}>
-                        {STATUT_LABEL[paiement.statut]}
+                        {statutLabel(t, paiement.statut)}
                       </GmStatusPill>
                     </td>
                   </tr>

@@ -152,8 +152,92 @@ const OFFRES = [
   },
 ];
 
+// Moyens de paiement pris en charge par le module d'abonnement
+const MOYENS_PAIEMENT = [
+  {
+    icon: '📱',
+    titre: 'Mobile Money',
+    couleur: '#FF6B00',
+    fond: '#fff7ed',
+    bordure: '#fed7aa',
+    detail: 'Orange Money, MTN MoMo, Wave, Moov, Airtel Money',
+  },
+  {
+    icon: '💳',
+    titre: 'Carte bancaire & passerelles',
+    couleur: '#0369a1',
+    fond: '#f0f9ff',
+    bordure: '#bae6fd',
+    detail: 'CinetPay, Moneroo, FedaPay, Paystack, Stripe, PayPal',
+  },
+  {
+    icon: '🏦',
+    titre: 'Virement bancaire',
+    couleur: '#009E00',
+    fond: '#f0fdf4',
+    bordure: '#bbf7d0',
+    detail: 'Virement national et international (SWIFT / IBAN)',
+  },
+  {
+    icon: '🌍',
+    titre: 'Transfert d\'argent',
+    couleur: '#7B2CBF',
+    fond: '#faf5ff',
+    bordure: '#e9d5ff',
+    detail: 'Western Union, MoneyGram, Ria',
+  },
+  {
+    icon: '💵',
+    titre: 'Espèces en agence',
+    couleur: '#b45309',
+    fond: '#fffbeb',
+    bordure: '#fde68a',
+    detail: 'Règlement au comptoir, reçu enregistré dans la plateforme',
+  },
+  {
+    icon: '🧾',
+    titre: 'Chèque',
+    couleur: '#334155',
+    fond: '#f8fafc',
+    bordure: '#e2e8f0',
+    detail: 'Chèque bancaire, encaissement validé avant activation',
+  },
+  {
+    icon: '₿',
+    titre: 'Cryptomonnaie',
+    couleur: '#d97706',
+    fond: '#fefce8',
+    bordure: '#fde047',
+    detail: 'USDT, Bitcoin, Ethereum',
+  },
+  {
+    icon: '🎟️',
+    titre: 'Code prépayé',
+    couleur: '#E60000',
+    fond: '#fef2f2',
+    bordure: '#fecaca',
+    detail: 'Activation immédiate par code d\'abonnement',
+  },
+  {
+    icon: '🚚',
+    titre: 'Paiement à la livraison',
+    couleur: '#0f766e',
+    fond: '#f0fdfa',
+    bordure: '#99f6e4',
+    detail: 'Règlement lors de la remise du service sur site',
+  },
+];
+
+const GARANTIES_ABONNEMENT = [
+  { icon: '🆓', titre: '14 jours d\'essai', desc: 'Aucune carte bancaire demandée à l\'inscription.' },
+  { icon: '🕊️', titre: '7 jours de grâce', desc: 'Après échéance, votre accès reste ouvert 7 jours avant suspension.' },
+  { icon: '🚪', titre: 'Résiliation sans frais', desc: 'Vous arrêtez quand vous voulez, sans pénalité ni préavis.' },
+];
+
 const FAQ = [
   { q: 'Combien de temps dure l\'essai gratuit ?', r: '14 jours sans carte bancaire. Accès PROFESSIONAL complet. À l\'issue, votre compte passe en lecture seule jusqu\'à souscription.' },
+  { q: 'Quels moyens de paiement puis-je utiliser ?', r: 'La plateforme prend en charge le Mobile Money, la carte bancaire via passerelles, le virement national et international, les transferts d\'argent, les espèces en agence, le chèque, la cryptomonnaie, le code prépayé et le paiement à la livraison. Chaque moyen s\'active à la demande selon votre pays : contactez-nous pour savoir lesquels sont ouverts chez vous.' },
+  { q: 'Que se passe-t-il si je paie en retard ?', r: 'Une période de grâce de 7 jours suit l\'échéance : votre accès reste actif le temps de régulariser. Passé ce délai, le compte est suspendu, sans perte de données.' },
   { q: 'GESTMONEY est-il conforme OHADA ?', r: 'Oui. La comptabilité respecte le plan OHADA. Exports conformes aux exigences UEMOA et CEMAC.' },
   { q: 'Puis-je gérer plusieurs pays ?', r: 'Oui. GESTMONEY supporte la multidevise (XOF, GHS, KES…) et le multi-pays en formule ENTERPRISE.' },
   { q: 'Mes données sont-elles sécurisées ?', r: 'Chiffrement TLS en transit et AES-256 au repos. JWT double token, journaux d\'audit et détection de fraudes IA.' },
@@ -235,6 +319,7 @@ export default function LandingPage() {
             ['#fonctionnalites', 'Fonctionnalités'],
             ['#modules', 'Modules'],
             ['#tarifs', 'Tarifs'],
+            ['#paiement', 'Paiement'],
             ['#faq', 'FAQ'],
             ['#contact', 'Contact'],
           ].map(([href, label]) => (
@@ -283,7 +368,7 @@ export default function LandingPage() {
               <button onClick={() => setMobileMenuOpen(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#666' }}>✕</button>
             </div>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {[['#fonctionnalites','Fonctionnalités'],['#modules','Modules'],['#tarifs','Tarifs'],['#faq','FAQ'],['#contact','Contact']].map(([href,label]) => (
+              {[['#fonctionnalites','Fonctionnalités'],['#modules','Modules'],['#tarifs','Tarifs'],['#paiement','Paiement'],['#faq','FAQ'],['#contact','Contact']].map(([href,label]) => (
                 <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} style={{ display: 'block', padding: '12px 8px', fontSize: 16, fontWeight: 600, color: '#222', textDecoration: 'none', borderBottom: '1px solid #f0f0f0' }}>
                   {label}
                 </a>
@@ -545,7 +630,7 @@ export default function LandingPage() {
             Des formules claires,<br />adaptées à chaque étape.
           </h2>
           <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 16, marginBottom: 20 }}>
-            ✅ Essai gratuit 14 jours &nbsp;·&nbsp; ✅ Sans carte bancaire &nbsp;·&nbsp; ✅ Résiliation sans frais
+            ✅ Essai gratuit 14 jours &nbsp;·&nbsp; ✅ Sans carte bancaire &nbsp;·&nbsp; ✅ 7 jours de grâce après échéance &nbsp;·&nbsp; ✅ Résiliation sans frais
           </p>
           <div style={{ textAlign: 'center', marginBottom: 52 }}>
             <span style={{
@@ -603,6 +688,68 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', marginTop: 36, fontSize: 13, color: '#9ca3af' }}>
             Tarifs HT · TVA selon pays · Paiement mensuel ou annuel (2 mois offerts) · Devis personnalisé disponible
           </p>
+          <p style={{ textAlign: 'center', marginTop: 10, fontSize: 13, color: '#6b7280' }}>
+            <a href="#paiement" style={{ color: '#009E00', fontWeight: 700, textDecoration: 'none' }}>
+              Voir les moyens de paiement pris en charge ↓
+            </a>
+          </p>
+        </div>
+      </section>
+
+      {/* ── MOYENS DE PAIEMENT ── */}
+      <section id="paiement" style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: '#fff' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, letterSpacing: '.15em', color: '#009E00', textTransform: 'uppercase', marginBottom: 12 }}>Paiement &amp; abonnement</p>
+          <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 900, textAlign: 'center', marginBottom: 14, color: '#0a2e15', letterSpacing: '-0.02em' }}>
+            Payez comme vous<br />avez l&apos;habitude de payer.
+          </h2>
+          <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 16, lineHeight: 1.7, maxWidth: 620, margin: '0 auto 44px' }}>
+            Le module d&apos;abonnement GESTMONEY prend en charge les moyens de paiement utilisés en Afrique de l&apos;Ouest et Centrale — du Mobile Money aux espèces en agence.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 16 }}>
+            {MOYENS_PAIEMENT.map((m, i) => (
+              <div key={i} style={{
+                background: m.fond, border: `1.5px solid ${m.bordure}`,
+                borderRadius: 16, padding: '20px 22px',
+                display: 'flex', gap: 14, alignItems: 'flex-start',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                minWidth: 0,
+              }}>
+                <span style={{ fontSize: 26, flexShrink: 0, lineHeight: 1.2 }}>{m.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontWeight: 800, fontSize: 15, marginBottom: 5, color: m.couleur }}>{m.titre}</p>
+                  <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{m.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mention d'honnêteté : activation à la demande */}
+          <div style={{
+            marginTop: 28, background: '#f8fef9', border: '1.5px dashed #bbf7d0',
+            borderRadius: 14, padding: '16px 20px', maxWidth: 760, margin: '28px auto 0',
+          }}>
+            <p style={{ fontSize: 13, color: '#4a6650', lineHeight: 1.7, textAlign: 'center' }}>
+              ℹ️ Ces moyens de paiement sont <strong style={{ color: '#0a2e15' }}>pris en charge par la plateforme</strong> et s&apos;activent à la demande selon votre pays et votre configuration. Tous ne sont pas ouverts simultanément —{' '}
+              <a href="#contact" style={{ color: '#009E00', fontWeight: 700 }}>écrivez-nous</a> pour connaître ceux disponibles chez vous.
+            </p>
+          </div>
+
+          {/* Garanties abonnement */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 16, marginTop: 40 }}>
+            {GARANTIES_ABONNEMENT.map((g, i) => (
+              <div key={i} style={{
+                background: 'linear-gradient(135deg,#f0fdf4,#fffef0)',
+                border: '1.5px solid #d1fae5', borderRadius: 16,
+                padding: '22px 20px', textAlign: 'center', minWidth: 0,
+              }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>{g.icon}</div>
+                <p style={{ fontWeight: 800, fontSize: 15, marginBottom: 6, color: '#0a2e15' }}>{g.titre}</p>
+                <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>{g.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -740,7 +887,7 @@ export default function LandingPage() {
             Prêt à digitaliser<br />votre réseau Mobile Money ?
           </h2>
           <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.8)', marginBottom: 44, lineHeight: 1.7 }}>
-            Essai gratuit 14 jours · Aucune carte bancaire · Résiliation sans frais.
+            Essai gratuit 14 jours · Aucune carte bancaire · 7 jours de grâce après échéance · Résiliation sans frais.
           </p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/register" style={{
@@ -773,7 +920,7 @@ export default function LandingPage() {
               <p style={{ fontSize: 12, color: '#009E00', marginTop: 8, fontStyle: 'italic' }}>L&apos;excellence est notre passion</p>
             </div>
             {[
-              { titre: 'Navigation', liens: [['Fonctionnalités','#fonctionnalites'],['Modules','#modules'],['Tarifs','#tarifs'],['Démonstration','#contact'],['Connexion','/login'],['Créer un compte','/register']] },
+              { titre: 'Navigation', liens: [['Fonctionnalités','#fonctionnalites'],['Modules','#modules'],['Tarifs','#tarifs'],['Moyens de paiement','#paiement'],['Démonstration','#contact'],['Connexion','/login'],['Créer un compte','/register']] },
               { titre: 'Ressources', liens: [['Centre d\'aide','/dashboard/aide'],['Guide','/dashboard/aide'],['FAQ','#faq'],['Support','/dashboard/support']] },
               { titre: 'IBIG Soft', liens: [['À propos','https://ibigsoft.com'],['IBIG PARTNERS','https://ibigpartners.com/'],['Devenir partenaire','https://ibigpartners.com/'],['Contact','mailto:contact@ibigsoft.com']] },
             ].map(col => (

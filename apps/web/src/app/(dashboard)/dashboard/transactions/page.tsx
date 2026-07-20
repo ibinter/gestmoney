@@ -14,22 +14,13 @@ import { Transaction, TypeTransaction, StatutTransaction, Operateur, OPERATEURS 
 import { formatMontant, formatDate, formatDateTime } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
 import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
-const TYPE_LABELS: Record<TypeTransaction, string> = {
-  depot: 'Dépôt',
-  retrait: 'Retrait',
-  cash_in: 'Cash In',
-  cash_out: 'Cash Out',
-  transfert: 'Transfert',
-  paiement: 'Paiement',
-};
+/** Libellés de type d'opération pour la langue active. */
+const typeLabels = (t: Translations): Record<TypeTransaction, string> => t.transactions.types;
 
-const STATUT_LABELS: Record<StatutTransaction, string> = {
-  success: 'Succès',
-  pending: 'En attente',
-  failed: 'Échoué',
-  cancelled: 'Annulé',
-};
+/** Libellés de statut pour la langue active. */
+const statutLabels = (t: Translations): Record<StatutTransaction, string> => t.transactions.statutLabels;
 
 /** Classe de badge « gm-* » pour un type d'opération. */
 const CLASSE_BADGE_TYPE: Record<TypeTransaction, string> = {
@@ -52,20 +43,23 @@ const CLASSE_PILL_STATUT: Record<StatutTransaction, string> = {
 /** Colonnes triables : clé de tri ↔ libellé affiché. */
 type CleTri = 'date' | 'type' | 'agentNom' | 'agenceNom' | 'operateur' | 'clientNom' | 'montant' | 'commission' | 'statut';
 
-const COLONNES_TRIABLES: { cle: CleTri; titre: string }[] = [
-  { cle: 'date', titre: 'Date / Heure' },
-  { cle: 'type', titre: 'Type' },
-  { cle: 'agentNom', titre: 'Agent' },
-  { cle: 'agenceNom', titre: 'Agence' },
-  { cle: 'operateur', titre: 'Opérateur' },
-  { cle: 'clientNom', titre: 'Client' },
-  { cle: 'montant', titre: 'Montant' },
-  { cle: 'commission', titre: 'Commission' },
-  { cle: 'statut', titre: 'Statut' },
+const colonnesTriables = (t: Translations): { cle: CleTri; titre: string }[] => [
+  { cle: 'date', titre: t.transactions.columns.date },
+  { cle: 'type', titre: t.transactions.columns.type },
+  { cle: 'agentNom', titre: t.transactions.columns.agent },
+  { cle: 'agenceNom', titre: t.transactions.columns.agence },
+  { cle: 'operateur', titre: t.transactions.columns.operateur },
+  { cle: 'clientNom', titre: t.transactions.columns.client },
+  { cle: 'montant', titre: t.transactions.columns.montant },
+  { cle: 'commission', titre: t.transactions.columns.commission },
+  { cle: 'statut', titre: t.transactions.columns.statut },
 ];
 
 export default function TransactionsPage() {
   const t = useT();
+  const TYPE_LABELS = typeLabels(t);
+  const STATUT_LABELS = statutLabels(t);
+  const COLONNES_TRIABLES = colonnesTriables(t);
   const [search, setSearch] = useState('');
   const [filtreType, setFiltreType] = useState('');
   const [filtreOperateur, setFiltreOperateur] = useState('');
@@ -92,7 +86,7 @@ export default function TransactionsPage() {
     e.preventDefault();
     setErreurTx('');
     const montant = Number(formTx.montant);
-    if (!montant || montant <= 0) { setErreurTx('Montant invalide.'); return; }
+    if (!montant || montant <= 0) { setErreurTx(t.common.invalidAmount); return; }
     if (!modalOuvert) return;
     try {
       await creerTransaction.mutateAsync({
@@ -102,11 +96,11 @@ export default function TransactionsPage() {
         clientNom: formTx.clientNom || undefined,
         clientTel: formTx.clientTel || undefined,
       });
-      setSuccesTx('Transaction enregistrée avec succès.');
+      setSuccesTx(t.transactions.form.success);
       setFormTx({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '' });
       setTimeout(() => { setModalOuvert(null); setSuccesTx(''); }, 1500);
     } catch {
-      setErreurTx('Erreur lors de la création. Réessayez.');
+      setErreurTx(t.common.createError);
     }
   };
 
@@ -159,7 +153,10 @@ export default function TransactionsPage() {
   const nbSucces = lignes.filter((tx) => tx.statut === 'success').length;
   const nbAttente = lignes.filter((tx) => tx.statut === 'pending').length;
   const nbEchecs = lignes.filter((tx) => tx.statut === 'failed' || tx.statut === 'cancelled').length;
-  const pct = (n: number) => (lignes.length ? `${((n / lignes.length) * 100).toFixed(1).replace('.', ',')} % de la page` : '—');
+  const pct = (n: number) =>
+    lignes.length
+      ? `${((n / lignes.length) * 100).toFixed(1).replace('.', ',')} % ${t.transactions.stats.ofPage}`
+      : '—';
 
   const toutSelectionne = lignes.length > 0 && lignes.every((tx) => selectionnees.includes(tx.id));
   const basculerTout = (coche: boolean) =>
@@ -174,18 +171,18 @@ export default function TransactionsPage() {
 
   const exporter = () =>
     exporterCsv(lignes, [
-      { titre: 'Date', valeur: (tx) => formatDate(tx.date) },
-      { titre: 'Référence', valeur: (tx) => tx.reference },
-      { titre: 'Type', valeur: (tx) => TYPE_LABELS[tx.type] ?? tx.type },
-      { titre: 'Agent', valeur: (tx) => tx.agentNom },
-      { titre: 'Agence', valeur: (tx) => tx.agenceNom },
-      { titre: 'Opérateur', valeur: (tx) => tx.operateur },
-      { titre: 'Client', valeur: (tx) => tx.clientNom ?? '' },
-      { titre: 'Téléphone', valeur: (tx) => tx.clientTel ?? '' },
-      { titre: 'Montant (FCFA)', valeur: (tx) => tx.montant },
-      { titre: 'Frais (FCFA)', valeur: (tx) => tx.frais },
-      { titre: 'Commission (FCFA)', valeur: (tx) => tx.commission },
-      { titre: 'Statut', valeur: (tx) => STATUT_LABELS[tx.statut] ?? tx.statut },
+      { titre: t.common.date, valeur: (tx) => formatDate(tx.date) },
+      { titre: t.common.reference, valeur: (tx) => tx.reference },
+      { titre: t.common.type, valeur: (tx) => TYPE_LABELS[tx.type] ?? tx.type },
+      { titre: t.common.agent, valeur: (tx) => tx.agentNom },
+      { titre: t.common.agency, valeur: (tx) => tx.agenceNom },
+      { titre: t.common.operator, valeur: (tx) => tx.operateur },
+      { titre: t.common.client, valeur: (tx) => tx.clientNom ?? '' },
+      { titre: t.common.phone, valeur: (tx) => tx.clientTel ?? '' },
+      { titre: `${t.common.amount} (FCFA)`, valeur: (tx) => tx.montant },
+      { titre: `${t.transactions.detail.fees} (FCFA)`, valeur: (tx) => tx.frais },
+      { titre: `${t.common.commission} (FCFA)`, valeur: (tx) => tx.commission },
+      { titre: t.common.statut, valeur: (tx) => STATUT_LABELS[tx.statut] ?? tx.statut },
     ], 'transactions');
 
   // Numéros de page affichés dans la pagination
@@ -198,17 +195,17 @@ export default function TransactionsPage() {
   return (
     <>
       <GmPageHeader
-        fil={['🏠 Accueil', 'Transactions']}
+        fil={[`🏠 ${t.common.home}`, t.transactions.title]}
         titre={<>💳 {t.transactions.title}</>}
         sousTitre={t.transactions.subtitle}
         actions={
           <>
-            <GmButton variante="ghost" petit className="gm-btn-success" onClick={() => setModalOuvert('depot')}>+ Dépôt</GmButton>
-            <GmButton variante="ghost" petit className="gm-btn-danger" onClick={() => setModalOuvert('retrait')}>+ Retrait</GmButton>
+            <GmButton variante="ghost" petit className="gm-btn-success" onClick={() => setModalOuvert('depot')}>+ {TYPE_LABELS.depot}</GmButton>
+            <GmButton variante="ghost" petit className="gm-btn-danger" onClick={() => setModalOuvert('retrait')}>+ {TYPE_LABELS.retrait}</GmButton>
             <GmButton variante="ghost" petit className="gm-btn-info" onClick={() => setModalOuvert('cash_in')}>+ Cash In</GmButton>
             <GmButton variante="outline" petit onClick={() => setModalOuvert('cash_out')}>+ Cash Out</GmButton>
             <GmButton variante="ghost" petit onClick={() => refetch()} disabled={isFetching}>
-              {isFetching ? '⏳ Actualisation…' : '↻ Actualiser'}
+              {isFetching ? `⏳ ${t.common.refreshing}` : `↻ ${t.common.refresh}`}
             </GmButton>
             <GmButton variante="ghost" petit className="gm-btn-export" onClick={exporter}>📥 {t.transactions.exportCsv}</GmButton>
           </>
@@ -219,27 +216,27 @@ export default function TransactionsPage() {
       <div className="gm-stats-row">
         <div className="gm-stat-card gm-total">
           <div className="gm-stat-value">{totalItems.toLocaleString('fr-FR')}</div>
-          <div className="gm-stat-label">Total transactions</div>
-          <div className="gm-stat-sub">{lignes.length} affichée(s) sur cette page</div>
+          <div className="gm-stat-label">{t.transactions.stats.totalLabel}</div>
+          <div className="gm-stat-sub">{lignes.length} {t.transactions.stats.displayedOnPage}</div>
         </div>
         <div className="gm-stat-card gm-amount">
           <div className="gm-stat-value">{formatMontant(volumePage)}</div>
-          <div className="gm-stat-label">Volume de la page</div>
-          <div className="gm-stat-sub">Page {page} / {totalPages}</div>
+          <div className="gm-stat-label">{t.transactions.stats.pageVolume}</div>
+          <div className="gm-stat-sub">{t.common.page} {page} / {totalPages}</div>
         </div>
         <div className="gm-stat-card gm-success">
           <div className="gm-stat-value">{nbSucces}</div>
-          <div className="gm-stat-label">Réussies</div>
+          <div className="gm-stat-label">{t.transactions.stats.succeeded}</div>
           <div className="gm-stat-sub">{pct(nbSucces)}</div>
         </div>
         <div className="gm-stat-card gm-pending">
           <div className="gm-stat-value">{nbAttente}</div>
-          <div className="gm-stat-label">En attente</div>
+          <div className="gm-stat-label">{t.transactions.stats.pending}</div>
           <div className="gm-stat-sub">{pct(nbAttente)}</div>
         </div>
         <div className="gm-stat-card gm-failed">
           <div className="gm-stat-value">{nbEchecs}</div>
-          <div className="gm-stat-label">Échouées / annulées</div>
+          <div className="gm-stat-label">{t.transactions.stats.failedCancelled}</div>
           <div className="gm-stat-sub">{pct(nbEchecs)}</div>
         </div>
       </div>
@@ -248,46 +245,46 @@ export default function TransactionsPage() {
       <div className="gm-filters-card">
         <div className="gm-filters-row">
           <div className="gm-filter-group">
-            <label htmlFor="f-date-debut">Date début</label>
+            <label htmlFor="f-date-debut">{t.transactions.filters.dateStart}</label>
             <input id="f-date-debut" type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} />
           </div>
           <div className="gm-filter-group">
-            <label htmlFor="f-date-fin">Date fin</label>
+            <label htmlFor="f-date-fin">{t.transactions.filters.dateEnd}</label>
             <input id="f-date-fin" type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
           </div>
           <div className="gm-filter-group">
-            <label htmlFor="f-type">Type</label>
+            <label htmlFor="f-type">{t.common.type}</label>
             <select id="f-type" value={filtreType} onChange={(e) => setFiltreType(e.target.value)}>
-              <option value="">Tous les types</option>
+              <option value="">{t.transactions.filters.allTypes}</option>
               {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
           <div className="gm-filter-group">
-            <label htmlFor="f-op">Opérateur</label>
+            <label htmlFor="f-op">{t.common.operator}</label>
             <select id="f-op" value={filtreOperateur} onChange={(e) => setFiltreOperateur(e.target.value)}>
-              <option value="">Tous</option>
+              <option value="">{t.common.all}</option>
               {Object.entries(OPERATEURS).map(([v, o]) => <option key={v} value={v}>{o.label}</option>)}
             </select>
           </div>
           <div className="gm-filter-group">
-            <label htmlFor="f-statut">Statut</label>
+            <label htmlFor="f-statut">{t.common.statut}</label>
             <select id="f-statut" value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)}>
-              <option value="">Tous</option>
+              <option value="">{t.common.all}</option>
               {Object.entries(STATUT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
           <div className="gm-filter-group gm-filter-search">
-            <label htmlFor="f-search">Recherche</label>
+            <label htmlFor="f-search">{t.transactions.filters.search}</label>
             <input
               id="f-search"
               type="text"
-              placeholder="Référence, agent, client…"
+              placeholder={t.transactions.filters.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="gm-filters-actions">
-            <GmButton variante="outline" petit onClick={reinitialiser}>Réinitialiser</GmButton>
+            <GmButton variante="outline" petit onClick={reinitialiser}>{t.common.reset}</GmButton>
           </div>
         </div>
       </div>
@@ -297,14 +294,14 @@ export default function TransactionsPage() {
         <div className="gm-table-toolbar">
           <div className="gm-table-toolbar-left">
             <div className="gm-selected-count">
-              Affichage de <strong>{lignes.length}</strong> sur {totalItems.toLocaleString('fr-FR')} transactions
-              {selectionnees.length > 0 && <> — <strong>{selectionnees.length}</strong> sélectionnée(s)</>}
+              {t.transactions.toolbar.showing} <strong>{lignes.length}</strong> {t.transactions.toolbar.onTotal} {totalItems.toLocaleString('fr-FR')} {t.transactions.title.toLowerCase()}
+              {selectionnees.length > 0 && <> — <strong>{selectionnees.length}</strong> {t.transactions.toolbar.selectedSuffix}</>}
             </div>
           </div>
           <div className="gm-sort-note">
             {selectionnees.length > 0
-              ? <GmButton variante="ghost" petit onClick={() => setSelectionnees([])}>Désélectionner</GmButton>
-              : 'Cliquer sur un en-tête pour trier'}
+              ? <GmButton variante="ghost" petit onClick={() => setSelectionnees([])}>{t.transactions.toolbar.deselect}</GmButton>
+              : t.transactions.toolbar.sortHint}
           </div>
         </div>
 
@@ -315,12 +312,12 @@ export default function TransactionsPage() {
                 <th className="gm-checkbox-col">
                   <input
                     type="checkbox"
-                    aria-label="Tout sélectionner"
+                    aria-label={t.transactions.toolbar.selectAll}
                     checked={toutSelectionne}
                     onChange={(e) => basculerTout(e.target.checked)}
                   />
                 </th>
-                <th>Référence</th>
+                <th>{t.common.reference}</th>
                 {COLONNES_TRIABLES.map((c) => (
                   <th
                     key={c.cle}
@@ -332,25 +329,25 @@ export default function TransactionsPage() {
                     <span className="gm-sort-icon">{tri.cle === c.cle ? (tri.sens === 'asc' ? '↑' : '↓') : '↕'}</span>
                   </th>
                 ))}
-                <th>Actions</th>
+                <th>{t.common.actions}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '32px', color: 'var(--gm-text-2)' }}>Chargement des transactions…</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '32px', color: 'var(--gm-text-2)' }}>{t.transactions.table.loading}</td></tr>
               )}
               {!isLoading && isError && (
-                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '32px', color: 'var(--gm-danger)' }}>Erreur de chargement des transactions.</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '32px', color: 'var(--gm-danger)' }}>{t.transactions.table.error}</td></tr>
               )}
               {!isLoading && !isError && lignes.length === 0 && (
-                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '32px', color: 'var(--gm-text-2)' }}>Aucune transaction trouvée</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '32px', color: 'var(--gm-text-2)' }}>{t.transactions.table.empty}</td></tr>
               )}
               {!isLoading && !isError && lignes.map((tx) => (
                 <tr key={tx.id} className={selectionnees.includes(tx.id) ? 'gm-selected' : undefined}>
                   <td className="gm-checkbox-col">
                     <input
                       type="checkbox"
-                      aria-label={`Sélectionner ${tx.reference}`}
+                      aria-label={`${t.transactions.toolbar.selectRow} ${tx.reference}`}
                       checked={selectionnees.includes(tx.id)}
                       onChange={() => basculerLigne(tx.id)}
                     />
@@ -380,11 +377,11 @@ export default function TransactionsPage() {
                   </td>
                   <td>
                     <div className="gm-action-btns">
-                      <button className="gm-icon-btn" title="Voir le détail" onClick={() => setTransactionSelectionnee(tx)}>👁</button>
+                      <button className="gm-icon-btn" title={t.transactions.table.viewDetail} onClick={() => setTransactionSelectionnee(tx)}>👁</button>
                       {tx.statut === 'pending' && (
                         <button
                           className="gm-icon-btn"
-                          title="Valider la transaction"
+                          title={t.transactions.table.validateTx}
                           onClick={() => validerTransaction.mutate(tx.id)}
                           disabled={validerTransaction.isPending}
                         >
@@ -402,14 +399,14 @@ export default function TransactionsPage() {
         {/* PAGINATION */}
         <div className="gm-pagination">
           <div className="gm-pag-info">
-            {totalItems.toLocaleString('fr-FR')} résultat(s) — Page {page} sur {totalPages}
+            {totalItems.toLocaleString('fr-FR')} {t.common.results} — {t.common.page} {page} {t.transactions.pagination.onPage} {totalPages}
           </div>
           <div className="gm-pag-controls">
-            <button className="gm-pag-btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="Page précédente">‹</button>
+            <button className="gm-pag-btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label={t.transactions.pagination.prevPage}>‹</button>
             {numerosPages.map((p) => (
               <button key={p} className={`gm-pag-btn${p === page ? ' gm-active' : ''}`} onClick={() => setPage(p)}>{p}</button>
             ))}
-            <button className="gm-pag-btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label="Page suivante">›</button>
+            <button className="gm-pag-btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label={t.transactions.pagination.nextPage}>›</button>
           </div>
         </div>
       </div>
@@ -418,7 +415,7 @@ export default function TransactionsPage() {
       <Modal
         ouvert={!!transactionSelectionnee}
         onFermer={() => setTransactionSelectionnee(null)}
-        titre="Détail de la transaction"
+        titre={t.transactions.detail.title}
         taille="md"
       >
         {transactionSelectionnee && (
@@ -431,49 +428,49 @@ export default function TransactionsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-surface rounded-xl p-3">
-                <p className="text-xs text-gray-400 mb-1">Type</p>
+                <p className="text-xs text-gray-400 mb-1">{t.common.type}</p>
                 <p className="font-semibold">{TYPE_LABELS[transactionSelectionnee.type]}</p>
               </div>
               <div className="bg-surface rounded-xl p-3">
-                <p className="text-xs text-gray-400 mb-1">Opérateur</p>
+                <p className="text-xs text-gray-400 mb-1">{t.common.operator}</p>
                 <p className="font-semibold">{OPERATEURS[transactionSelectionnee.operateur]?.logo} {OPERATEURS[transactionSelectionnee.operateur]?.label}</p>
               </div>
               <div className="bg-surface rounded-xl p-3">
-                <p className="text-xs text-gray-400 mb-1">Montant</p>
+                <p className="text-xs text-gray-400 mb-1">{t.common.amount}</p>
                 <p className="font-bold text-lg text-text-main">{formatMontant(transactionSelectionnee.montant)}</p>
               </div>
               <div className="bg-surface rounded-xl p-3">
-                <p className="text-xs text-gray-400 mb-1">Frais</p>
+                <p className="text-xs text-gray-400 mb-1">{t.transactions.detail.fees}</p>
                 <p className="font-semibold">{formatMontant(transactionSelectionnee.frais)}</p>
               </div>
               <div className="bg-surface rounded-xl p-3">
-                <p className="text-xs text-gray-400 mb-1">Agent</p>
+                <p className="text-xs text-gray-400 mb-1">{t.common.agent}</p>
                 <p className="font-semibold">{transactionSelectionnee.agentNom || '—'}</p>
               </div>
               <div className="bg-surface rounded-xl p-3">
-                <p className="text-xs text-gray-400 mb-1">Agence</p>
+                <p className="text-xs text-gray-400 mb-1">{t.common.agency}</p>
                 <p className="font-semibold">{transactionSelectionnee.agenceNom || '—'}</p>
               </div>
               {transactionSelectionnee.clientNom && (
                 <div className="bg-surface rounded-xl p-3">
-                  <p className="text-xs text-gray-400 mb-1">Client</p>
+                  <p className="text-xs text-gray-400 mb-1">{t.common.client}</p>
                   <p className="font-semibold">{transactionSelectionnee.clientNom}</p>
                 </div>
               )}
               {transactionSelectionnee.clientTel && (
                 <div className="bg-surface rounded-xl p-3">
-                  <p className="text-xs text-gray-400 mb-1">Téléphone</p>
+                  <p className="text-xs text-gray-400 mb-1">{t.common.phone}</p>
                   <p className="font-semibold">{transactionSelectionnee.clientTel}</p>
                 </div>
               )}
               <div className="bg-surface rounded-xl p-3 col-span-2">
-                <p className="text-xs text-gray-400 mb-1">Date & heure</p>
+                <p className="text-xs text-gray-400 mb-1">{t.transactions.detail.dateTime}</p>
                 <p className="font-semibold">{formatDate(transactionSelectionnee.date)}</p>
               </div>
             </div>
             {transactionSelectionnee.commission > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm">
-                <span className="text-green-700 font-medium">Commission agent : {formatMontant(transactionSelectionnee.commission)}</span>
+                <span className="text-green-700 font-medium">{t.transactions.detail.agentCommission} {formatMontant(transactionSelectionnee.commission)}</span>
               </div>
             )}
             <div className="flex gap-2 pt-2">
@@ -483,11 +480,11 @@ export default function TransactionsPage() {
                   fullWidth
                   onClick={() => { validerTransaction.mutate(transactionSelectionnee.id); setTransactionSelectionnee(null); }}
                 >
-                  Valider la transaction
+                  {t.transactions.table.validateTx}
                 </Button>
               )}
               <Button variante="ghost" fullWidth onClick={() => setTransactionSelectionnee(null)}>
-                Fermer
+                {t.common.close}
               </Button>
             </div>
           </div>
@@ -498,18 +495,18 @@ export default function TransactionsPage() {
       <Modal
         ouvert={!!modalOuvert}
         onFermer={() => { setModalOuvert(null); setErreurTx(''); setSuccesTx(''); }}
-        titre={`Nouvelle transaction — ${modalOuvert ? TYPE_LABELS[modalOuvert] : ''}`}
+        titre={`${t.transactions.form.newTitle} ${modalOuvert ? TYPE_LABELS[modalOuvert] : ''}`}
         taille="md"
       >
         <form className="space-y-4" onSubmit={handleSubmitTx}>
           <Select
-            label="Opérateur *"
+            label={t.transactions.form.operatorRequired}
             value={formTx.operateur}
             onChange={(e) => setFormTx((f) => ({ ...f, operateur: e.target.value }))}
             options={Object.entries(OPERATEURS).map(([v, o]) => ({ value: v, label: `${o.logo} ${o.label}` }))}
           />
           <Input
-            label="Montant (FCFA) *"
+            label={t.transactions.form.amountRequired}
             type="number"
             placeholder="0"
             value={formTx.montant}
@@ -518,15 +515,15 @@ export default function TransactionsPage() {
             required
           />
           <Input
-            label="Téléphone client"
+            label={t.transactions.form.clientPhone}
             type="tel"
             placeholder="+225 07 00 00 00 00"
             value={formTx.clientTel}
             onChange={(e) => setFormTx((f) => ({ ...f, clientTel: e.target.value }))}
           />
           <Input
-            label="Nom client"
-            placeholder="Nom et prénom"
+            label={t.transactions.form.clientName}
+            placeholder={t.transactions.form.clientNamePlaceholder}
             value={formTx.clientNom}
             onChange={(e) => setFormTx((f) => ({ ...f, clientNom: e.target.value }))}
           />
@@ -534,10 +531,10 @@ export default function TransactionsPage() {
           {succesTx && <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">{succesTx}</div>}
           <div className="flex gap-3 pt-2">
             <Button type="submit" variante="primary" fullWidth loading={creerTransaction.isPending}>
-              Valider la transaction
+              {t.transactions.table.validateTx}
             </Button>
             <Button type="button" variante="ghost" onClick={() => { setModalOuvert(null); setErreurTx(''); }}>
-              Annuler
+              {t.common.cancel}
             </Button>
           </div>
         </form>

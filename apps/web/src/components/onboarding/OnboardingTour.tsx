@@ -1,15 +1,26 @@
 'use client';
 // ============================================================
 // ONBOARDING TOUR — GESTMONEY
-// Visite guidée interactive, adaptée au rôle, avec overlay
-// Déclenchée à la première connexion ou depuis l'aide
+// Visite guidée interactive de l'application.
+//
+// Principes :
+//  • Chaque étape pointe une ancre `data-tour="…"` réellement posée dans le DOM.
+//  • Une étape dont l'ancre est absente (page non visible pour ce rôle,
+//    module masqué…) est AUTOMATIQUEMENT SAUTÉE : la visite ne bloque jamais.
+//  • Le fait d'avoir terminé la visite est mémorisé (localStorage), elle ne se
+//    relance donc pas à chaque connexion. Le bouton « Relancer la visite »
+//    du Guide utilisateur la redémarre à la demande (prop `forceStart`).
 // ============================================================
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, LayoutDashboard, Menu, CreditCard, BarChart2, Settings, Headphones } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  X, ChevronLeft, ChevronRight, LayoutDashboard, Menu, CreditCard, BarChart2,
+  Settings, Bell, Wallet, Users, Building2, Banknote, BookOpen, ShieldCheck,
+} from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/authStore';
 
-const TOUR_STORAGE_KEY = 'gestmoney_tour_done';
+/** Versionné : incrémenter le suffixe rejoue la visite pour tout le monde. */
+const TOUR_STORAGE_KEY = 'gestmoney_tour_done_v2';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -22,29 +33,31 @@ interface TourStep {
   targetSelector?: string;
   /** Position du tooltip par rapport à la cible */
   position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
-  /** Rôles concernés — vide = tous les rôles */
-  roles?: string[];
   /** Action optionnelle */
   actionLabel?: string;
   actionHref?: string;
   color?: string;
 }
 
-// ─── Étapes par rôle ─────────────────────────────────────────────────────────
+// ─── Étapes ──────────────────────────────────────────────────────────────────
+// Aucune étape n'est filtrée par rôle : la présence de l'ancre dans le DOM
+// fait déjà office de filtre (la sidebar n'affiche que les entrées permises).
 
 const ALL_STEPS: TourStep[] = [
   {
     id: 'bienvenue',
     titre: 'Bienvenue sur GESTMONEY',
-    description: 'Votre plateforme panafricaine de gestion Mobile Money. Cette visite guidée vous présentera les fonctionnalités essentielles en moins de 2 minutes.',
+    description:
+      "Prenons deux minutes pour faire le tour. Vous ne verrez ici que les écrans auxquels votre compte a accès — les autres sont automatiquement passés.",
     icon: LayoutDashboard,
     position: 'center',
     color: '#009E00',
   },
   {
     id: 'dashboard',
-    titre: 'Tableau de bord',
-    description: 'Votre tableau de bord affiche en temps réel les KPI clés : transactions du jour, volumes, alertes et performances. Tout ce dont vous avez besoin d\'un coup d\'œil.',
+    titre: 'Votre tableau de bord',
+    description:
+      "C'est votre point de départ à chaque connexion : opérations du jour, volumes, float et alertes. Le contenu change selon votre rôle (administrateur, gérant, agent ou auditeur).",
     icon: LayoutDashboard,
     targetSelector: '[data-tour="dashboard-kpi"]',
     position: 'bottom',
@@ -52,74 +65,186 @@ const ALL_STEPS: TourStep[] = [
   },
   {
     id: 'sidebar',
-    titre: 'Menu de navigation',
-    description: 'Accédez à toutes les sections depuis le menu latéral : Transactions, Agents, Float, Rapports, Commissions... Sur mobile, il se rétracte automatiquement.',
+    titre: 'Le menu de gauche',
+    description:
+      "Tous les modules sont ici, regroupés par thème. Sur téléphone, il s'ouvre avec le bouton menu en haut à gauche. Les pastilles de couleur signalent ce qui demande votre attention.",
     icon: Menu,
     targetSelector: '[data-tour="sidebar"]',
     position: 'right',
     color: '#FFD000',
   },
   {
-    id: 'transaction',
-    titre: 'Créer une transaction',
-    description: 'Enregistrez dépôts, retraits et transferts Mobile Money en quelques secondes. Sélectionnez l\'opérateur, saisissez le montant et le numéro du client.',
+    id: 'nouvelle-transaction',
+    titre: 'Enregistrer une opération',
+    description:
+      "Ce bouton ouvre directement la saisie d'un dépôt, d'un retrait, d'un cash in ou d'un cash out. Opérateur et montant suffisent ; le nom et le numéro du client sont facultatifs.",
     icon: CreditCard,
     targetSelector: '[data-tour="new-transaction"]',
     position: 'bottom',
     color: '#009E00',
-    actionLabel: 'Voir les transactions',
+  },
+  {
+    id: 'transactions',
+    titre: 'Le journal des transactions',
+    description:
+      "Toutes vos opérations, filtrables par date, type, opérateur, statut ou agent. C'est ici qu'un gérant valide les opérations restées « En attente », et qu'on exporte le journal en CSV.",
+    icon: CreditCard,
+    targetSelector: '[data-tour="nav-transactions"]',
+    position: 'right',
+    color: '#009E00',
+    actionLabel: 'Ouvrir les transactions',
     actionHref: '/dashboard/transactions',
-    roles: ['super_admin', 'SUPER_ADMIN', 'admin', 'ADMIN', 'agent', 'AGENT', 'caissier', 'CAISSIER'],
+  },
+  {
+    id: 'float',
+    titre: 'Le float opérateurs',
+    description:
+      "Votre solde chez chaque opérateur, en temps réel, avec son seuil d'alerte. Quand une jauge passe au rouge, demandez un réapprovisionnement depuis cette page.",
+    icon: Wallet,
+    targetSelector: '[data-tour="nav-float"]',
+    position: 'right',
+    color: '#F59E0B',
+    actionLabel: 'Ouvrir le float',
+    actionHref: '/dashboard/float',
+  },
+  {
+    id: 'caisse',
+    titre: 'La caisse',
+    description:
+      "Le journal des espèces : entrées, sorties et écart de caisse du jour. C'est le contrôle à faire chaque soir avant de fermer le point de vente.",
+    icon: Banknote,
+    targetSelector: '[data-tour="nav-caisse"]',
+    position: 'right',
+    color: '#10B981',
+    actionLabel: 'Ouvrir la caisse',
+    actionHref: '/dashboard/caisse',
+  },
+  {
+    id: 'agents',
+    titre: 'Vos agents et vos agences',
+    description:
+      "Créez vos points de vente, puis rattachez-y vos agents. Chaque agent reçoit un mot de passe temporaire que vous lui remettez à la création de son compte.",
+    icon: Users,
+    targetSelector: '[data-tour="nav-agents"]',
+    position: 'right',
+    color: '#3B82F6',
+    actionLabel: 'Ouvrir les agents',
+    actionHref: '/dashboard/agents',
+  },
+  {
+    id: 'agences',
+    titre: 'Le réseau d’agences',
+    description:
+      "La vue carte de votre réseau : agences actives, agents rattachés, villes couvertes. Une agence se désactive sans être supprimée, son historique reste intact.",
+    icon: Building2,
+    targetSelector: '[data-tour="nav-agences"]',
+    position: 'right',
+    color: '#EC4899',
+    actionLabel: 'Ouvrir les agences',
+    actionHref: '/dashboard/agences',
   },
   {
     id: 'rapports',
     titre: 'Rapports & BI',
-    description: 'Analysez vos performances avec des graphiques détaillés. Exportez vos rapports en PDF ou Excel en un clic. Les données sont disponibles en temps réel.',
+    description:
+      "Les chiffres consolidés de votre réseau, avec export CSV, XLSX et PDF. C'est ce que vous transmettez à votre direction ou à votre comptable.",
     icon: BarChart2,
     targetSelector: '[data-tour="rapports-link"]',
-    position: 'right',
+    position: 'bottom',
     color: '#009E00',
     actionLabel: 'Voir les rapports',
     actionHref: '/dashboard/rapports',
-    roles: ['super_admin', 'SUPER_ADMIN', 'admin', 'ADMIN', 'superviseur', 'SUPERVISEUR', 'VIEWER'],
+  },
+  {
+    id: 'comptabilite',
+    titre: 'Comptabilité SYSCOHADA',
+    description:
+      "Grand livre, balance, compte de résultat et bilan sont générés automatiquement à partir de vos opérations, dans le plan comptable SYSCOHADA.",
+    icon: BookOpen,
+    targetSelector: '[data-tour="nav-comptabilite"]',
+    position: 'right',
+    color: '#6366F1',
+    actionLabel: 'Ouvrir la comptabilité',
+    actionHref: '/dashboard/comptabilite',
+  },
+  {
+    id: 'audit',
+    titre: 'Audit & surveillance',
+    description:
+      "Le journal de tout ce qui est fait dans la plateforme, plus un signalement des comptes dont le volume d'actions sort de l'ordinaire. C'est une invitation à vérifier, pas une accusation.",
+    icon: ShieldCheck,
+    targetSelector: '[data-tour="nav-ia-fraude"]',
+    position: 'right',
+    color: '#8B5CF6',
+    actionLabel: 'Ouvrir la surveillance',
+    actionHref: '/dashboard/ia-fraude',
+  },
+  {
+    id: 'notifications',
+    titre: 'Vos notifications',
+    description:
+      "La cloche regroupe les alertes float, les opérations à valider et les messages du système. Le compteur rouge indique ce qui n'a pas encore été lu.",
+    icon: Bell,
+    targetSelector: '[data-tour="notifications-btn"]',
+    position: 'bottom',
+    color: '#EF4444',
+    actionLabel: 'Voir les notifications',
+    actionHref: '/dashboard/notifications',
   },
   {
     id: 'profil',
-    titre: 'Paramètres de profil',
-    description: 'Personnalisez votre compte : photo, langue (FR/EN), mode sombre, notifications. Sécurisez votre accès avec la double authentification.',
+    titre: 'Votre compte',
+    description:
+      "Depuis votre avatar : profil, langue (français / anglais), mode sombre et déconnexion. Les paramètres de sécurité se trouvent dans Paramètres → Sécurité.",
     icon: Settings,
     targetSelector: '[data-tour="profile-menu"]',
-    position: 'bottom',
+    position: 'left',
     color: '#111111',
     actionLabel: 'Mon profil',
     actionHref: '/dashboard/profile',
   },
   {
-    id: 'support',
-    titre: 'Support & Assistant SARA',
-    description: 'SARA, notre assistante IA, répond à toutes vos questions 24h/24. Contactez aussi notre équipe de support via le chat ou par email.',
-    icon: Headphones,
-    targetSelector: '[data-tour="support-btn"]',
-    position: 'top',
+    id: 'fin',
+    titre: 'C’est tout pour l’essentiel',
+    description:
+      "Le Guide utilisateur détaille chaque module pas à pas, et vous pouvez relancer cette visite à tout moment depuis son bouton « Relancer la visite ».",
+    icon: BookOpen,
+    position: 'center',
     color: '#009E00',
-    actionLabel: 'Contacter le support',
-    actionHref: '/dashboard/support',
+    actionLabel: 'Ouvrir le guide',
+    actionHref: '/dashboard/guide',
   },
 ];
 
-// ─── Utilitaires ─────────────────────────────────────────────────────────────
+// ─── Résolution des ancres ───────────────────────────────────────────────────
 
-function filterStepsByRole(role: string): TourStep[] {
-  return ALL_STEPS.filter((s) => !s.roles || s.roles.includes(role));
+/**
+ * Retourne le premier élément VISIBLE correspondant au sélecteur.
+ * La sidebar est rendue deux fois (fixe desktop + overlay mobile) : sans ce
+ * filtre, on mettrait en évidence la copie masquée, hors de l'écran.
+ */
+function trouverCibleVisible(selecteur: string): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const candidats = Array.from(document.querySelectorAll<HTMLElement>(selecteur));
+  for (const el of candidats) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0 && el.offsetParent !== null) return el;
+  }
+  return null;
+}
+
+/** Une étape est retenue si elle n'a pas d'ancre, ou si son ancre est visible. */
+function etapesDisponibles(): TourStep[] {
+  return ALL_STEPS.filter(
+    (s) => !s.targetSelector || trouverCibleVisible(s.targetSelector) !== null,
+  );
 }
 
 // ─── Tooltip positionné ──────────────────────────────────────────────────────
 
 interface TooltipPos {
-  top?: number;
-  left?: number;
-  right?: number;
-  bottom?: number;
+  top?: number | string;
+  left?: number | string;
   transform?: string;
 }
 
@@ -127,50 +252,41 @@ function computeTooltipPos(
   targetRect: DOMRect | null,
   position: TourStep['position'],
   tooltipW = 340,
-  tooltipH = 240,
+  tooltipH = 250,
 ): TooltipPos {
   if (!targetRect || position === 'center') {
-    return {
-      top: '50%' as unknown as number,
-      left: '50%' as unknown as number,
-      transform: 'translate(-50%, -50%)',
-    };
+    return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
   }
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const gap = 12;
   const pad = 16;
+  const clampX = (x: number) => Math.max(pad, Math.min(x, vw - tooltipW - pad));
+  const clampY = (y: number) => Math.max(pad, Math.min(y, vh - tooltipH - pad));
 
-  switch (position) {
+  // Sur petit écran, on ne tente pas de placer à gauche/droite : la carte
+  // occupe presque toute la largeur, elle irait hors champ.
+  const etroit = vw < 720;
+  const pos = etroit && (position === 'left' || position === 'right') ? 'bottom' : position;
+
+  switch (pos) {
     case 'bottom':
-      return {
-        top: Math.min(targetRect.bottom + gap, vh - tooltipH - pad),
-        left: Math.max(pad, Math.min(targetRect.left, vw - tooltipW - pad)),
-      };
+      return { top: clampY(targetRect.bottom + gap), left: clampX(targetRect.left) };
     case 'top':
-      return {
-        top: Math.max(pad, targetRect.top - tooltipH - gap),
-        left: Math.max(pad, Math.min(targetRect.left, vw - tooltipW - pad)),
-      };
+      return { top: clampY(targetRect.top - tooltipH - gap), left: clampX(targetRect.left) };
     case 'right':
-      return {
-        top: Math.max(pad, targetRect.top),
-        left: Math.min(targetRect.right + gap, vw - tooltipW - pad),
-      };
+      return { top: clampY(targetRect.top), left: clampX(targetRect.right + gap) };
     case 'left':
-      return {
-        top: Math.max(pad, targetRect.top),
-        left: Math.max(pad, targetRect.left - tooltipW - gap),
-      };
+      return { top: clampY(targetRect.top), left: clampX(targetRect.left - tooltipW - gap) };
     default:
-      return { top: vh / 2 - tooltipH / 2, left: vw / 2 - tooltipW / 2 };
+      return { top: clampY(vh / 2 - tooltipH / 2), left: clampX(vw / 2 - tooltipW / 2) };
   }
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 interface OnboardingTourProps {
-  /** Force l'affichage même si déjà vu (depuis Centre d'aide) */
+  /** Force l'affichage même si la visite a déjà été faite (bouton « Relancer »). */
   forceStart?: boolean;
   onClose?: () => void;
 }
@@ -181,27 +297,37 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
   const [stepIdx, setStepIdx] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [mounted, setMounted] = useState(false);
+  /** Recalculé à chaque ouverture : les ancres dépendent de la page et du rôle. */
+  const [steps, setSteps] = useState<TourStep[]>([ALL_STEPS[0]]);
   const rafRef = useRef<number>();
 
-  const steps = user ? filterStepsByRole(user.role) : ALL_STEPS;
-  const step = steps[stepIdx];
+  const step: TourStep | undefined = steps[stepIdx];
+
+  const ouvrir = useCallback(() => {
+    setSteps(etapesDisponibles());
+    setStepIdx(0);
+    setVisible(true);
+  }, []);
 
   // Déclenchement
   useEffect(() => {
     setMounted(true);
     if (forceStart) {
-      setVisible(true);
-      setStepIdx(0);
-      return;
+      // Laisse le temps au DOM de la page de se peindre avant de lire les ancres.
+      const t = setTimeout(ouvrir, 150);
+      return () => clearTimeout(t);
     }
-    const done = localStorage.getItem(TOUR_STORAGE_KEY);
+    let done = false;
+    try {
+      done = localStorage.getItem(TOUR_STORAGE_KEY) === 'true';
+    } catch {
+      done = true; // storage indisponible : on n'importune pas l'utilisateur
+    }
     if (!done) {
-      const timer = setTimeout(() => {
-        setVisible(true);
-      }, 1200);
+      const timer = setTimeout(ouvrir, 1200);
       return () => clearTimeout(timer);
     }
-  }, [forceStart]);
+  }, [forceStart, ouvrir]);
 
   // Met à jour la position de l'élément ciblé
   const updateTarget = useCallback(() => {
@@ -209,40 +335,70 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
       setTargetRect(null);
       return;
     }
-    const el = document.querySelector(step.targetSelector) as HTMLElement | null;
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      rafRef.current = requestAnimationFrame(() => {
-        setTargetRect(el.getBoundingClientRect());
-      });
-    } else {
+    const el = trouverCibleVisible(step.targetSelector);
+    if (!el) {
       setTargetRect(null);
+      return;
     }
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    rafRef.current = requestAnimationFrame(() => {
+      setTargetRect(el.getBoundingClientRect());
+    });
   }, [step?.targetSelector]);
 
   useEffect(() => {
-    if (visible) updateTarget();
+    if (!visible) return;
+    updateTarget();
+    const onResize = () => updateTarget();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, true);
     return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [visible, stepIdx, updateTarget]);
 
-  const fermer = () => {
-    localStorage.setItem(TOUR_STORAGE_KEY, 'true');
+  const fermer = useCallback(() => {
+    try {
+      localStorage.setItem(TOUR_STORAGE_KEY, 'true');
+    } catch { /* storage indisponible : sans conséquence */ }
     setVisible(false);
     onClose?.();
-  };
+  }, [onClose]);
 
-  const suivant = () => {
-    if (stepIdx < steps.length - 1) setStepIdx((i) => i + 1);
-    else fermer();
-  };
+  const suivant = useCallback(() => {
+    setStepIdx((i) => {
+      if (i < steps.length - 1) return i + 1;
+      fermer();
+      return i;
+    });
+  }, [steps.length, fermer]);
 
-  const precedent = () => setStepIdx((i) => Math.max(0, i - 1));
+  const precedent = useCallback(() => setStepIdx((i) => Math.max(0, i - 1)), []);
+
+  // Clavier : ← → pour naviguer, Échap pour quitter.
+  useEffect(() => {
+    if (!visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') fermer();
+      else if (e.key === 'ArrowRight') suivant();
+      else if (e.key === 'ArrowLeft') precedent();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [visible, fermer, suivant, precedent]);
+
+  const tooltipPos = useMemo(
+    () => computeTooltipPos(targetRect, step?.position),
+    [targetRect, step?.position],
+  );
 
   if (!mounted || !visible || !step) return null;
+  // `user` n'est pas utilisé pour filtrer (la présence des ancres suffit) mais
+  // reste lu pour que le tour se remonte proprement au changement de compte.
+  void user;
 
-  const tooltipPos = computeTooltipPos(targetRect, step.position);
   const StepIcon = step.icon;
   const isFirst = stepIdx === 0;
   const isLast = stepIdx === steps.length - 1;
@@ -267,7 +423,7 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
             left: targetRect.left - 4,
             width: targetRect.width + 8,
             height: targetRect.height + 8,
-            boxShadow: `0 0 0 4000px rgba(0,0,0,0.45)`,
+            boxShadow: '0 0 0 4000px rgba(0,0,0,0.45)',
           }}
         />
       )}
@@ -276,7 +432,7 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Visite guidée — Étape ${stepIdx + 1}`}
+        aria-label={`Visite guidée — Étape ${stepIdx + 1} sur ${steps.length}`}
         className="fixed z-[92] w-[min(340px,calc(100vw-32px))] bg-white dark:bg-[hsl(0_0%_10%)] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 overflow-hidden pointer-events-auto"
         style={tooltipPos as React.CSSProperties}
         onClick={(e) => e.stopPropagation()}
@@ -291,7 +447,6 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
 
         {/* Corps */}
         <div className="p-5">
-          {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
               <div
@@ -316,9 +471,10 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
             </button>
           </div>
 
-          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{step.description}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            {step.description}
+          </p>
 
-          {/* Action optionnelle */}
           {step.actionLabel && step.actionHref && (
             <a
               href={step.actionHref}
@@ -331,17 +487,17 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
         </div>
 
         {/* Dots */}
-        <div className="flex justify-center gap-1.5 pb-1">
-          {steps.map((_, i) => (
+        <div className="flex justify-center gap-1.5 pb-1 flex-wrap px-4">
+          {steps.map((s, i) => (
             <button
-              key={i}
+              key={s.id}
               onClick={() => setStepIdx(i)}
               className={clsx(
                 'h-1.5 rounded-full transition-all duration-300',
-                i === stepIdx ? 'w-5' : 'w-1.5 bg-gray-200 dark:bg-white/20'
+                i === stepIdx ? 'w-5' : 'w-1.5 bg-gray-200 dark:bg-white/20',
               )}
               style={i === stepIdx ? { backgroundColor: color } : {}}
-              aria-label={`Aller à l'étape ${i + 1}`}
+              aria-label={`Aller à l'étape ${i + 1} : ${s.titre}`}
             />
           ))}
         </div>
@@ -383,13 +539,18 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
 // Hook utilitaire pour déclencher/réinitialiser le tour
 export function useOnboardingTour() {
   const reset = () => {
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+    try {
       localStorage.removeItem(TOUR_STORAGE_KEY);
-    }
+    } catch { /* sans conséquence */ }
   };
   const isCompleted = () => {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem(TOUR_STORAGE_KEY) === 'true';
+    try {
+      return localStorage.getItem(TOUR_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
   };
   return { reset, isCompleted };
 }

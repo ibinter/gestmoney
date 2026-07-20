@@ -201,6 +201,11 @@ export function Sidebar({
     '/dashboard/agences':       t.nav.agences,
     '/dashboard/agents':        t.nav.agents,
     '/dashboard/clients':       t.nav.clients,
+    '/dashboard/stock':         t.nav.stock,
+    '/dashboard/comptabilite':  t.nav.comptabilite,
+    '/dashboard/administration': t.nav.administration,
+    '/dashboard/ia-fraude':     t.nav.iaFraude,
+    '/dashboard/abonnement':    t.nav.abonnement,
     '/dashboard/commissions':   t.nav.commissions,
     '/dashboard/performances':  t.nav.performances,
     '/dashboard/rapports':      t.nav.rapports,
@@ -257,7 +262,7 @@ export function Sidebar({
               type="button"
               onClick={onFermer}
               className="text-white/60 hover:text-white p-1 rounded-lg"
-              aria-label="Fermer le menu"
+              aria-label={t.sidebar.closeMenu}
             >
               <X size={18} />
             </button>
@@ -269,8 +274,8 @@ export function Sidebar({
               type="button"
               onClick={toggleCompact}
               className="text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors ml-auto"
-              aria-label={compact ? 'Étendre la sidebar' : 'Réduire la sidebar'}
-              title={compact ? 'Étendre' : 'Réduire'}
+              aria-label={compact ? t.sidebar.expandSidebar : t.sidebar.collapseSidebar}
+              title={compact ? t.sidebar.expand : t.sidebar.collapse}
             >
               {compact ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             </button>
@@ -289,7 +294,7 @@ export function Sidebar({
       <nav
         className="pb-2"
         style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto' }}
-        aria-label="Navigation principale"
+        aria-label={t.sidebar.mainNav}
       >
         {NAV_SECTIONS.map((section, si) => {
           const visibleItems = section.items.filter(canSeeItem);
@@ -314,6 +319,7 @@ export function Sidebar({
                   <Link
                     href={href}
                     onClick={mode === 'overlay' ? onFermer : undefined}
+                    data-tour={`nav-${href.split('/').filter(Boolean).pop() ?? 'accueil'}`}
                     aria-current={actif ? 'page' : undefined}
                     aria-label={compact ? displayLabel : undefined}
                     title={compact ? displayLabel : undefined}
@@ -367,7 +373,7 @@ export function Sidebar({
         {/* ── Console SuperAdmin ─────────────────────────────── */}
         {isSuperAdmin && (
           <>
-            {!compact && <div className="gm-sidebar-section-title">Super Admin</div>}
+            {!compact && <div className="gm-sidebar-section-title">{t.nav.superAdminSection}</div>}
             {compact ? (
               <Tooltip label={t.nav.superadmin}>
                 <Link
@@ -430,7 +436,8 @@ export function Sidebar({
             'gm-sidebar !flex lg:!hidden !fixed !top-0 !left-0 !h-full !w-[260px] !z-50 !overflow-hidden transition-transform duration-300 ease-in-out',
             ouvert ? 'translate-x-0' : '-translate-x-full'
           )}
-          aria-label="Menu de navigation"
+          data-tour="sidebar"
+          aria-label={t.sidebar.menu}
         >
           {contenu}
         </aside>
@@ -458,6 +465,7 @@ export function Sidebar({
         overflow: 'hidden',
         zIndex: 30,
       }}
+      data-tour="sidebar"
       aria-label="Menu de navigation"
     >
       {contenu}

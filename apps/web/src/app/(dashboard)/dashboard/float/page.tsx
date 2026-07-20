@@ -15,21 +15,23 @@ import {
 import { FloatSolde, OPERATEURS, Operateur, MouvementFloat } from '@/types';
 import { formatMontant, formatDateTime } from '@/lib/formatters';
 import { clsx } from 'clsx';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 // ─── Libellés ────────────────────────────────────────────────────────────────
 
-const STATUT_BADGE: Record<FloatSolde['statut'], { classe: string; label: string }> = {
-  ok: { classe: 'gm-badge-ok', label: '✓ OK' },
-  alerte: { classe: 'gm-badge-warn', label: '⚡ Faible' },
-  critique: { classe: 'gm-badge-crit', label: '⚠ Critique' },
-};
+const statutBadge = (t: Translations): Record<FloatSolde['statut'], { classe: string; label: string }> => ({
+  ok: { classe: 'gm-badge-ok', label: `✓ ${t.float.badges.ok}` },
+  alerte: { classe: 'gm-badge-warn', label: `⚡ ${t.float.badges.faible}` },
+  critique: { classe: 'gm-badge-crit', label: `⚠ ${t.float.badges.critique}` },
+});
 
-const DEMANDE_PILL: Record<string, { classe: string; label: string }> = {
-  en_attente: { classe: 'gm-pill-pend', label: '⏳ En attente' },
-  approuve: { classe: 'gm-pill-proc', label: '↻ Approuvé' },
-  complete: { classe: 'gm-pill-done', label: '✓ Complété' },
-  rejete: { classe: 'gm-pill-failed', label: '✕ Rejeté' },
-};
+const demandePill = (t: Translations): Record<string, { classe: string; label: string }> => ({
+  en_attente: { classe: 'gm-pill-pend', label: `⏳ ${t.float.demandeStatuts.en_attente}` },
+  approuve: { classe: 'gm-pill-proc', label: `↻ ${t.float.demandeStatuts.approuve}` },
+  complete: { classe: 'gm-pill-done', label: `✓ ${t.float.demandeStatuts.complete}` },
+  rejete: { classe: 'gm-pill-failed', label: `✕ ${t.float.demandeStatuts.rejete}` },
+});
 
 /** Initiales affichées dans la pastille opérateur. */
 function initiales(label: string): string {
@@ -37,10 +39,10 @@ function initiales(label: string): string {
   return mots.length > 1 ? mots[0].slice(0, 1) + mots[1].slice(0, 1) : label.slice(0, 2);
 }
 
-function heure(date: string): string {
+function heure(date: string, locale: string): string {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 /** Couleur de la jauge selon le statut calculé côté données. */
@@ -51,6 +53,9 @@ function couleurStatut(statut: FloatSolde['statut'], couleurOp: string): string 
 }
 
 export default function FloatPage() {
+  const t = useT();
+  const STATUT_BADGE = statutBadge(t);
+  const DEMANDE_PILL = demandePill(t);
   const { data: soldes = [], isLoading } = useFloatSoldes();
   const { data: mouvements = [] } = useFloatMouvements();
   const { data: demandes = [] } = useDemandesReappro();
@@ -98,16 +103,16 @@ export default function FloatPage() {
   return (
     <>
       <GmPageHeader
-        fil={['🏠 Accueil', 'Float opérateurs']}
-        titre="🏦 Float opérateurs"
+        fil={[`🏠 ${t.common.home}`, t.float.pageTitle]}
+        titre={`🏦 ${t.float.pageTitle}`}
         sousTitre={
           derniereMaj
-            ? `Niveaux en temps réel — Mis à jour le ${formatDateTime(derniereMaj)}`
-            : 'Niveaux en temps réel'
+            ? `${t.float.liveLevels} — ${t.float.updatedOn} ${formatDateTime(derniereMaj)}`
+            : t.float.liveLevels
         }
         actions={
           <GmButton variante="primary" petit onClick={() => ouvrirModal()}>
-            + Réapprovisionnement
+            {t.float.newRefill}
           </GmButton>
         }
       />
@@ -118,19 +123,19 @@ export default function FloatPage() {
           <div className="gm-alert-icon">🚨</div>
           <div className="gm-alert-content">
             <div className="gm-alert-title">
-              Float {OPERATEURS[critique.operateur]?.label ?? critique.operateur} — Niveau critique
+              Float {OPERATEURS[critique.operateur]?.label ?? critique.operateur} — {t.float.banner.criticalLevel}
             </div>
             <div className="gm-alert-desc">
-              Solde actuel : <strong>{formatMontant(critique.soldeActuel)}</strong> — Seuil minimum :{' '}
-              {formatMontant(critique.seuilAlerte)}. Des transactions risquent d&apos;être rejetées.
+              {t.float.banner.currentBalance} <strong>{formatMontant(critique.soldeActuel)}</strong> — {t.float.banner.minThreshold}{' '}
+              {formatMontant(critique.seuilAlerte)}. {t.float.banner.riskMessage}
             </div>
           </div>
           <div className="gm-alert-actions">
             <button className="gm-btn-danger-solid" onClick={() => ouvrirModal(critique)}>
-              Réapprovisionner
+              {t.float.refill}
             </button>
             <GmButton variante="outline" petit onClick={() => setAlerteMasquee(true)}>
-              Ignorer
+              {t.float.banner.ignore}
             </GmButton>
           </div>
         </div>
@@ -145,7 +150,7 @@ export default function FloatPage() {
                   <div className="gm-op-brand">
                     <div className="gm-op-logo-circle" style={{ background: 'var(--gm-border)' }} />
                     <div>
-                      <div className="gm-op-name">Chargement…</div>
+                      <div className="gm-op-name">{t.common.loading}</div>
                     </div>
                   </div>
                 </div>
@@ -239,13 +244,13 @@ export default function FloatPage() {
                     className="gm-op-threshold"
                     style={solde.statut === 'ok' ? undefined : { color: couleur }}
                   >
-                    Seuil min : {solde.seuilAlerte ? formatMontant(solde.seuilAlerte) : '—'} ·{' '}
+                    {t.float.card.minThreshold} {solde.seuilAlerte ? formatMontant(solde.seuilAlerte) : '—'} ·{' '}
                     {estCritique ? (
-                      <strong>Insuffisant !</strong>
+                      <strong>{t.float.card.insufficient}</strong>
                     ) : solde.statut === 'alerte' ? (
-                      'Surveiller'
+                      t.float.card.watch
                     ) : (
-                      'Marge : OK'
+                      t.float.card.marginOk
                     )}
                   </div>
 
@@ -256,7 +261,7 @@ export default function FloatPage() {
                       ouvrirModal(solde);
                     }}
                   >
-                    {estCritique ? "⚠ Réapprovisionner d'urgence" : '+ Réapprovisionner'}
+                    {estCritique ? t.float.card.urgentRefill : t.float.card.refill}
                   </button>
                 </div>
               );
@@ -269,28 +274,28 @@ export default function FloatPage() {
         <div className="gm-section-card">
           <div className="gm-section-head">
             <div>
-              <div className="gm-section-title">📋 Mouvements du jour</div>
-              <div className="gm-section-sub">Historique des entrées et sorties de float</div>
+              <div className="gm-section-title">{t.float.movements.title}</div>
+              <div className="gm-section-sub">{t.float.movements.sub}</div>
             </div>
           </div>
           <GmTableWrap>
             <table>
               <thead>
                 <tr>
-                  <th>Heure</th>
-                  <th>Opérateur</th>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Montant</th>
-                  <th>Agent</th>
-                  <th>Solde après</th>
+                  <th>{t.float.movements.colHour}</th>
+                  <th>{t.float.movements.colOperator}</th>
+                  <th>{t.float.movements.colType}</th>
+                  <th>{t.float.movements.colDescription}</th>
+                  <th>{t.float.movements.colAmount}</th>
+                  <th>{t.float.movements.colAgent}</th>
+                  <th>{t.float.movements.colBalanceAfter}</th>
                 </tr>
               </thead>
               <tbody>
                 {mouvements.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ textAlign: 'center', color: 'var(--gm-text-2)' }}>
-                      Aucun mouvement
+                      {t.float.movements.empty}
                     </td>
                   </tr>
                 ) : (
@@ -299,7 +304,7 @@ export default function FloatPage() {
                     const entree = m.type === 'entree';
                     return (
                       <tr key={m.id}>
-                        <td style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>{heure(m.date)}</td>
+                        <td style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>{heure(m.date, t.dateLocale)}</td>
                         <td>
                           <span
                             style={{
@@ -319,7 +324,7 @@ export default function FloatPage() {
                         </td>
                         <td>
                           <span className={clsx('gm-badge', entree ? 'gm-badge-in' : 'gm-badge-out')}>
-                            {entree ? 'Entrée' : 'Sortie'}
+                            {entree ? t.float.movements.in : t.float.movements.out}
                           </span>
                         </td>
                         <td style={{ fontSize: 12, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -348,8 +353,8 @@ export default function FloatPage() {
           <div className="gm-section-card">
             <div className="gm-section-head">
               <div>
-                <div className="gm-section-title">🔄 Demandes en cours</div>
-                <div className="gm-section-sub">Réapprovisionnements à valider</div>
+                <div className="gm-section-title">{t.float.requests.title}</div>
+                <div className="gm-section-sub">{t.float.requests.sub}</div>
               </div>
               {nbEnAttente > 0 && (
                 <span
@@ -362,7 +367,7 @@ export default function FloatPage() {
                     fontWeight: 700,
                   }}
                 >
-                  {nbEnAttente} en attente
+                  {nbEnAttente} {t.float.requests.pendingSuffix}
                 </span>
               )}
             </div>
@@ -371,7 +376,7 @@ export default function FloatPage() {
                 <div
                   style={{ padding: '18px', fontSize: 12, color: 'var(--gm-text-2)', textAlign: 'center' }}
                 >
-                  Aucune demande en cours
+                  {t.float.requests.empty}
                 </div>
               ) : (
                 demandes.map((d) => {
@@ -415,8 +420,8 @@ export default function FloatPage() {
           <div className="gm-section-card">
             <div className="gm-section-head">
               <div>
-                <div className="gm-section-title">🔔 Seuils d&apos;alerte</div>
-                <div className="gm-section-sub">Montants minimaux déclenchant une alerte</div>
+                <div className="gm-section-title">{t.float.thresholds.title}</div>
+                <div className="gm-section-sub">{t.float.thresholds.sub}</div>
               </div>
             </div>
             <div>
@@ -441,7 +446,7 @@ export default function FloatPage() {
                       type="number"
                       value={s.seuilAlerte}
                       readOnly
-                      aria-label={`Seuil d'alerte ${OPERATEURS[s.operateur]?.label ?? s.operateur}`}
+                      aria-label={`${t.float.thresholds.ariaPrefix} ${OPERATEURS[s.operateur]?.label ?? s.operateur}`}
                     />
                     <span className="gm-threshold-unit">XOF</span>
                   </div>
@@ -461,8 +466,8 @@ export default function FloatPage() {
       >
         <div className="gm-modal">
           <div className="gm-modal-head">
-            <div className="gm-modal-title">Demande de réapprovisionnement</div>
-            <button className="gm-modal-close" type="button" onClick={fermerModal} aria-label="Fermer">
+            <div className="gm-modal-title">{t.float.modal.title}</div>
+            <button className="gm-modal-close" type="button" onClick={fermerModal} aria-label={t.common.close}>
               ✕
             </button>
           </div>
@@ -472,11 +477,11 @@ export default function FloatPage() {
               setErreurReappro('');
               const montant = Number(montantReappro);
               if (!montant || montant <= 0) {
-                setErreurReappro('Montant invalide.');
+                setErreurReappro(t.common.invalidAmount);
                 return;
               }
               if (!operateurChoisi) {
-                setErreurReappro('Opérateur requis.');
+                setErreurReappro(t.float.modal.operatorRequired);
                 return;
               }
               try {
@@ -485,32 +490,32 @@ export default function FloatPage() {
                   montant,
                   commentaire: commentaireReappro || undefined,
                 });
-                setSuccesReappro('Demande soumise avec succès.');
+                setSuccesReappro(t.float.modal.success);
                 setMontantReappro('');
                 setCommentaireReappro('');
                 setTimeout(() => fermerModal(), 1500);
               } catch {
-                setErreurReappro('Erreur lors de la soumission.');
+                setErreurReappro(t.float.modal.submitError);
               }
             }}
           >
             <div className="gm-modal-body">
               {soldeCible && (
                 <div className="gm-modal-summary-row">
-                  <span>Solde actuel</span>
+                  <span>{t.float.modal.currentBalance}</span>
                   <strong>{formatMontant(soldeCible.soldeActuel)}</strong>
                 </div>
               )}
               {soldeCible && (
                 <div className="gm-modal-summary-row">
-                  <span>Seuil d&apos;alerte</span>
+                  <span>{t.float.modal.alertThreshold}</span>
                   <strong>{formatMontant(soldeCible.seuilAlerte)}</strong>
                 </div>
               )}
 
               <div className="gm-form-group">
                 <label className="gm-form-label" htmlFor="modal-op">
-                  Opérateur
+                  {t.float.modal.operator}
                 </label>
                 <select
                   id="modal-op"
@@ -533,13 +538,13 @@ export default function FloatPage() {
 
               <div className="gm-form-group">
                 <label className="gm-form-label" htmlFor="modal-amount">
-                  Montant à réapprovisionner (XOF)
+                  {t.float.modal.amountLabel}
                 </label>
                 <input
                   id="modal-amount"
                   type="number"
                   min={1}
-                  placeholder="ex: 500000"
+                  placeholder={t.float.modal.amountPlaceholder}
                   value={montantReappro}
                   onChange={(e) => setMontantReappro(e.target.value)}
                   required
@@ -548,12 +553,12 @@ export default function FloatPage() {
 
               <div className="gm-form-group">
                 <label className="gm-form-label" htmlFor="modal-comment">
-                  Commentaire
+                  {t.common.comment}
                 </label>
                 <textarea
                   id="modal-comment"
                   rows={2}
-                  placeholder="Informations complémentaires…"
+                  placeholder={t.float.modal.commentPlaceholder}
                   style={{ resize: 'vertical' }}
                   value={commentaireReappro}
                   onChange={(e) => setCommentaireReappro(e.target.value)}
@@ -573,10 +578,10 @@ export default function FloatPage() {
             </div>
             <div className="gm-modal-foot">
               <GmButton type="button" variante="outline" onClick={fermerModal}>
-                Annuler
+                {t.common.cancel}
               </GmButton>
               <GmButton type="submit" variante="primary" disabled={creerDemande.isPending}>
-                {creerDemande.isPending ? 'Envoi…' : 'Envoyer la demande'}
+                {creerDemande.isPending ? t.common.sending : t.float.modal.submit}
               </GmButton>
             </div>
           </form>
