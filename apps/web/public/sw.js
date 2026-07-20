@@ -1,93 +1,182 @@
+// ============================================================
 // Service Worker GESTMONEY
-// Version du cache — incrémenter à chaque déploiement
-const CACHE_VERSION = 'gestmoney-v1';
-const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
+// ------------------------------------------------------------
+// RÈGLE DE SÉCURITÉ FONDAMENTALE
+// Ce service worker ne met JAMAIS en cache une réponse
+// authentifiée : ni données de transactions, ni soldes, ni
+// informations client, ni page du tableau de bord.
+// Les agents Mobile Money travaillent souvent sur un téléphone
+// partagé : un cache de données financières y serait lisible
+// par l'utilisateur suivant, hors ligne et sans mot de passe.
+//
+// Ne sont mis en cache que des ressources statiques publiques :
+// build Next.js, icônes, images, polices, et la coquille
+// publique (accueil, login, page hors-ligne).
+// ============================================================
 
-// Ressources à mettre en cache immédiatement (App Shell)
-const PRECACHE_URLS = [
-  '/',
-  '/login',
-  '/offline.html',
-  '/manifest.json',
+// Incrémenter à chaque déploiement pour invalider l'ancien cache.
+const CACHE_VERSION = 'gestmoney-v2';
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+
+// Coquille publique — aucune de ces pages n'est authentifiée.
+const PRECACHE_URLS = ['/', '/login', '/offline.html', '/manifest.json'];
+
+// Chemins dont la réponse ne doit JAMAIS toucher le cache.
+// Tout ce qui vit sous /dashboard ou /superadmin est authentifié.
+const NEVER_CACHE = [
+  '/api/',
+  '/dashboard',
+  '/superadmin',
+  '/auth',
+  '/login/callback',
+  '/payments',
+  '/paiement',
+  '/abonnement',
 ];
 
-// Installation — mise en cache du shell
+// Ressources statiques sûres : immuables et non authentifiées.
+const STATIC_PATHS = ['/_next/static/', '/icons/', '/images/', '/fonts/'];
+const STATIC_DESTINATIONS = ['style', 'script', 'font', 'image'];
+
+function isNeverCache(url) {
+  return NEVER_CACHE.some(
+    (p) => url.pathname === p || url.pathname.startsWith(p.endsWith('/') ? p : p + '/') || url.pathname.startsWith(p)
+  );
+}
+
+function isStaticAsset(url, request) {
+  if (STATIC_PATHS.some((p) => url.pathname.startsWith(p))) return true;
+  // /_next/image sert des images optimisées, non authentifiées.
+  if (url.pathname.startsWith('/_next/image')) return true;
+  if (url.pathname === '/favicon.svg' || url.pathname === '/logo.png') return true;
+  return STATIC_DESTINATIONS.includes(request.destination) && !isNeverCache(url);
+}
+
+// ── Installation : pré-cache de la coquille publique ──────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(PRECACHE_URLS.filter(Boolean));
-    }).then(() => self.skipWaiting())
+    caches
+      .open(STATIC_CACHE)
+      // addAll échoue en bloc si une seule URL est absente : on tolère
+      // les manquantes pour ne pas empêcher l'installation.
+      .then((cache) =>
+        Promise.all(
+          PRECACHE_URLS.map((u) => cache.add(u).catch(() => undefined))
+        )
+      )
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activation — nettoyage des anciens caches
+// ── Activation : purge de tous les caches d'anciennes versions ─
+// Purge aussi l'ancien cache « dynamique » de la v1, qui pouvait
+// contenir des pages de tableau de bord authentifiées.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name.startsWith('gestmoney-') && name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
-          .map((name) => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(
+          names
+            .filter((n) => n.startsWith('gestmoney-') && n !== STATIC_CACHE)
+            .map((n) => caches.delete(n))
+        )
+      )
+      .then(() => self.clients.claim())
   );
 });
 
-// Stratégie de fetch : Network First pour API, Cache First pour assets statiques
+// ── Interception réseau ───────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
 
-  // Ne pas intercepter les requêtes non-GET ou les requêtes chrome-extension
-  if (request.method !== 'GET' || url.protocol === 'chrome-extension:') {
+  // Jamais les requêtes mutantes ni les schémas d'extension.
+  if (request.method !== 'GET') return;
+
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
     return;
   }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
-  // API : Network First (données toujours fraîches)
-  if (url.pathname.startsWith('/api/') || url.hostname !== self.location.hostname) {
+  // Les requêtes portant des identifiants ne sont pas mises en cache.
+  // On les laisse filer au réseau sans interception.
+  if (url.origin !== self.location.origin) return;
+
+  // ── 1. API : réseau uniquement, jamais de cache ─────────────
+  // Une réponse d'API contient des données métier (soldes,
+  // transactions, clients) et/ou des jetons : elle ne doit ni
+  // être stockée, ni être resservie.
+  if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(request)
-        .catch(() => caches.match('/offline.html'))
+      fetch(request).catch(
+        () =>
+          new Response(
+            JSON.stringify({
+              error: 'offline',
+              message: 'Connexion indisponible. Réessayez une fois en ligne.',
+            }),
+            {
+              status: 503,
+              statusText: 'Service Unavailable',
+              // On répond en JSON : renvoyer offline.html ici ferait
+              // échouer le parsing côté client avec une erreur opaque.
+              headers: { 'Content-Type': 'application/json' },
+            }
+          )
+      )
     );
     return;
   }
 
-  // Assets Next.js : Cache First
-  if (url.pathname.startsWith('/_next/static/')) {
+  // ── 2. Ressources statiques : cache d'abord ─────────────────
+  if (isStaticAsset(url, request)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        return cached || fetch(request).then((response) => {
-          const cloned = response.clone();
-          caches.open(STATIC_CACHE).then((cache) => cache.put(request, cloned));
-          return response;
-        });
-      })
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            // Seules les réponses complètes et basiques sont stockables.
+            if (response.ok && response.type === 'basic') {
+              const cloned = response.clone();
+              caches.open(STATIC_CACHE).then((c) => c.put(request, cloned));
+            }
+            return response;
+          })
+      )
     );
     return;
   }
 
-  // Pages : Network First avec fallback cache
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const cloned = response.clone();
-          caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, cloned));
+  // ── 3. Navigations : réseau, repli hors-ligne SANS mise en cache ─
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        // Hors ligne : on ne ressert une page depuis le cache que si
+        // elle fait partie de la coquille PUBLIQUE pré-cachée.
+        // Pour toute route authentifiée, on affiche la page hors-ligne
+        // plutôt que d'exposer un écran de données mémorisé.
+        if (!isNeverCache(url)) {
+          const cached = await caches.match(request, { ignoreSearch: true });
+          if (cached) return cached;
         }
-        return response;
+        return (
+          (await caches.match('/offline.html')) ||
+          new Response('Hors ligne', { status: 503 })
+        );
       })
-      .catch(() => {
-        return caches.match(request).then((cached) => {
-          return cached || caches.match('/offline.html');
-        });
-      })
-  );
+    );
+    return;
+  }
+
+  // ── 4. Tout le reste : réseau strict, aucun cache ───────────
+  // (données RSC, fetch applicatifs, etc. — potentiellement
+  //  authentifiés, donc jamais stockés.)
 });
 
-// Réception de messages (ex: skipWaiting depuis l'UI)
+// ── Messages depuis l'UI ──────────────────────────────────────
 self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });

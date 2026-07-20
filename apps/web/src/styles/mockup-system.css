@@ -1214,3 +1214,170 @@ input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--gm-primary
 .gm-perf-sub{font-size:11px;color:var(--gm-text-2);margin-top:2px}
 @media(max-width:1200px){.gm-kpi-grid{grid-template-columns:repeat(2,1fr)}.gm-insights-grid{grid-template-columns:1fr 1fr}.gm-perf-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:900px){.gm-sidebar{display:none}.gm-main{margin-left:0;padding:16px}.gm-insights-grid{grid-template-columns:1fr}.gm-ai-header-stats{display:none}}
+
+/* ============================================================
+   CORRECTIFS RESPONSIVE MOBILE — bloc final
+   ------------------------------------------------------------
+   Cette feuille est la concaténation de plusieurs maquettes :
+   chaque bloc redéfinit les classes de base APRÈS les @media
+   des blocs précédents, ce qui annulait silencieusement les
+   règles mobiles (ex. .gm-page-header ligne 651 vs 816,
+   .gm-stats-row ligne 721 vs 819).
+   Ce bloc est volontairement placé en DERNIER : à spécificité
+   égale, l'ordre source tranche, donc il s'applique toujours.
+   Cible : agents Mobile Money sur téléphone (375px).
+   ============================================================ */
+
+/* ── Topbar : la marque + le bloc droit ne tenaient pas en 375px
+      (405px mesurés) et le bouton profil sortait de l'écran ── */
+@media (max-width: 640px) {
+  .gm-topbar { padding: 0 12px; gap: 8px; }
+  .gm-topbar-name { display: none; }       /* on garde l'icône 🪙 */
+  .gm-topbar-right { gap: 8px; min-width: 0; }
+  .gm-topbar-date { display: none; }
+  .gm-profile-btn { padding: 6px; gap: 6px; }
+  .gm-profile-chevron { display: none; }
+}
+
+@media (max-width: 900px) {
+  /* ── En-têtes de page : titre + actions côte à côte débordaient
+        (524px sur /transactions) ── */
+  .gm-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .gm-page-header > * { min-width: 0; max-width: 100%; }
+  .gm-page-actions,
+  .gm-alert-actions,
+  .gm-filters-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  /* ── Barres d'onglets : défilent dans leur propre conteneur
+        au lieu de pousser la page (442px sur /comptabilite) ── */
+  .gm-tabs-bar {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .gm-tabs-bar::-webkit-scrollbar { display: none; }
+  .gm-tabs-bar > * { flex-shrink: 0; }
+
+  /* ── Grilles : toutes les définitions de base multi-colonnes
+        sont ramenées à une colonne (deux pour les compteurs) ── */
+  .gm-stats-row,
+  .gm-op-grid,
+  .gm-kpi-grid,
+  .gm-health-grid,
+  .gm-perf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .gm-stats-grid,
+  .gm-charts-grid,
+  .gm-sched-grid,
+  .gm-tariff-grid,
+  .gm-roles-grid,
+  .gm-agences-grid,
+  .gm-content-grid,
+  .gm-two-col,
+  .gm-cr-grid,
+  .gm-bilan-grid,
+  .gm-form-row,
+  .gm-form-row-2,
+  .gm-card-grid,
+  .gm-insights-grid,
+  .gm-ecriture-line { grid-template-columns: minmax(0, 1fr); }
+
+  /* ── Toute table reste dans son conteneur défilant ── */
+  .gm-table-wrap,
+  .gm-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .gm-table-wrap table,
+  .gm-table-container table { min-width: max-content; }
+}
+
+@media (max-width: 480px) {
+  .gm-stats-row,
+  .gm-op-grid,
+  .gm-kpi-grid,
+  .gm-health-grid,
+  .gm-perf-grid { grid-template-columns: minmax(0, 1fr); }
+
+  /* ── Barres de filtres : les champs prennent toute la largeur ── */
+  .gm-filters-row,
+  .gm-filters-bar { flex-direction: column; align-items: stretch; }
+  .gm-search-wrap,
+  .gm-search-input { min-width: 0; width: 100%; }
+}
+
+/* ── Zones tactiles : 44px minimum au doigt (WCAG 2.5.5) ──────
+   Volontairement PAS conditionné à (pointer: coarse) : la règle
+   deviendrait invérifiable en test et raterait les appareils
+   hybrides (tablettes avec clavier, écrans tactiles de bureau).
+   Sous 900px on suppose le doigt ; 44px de haut sur un contrôle
+   ne dégrade rien sur une fenêtre étroite au pointeur fin. */
+@media (max-width: 900px) {
+  .gm-notif-btn,
+  .gm-profile-btn,
+  .gm-btn,
+  .gm-tab,
+  .gm-icon-btn,
+  .gm-pag-btn,
+  .gm-bottomnav a,
+  /* Navigation principale sur mobile : c'est la cible la plus
+     utilisée de toute l'application. */
+  .gm-sidebar-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .gm-notif-btn,
+  .gm-profile-btn,
+  .gm-icon-btn,
+  .gm-pag-btn { min-width: 44px; justify-content: center; }
+
+  /* Saisie : champs et listes déroulantes du même gabarit. */
+  .gm-input,
+  .gm-select,
+  .gm-search-input,
+  .gm-filters-row input,
+  .gm-filters-row select,
+  .gm-filters-bar input,
+  .gm-filters-bar select,
+  .gm-search-wrap input,
+  .gm-form-group input,
+  .gm-form-group select,
+  .gm-form-group textarea { min-height: 44px; }
+
+  /* Actions en ligne dans les tableaux. */
+  .gm-table td button,
+  .gm-table td a { min-height: 44px; display: inline-flex; align-items: center; }
+
+  /* Cases de sélection de ligne : 15px natifs, impossibles à viser
+     au doigt. Portées à 24px, soit le minimum WCAG 2.2 AA (2.5.8
+     Target Size Minimum). On ne va pas jusqu'aux 44px du critère
+     AAA : une case de 44px déforme la ligne du tableau, et étendre
+     la zone cliquable à la cellule entière demanderait d'envelopper
+     l'input dans un <label> — donc de modifier des composants de
+     page actuellement édités par d'autres agents. */
+  .gm-checkbox-col { min-width: 44px; text-align: center; }
+  .gm-checkbox-col input[type='checkbox'] {
+    width: 24px;
+    height: 24px;
+    margin: 10px auto;
+  }
+
+  /* Boutons d'icône de la topbar (burger, thème, recherche) :
+     stylés en utilitaires Tailwind, donc hors des sélecteurs gm-*. */
+  .gm-topbar button,
+  .gm-topbar > a { min-height: 44px; min-width: 44px; }
+}
+
+/* ── Filet de sécurité : rien ne peut élargir la page ── */
+@media (max-width: 900px) {
+  .gm-main, .gm-layout { max-width: 100vw; overflow-x: hidden; }
+  img, svg, video, canvas { max-width: 100%; }
+}

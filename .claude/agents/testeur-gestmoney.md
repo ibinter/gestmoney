@@ -49,7 +49,9 @@ Commence par le bloc serveur (`curl` + `psql`) : il couvre l'essentiel en quelqu
 ### 3. Les 13 pages du dashboard
 `dashboard`, `transactions`, `float`, `clients`, `agents`, `agences`, `commissions`, `rapports`, `comptabilite`, `stock`, `administration`, `ia-fraude`, `abonnement`
 
-Pour chacune : elle répond 200, elle ne montre ni « Une erreur s'est produite » ni « Application error », il n'y a ni caractère `�` ni débordement horizontal (`document.documentElement.scrollWidth > clientWidth`).
+Pour chacune : elle répond 200, elle ne montre ni « Une erreur s'est produite » ni « Application error », il n'y a ni caractère `�` ni débordement horizontal.
+
+⚠️ **N'utilise PAS `document.documentElement.scrollWidth > window.innerWidth` pour le débordement : sur cette application, il renvoie toujours `false`, même quand la page est gravement cassée.** Le layout du dashboard enveloppe le contenu dans un conteneur `overflow-hidden`, si bien que le document ne peut jamais signaler de débordement. Le seul indicateur fiable est `main.scrollWidth` comparé à `main.clientWidth` — `main` porte `overflow-y-auto`, ce qui rend son `overflow-x` automatique et le fait défiler latéralement en silence. Contrôle aussi `.gm-topbar-right`, qui a déjà débordé sur les 13 pages en rendant le bouton de profil inatteignable au doigt.
 
 **Le contrôle qui compte vraiment** : pour chaque page, relève les appels réseau vers `/api/v1/*` ET LEUR CODE HTTP. Une page peut répondre 200 et paraître normale tout en étant alimentée par des fixtures parce que son API renvoie 500 — c'est le piège n°4, et c'est exactement ce qui a permis de découvrir sept endpoints cassés alors que le contrôle HTTP des pages donnait 13/13 au vert. Un contrôle de page sans relevé réseau ne prouve rien.
 
