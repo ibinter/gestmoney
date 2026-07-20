@@ -34,6 +34,7 @@ import {
   Package,
   SlidersHorizontal,
   ShieldAlert,
+  CreditCard,
 } from 'lucide-react';
 import { useNotificationCount } from '@/hooks/useNotifications';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -105,6 +106,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/dashboard/administration', label: 'Administration', icone: SlidersHorizontal, badgeKey: null, roles: ROLES_BACKOFFICE },
       { href: '/dashboard/ia-fraude',     label: 'Audit & Alertes', icone: ShieldAlert, badgeKey: null, roles: ROLES_BACKOFFICE },
       { href: '/dashboard/settings',      label: 'Paramètres',    icone: Settings,    badgeKey: null, roles: ROLES_MANAGER },
+      { href: '/dashboard/abonnement',    label: 'Abonnement',    icone: CreditCard,  badgeKey: null },
       { href: '/dashboard/profile',       label: 'Mon profil',    icone: User,        badgeKey: null },
       { href: '/dashboard/support',       label: 'Support',       icone: MessageSquare, badgeKey: null },
       { href: '/dashboard/aide',          label: "Centre d'aide", icone: HelpCircle,  badgeKey: null },

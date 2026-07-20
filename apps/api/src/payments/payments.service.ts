@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   Paiement,
   PaiementStatut,
@@ -20,6 +21,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaiementDto, ListPaiementsQueryDto } from './dto/create-paiement.dto';
 import { UploadProofDto } from './dto/payment-proof.dto';
 import { IContexteAudit } from './payment-config.service';
+import { PAYMENT_EVENTS } from './payments.events';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -113,6 +115,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.dossierPreuves = path.resolve(
       this.configService.get<string>('PAYMENT_PROOFS_DIR') ??
@@ -145,6 +148,23 @@ export class PaymentsService {
   private versIPreuve(preuve: any): IPreuve {
     const { cheminFichier, ...reste } = preuve;
     return reste as IPreuve;
+  }
+
+  // ─── Publication d'événements ───────────────────────────────────────────────
+
+  /**
+   * Publie un événement sur le bus SANS jamais pouvoir faire échouer
+   * l'opération métier appelante : `EventEmitter2.emit` est synchrone, une
+   * erreur d'abonné remonterait donc dans la pile du paiement. On l'absorbe
+   * ici, en plus de la protection déjà présente côté abonnés.
+   */
+  private publier(evenement: string, charge: Record<string, unknown>): void {
+    try {
+      this.eventEmitter.emit(evenement, charge);
+    } catch (erreur) {
+      const message = erreur instanceof Error ? erreur.message : String(erreur);
+      this.logger.error(`Publication de l'événement ${evenement} impossible : ${message}`);
+    }
   }
 
   // ─── Création et suivi ──────────────────────────────────────────────────────
@@ -201,7 +221,20 @@ export class PaymentsService {
             } as Prisma.InputJsonValue,
           },
         });
-        return this.versIPaiement(paiement);
+
+        const vue = this.versIPaiement(paiement);
+        // Accusé de réception au client, avec la référence et les instructions.
+        this.publier(PAYMENT_EVENTS.CREE, {
+          paiementId: vue.id,
+          tenantId: vue.tenantId,
+          reference: vue.reference,
+          montant: vue.montant,
+          devise: vue.devise,
+          provider: vue.provider,
+          userId: userId ?? null,
+          plan: dto.plan ?? null,
+        });
+        return vue;
       } catch (erreur) {
         if (
           erreur instanceof Prisma.PrismaClientKnownRequestError &&
@@ -374,6 +407,21 @@ export class PaymentsService {
         data: { statut: PaiementStatut.EN_COURS },
       });
 
+      // Confirmation au client + alerte aux administrateurs : une validation
+      // manuelle est requise, le téléversement n'active rien par lui-même.
+      const metadata = (paiement.metadata ?? {}) as Record<string, any>;
+      this.publier(PAYMENT_EVENTS.PREUVE_RECUE, {
+        paiementId: paiement.id,
+        tenantId: paiement.tenantId,
+        reference: paiement.reference,
+        montant: Number(paiement.montant),
+        devise: paiement.devise,
+        userId: userId ?? metadata.creePar ?? null,
+        plan: metadata.plan ?? null,
+        preuveId: preuve.id,
+        referenceTexte: preuve.referenceTexte,
+      });
+
       return this.versIPreuve(preuve);
     } catch (erreur) {
       // Ne pas laisser de fichier orphelin si l'insertion échoue.
@@ -437,6 +485,12 @@ export class PaymentsService {
       `Preuve ${preuveId} validée par ${adminId} (IP ${contexte.ipAddress ?? 'inconnue'}) — ` +
         `paiement ${preuve.paiementId} activé`,
     );
+
+    await this.publierEvenementPreuve(PAYMENT_EVENTS.PREUVE_VALIDEE, preuve.paiementId, {
+      preuveId,
+      valideeAt: preuveMaj.revuAt ?? new Date(),
+    });
+
     return this.versIPreuve(preuveMaj);
   }
 
@@ -479,7 +533,48 @@ export class PaymentsService {
     this.logger.log(
       `Preuve ${preuveId} rejetée par ${adminId} (IP ${contexte.ipAddress ?? 'inconnue'}) : ${motif}`,
     );
+
+    await this.publierEvenementPreuve(PAYMENT_EVENTS.PREUVE_REJETEE, preuve.paiementId, {
+      preuveId,
+      motifRejet: motif,
+      rejeteeAt: preuveMaj.revuAt ?? new Date(),
+    });
+
     return this.versIPreuve(preuveMaj);
+  }
+
+  /**
+   * Complète la charge utile d'un événement de preuve avec les données du
+   * paiement associé (référence, montant, destinataire), puis publie.
+   * La lecture supplémentaire est protégée : elle ne doit pas remettre en cause
+   * une validation déjà écrite en base.
+   */
+  private async publierEvenementPreuve(
+    evenement: string,
+    paiementId: string,
+    complement: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      const paiement = await this.prisma.paiement.findUnique({ where: { id: paiementId } });
+      if (!paiement) return;
+
+      const metadata = (paiement.metadata ?? {}) as Record<string, any>;
+      this.publier(evenement, {
+        paiementId: paiement.id,
+        tenantId: paiement.tenantId,
+        reference: paiement.reference,
+        montant: Number(paiement.montant),
+        devise: paiement.devise,
+        userId: metadata.creePar ?? null,
+        plan: metadata.plan ?? null,
+        ...complement,
+      });
+    } catch (erreur) {
+      const message = erreur instanceof Error ? erreur.message : String(erreur);
+      this.logger.error(
+        `Événement ${evenement} non publié pour le paiement ${paiementId} : ${message}`,
+      );
+    }
   }
 
   /**

@@ -5,11 +5,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PaiementStatut, Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentConfigService } from './payment-config.service';
 import { PaymentsService } from './payments.service';
+import { PAYMENT_EVENTS } from './payments.events';
 
 /**
  * Écart maximal toléré entre le montant attendu et le montant encaissé.
@@ -49,6 +51,7 @@ export class WebhookService {
     private readonly configService: ConfigService,
     private readonly paymentsService: PaymentsService,
     private readonly paymentConfigService: PaymentConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ─── 1. Vérification de signature ───────────────────────────────────────────
@@ -341,6 +344,28 @@ export class WebhookService {
       `Paiement ${paiement.reference} activé par webhook ${provider} ` +
         `(événement ${evenement.eventId}, montant ${montantRecu} ${paiement.devise}).`,
     );
+
+    // Confirmation d'activation au client. Publiée APRÈS l'activation et
+    // enveloppée : une notification en échec ne doit pas défaire l'encaissement
+    // ni renvoyer une erreur à la passerelle, qui rejouerait alors le webhook.
+    try {
+      this.eventEmitter.emit(PAYMENT_EVENTS.CONFIRME_WEBHOOK, {
+        paiementId: paiement.id,
+        tenantId: paiement.tenantId,
+        reference: paiement.reference,
+        montant: montantRecu,
+        devise: paiement.devise,
+        userId: metadata.creePar ?? null,
+        plan: metadata.plan ?? null,
+        provider,
+        confirmeAt: new Date(),
+      });
+    } catch (erreur) {
+      const message = erreur instanceof Error ? erreur.message : String(erreur);
+      this.logger.error(
+        `Notification d'activation non publiée pour ${paiement.reference} : ${message}`,
+      );
+    }
 
     return {
       traite: true,

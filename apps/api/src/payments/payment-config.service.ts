@@ -379,8 +379,16 @@ export class PaymentConfigService {
       orderBy: [{ ordreAffichage: 'asc' }, { libelle: 'asc' }],
     });
 
+    /**
+     * Un moyen est compatible si :
+     *  - il ne porte aucune restriction sur ce critère, OU
+     *  - l'appelant n'a pas précisé de valeur (ne rien demander ne doit pas
+     *    tout exclure — sinon un moyen restreint à XOF disparaissait dès que
+     *    la devise n'était pas passée en paramètre, c'est-à-dire toujours), OU
+     *  - la valeur demandée figure dans les restrictions.
+     */
     const compatible = (restrictions: string[], valeur?: string) =>
-      restrictions.length === 0 || (!!valeur && restrictions.includes(valeur));
+      restrictions.length === 0 || valeur === undefined || restrictions.includes(valeur);
 
     return configs
       .filter(

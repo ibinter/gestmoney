@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { LicencesService, ajouterJours, ajouterMois } from './licences.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -92,6 +93,9 @@ describe('LicencesService', () => {
         LicencesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ConfigService, useValue: mockConfig },
+        // Le service publie les transitions de licence sur le bus ; un double
+        // suffit ici, les abonnés ne font pas partie de ce test unitaire.
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 

@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   LicenceEventType,
   Prisma,
@@ -14,6 +15,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LICENCES_CONFIG_KEY, LicencesConfig } from './licences.config';
+import { LICENCE_EVENTS } from './licences.events';
 import {
   ActivationDepuisPaiement,
   StatutLicence,
@@ -90,7 +92,22 @@ export class LicencesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  /**
+   * Publie un événement de licence sans jamais compromettre la transition qui
+   * vient d'être écrite : `emit` est synchrone, une erreur d'abonné remonterait
+   * sinon jusqu'au planificateur.
+   */
+  private publier(evenement: string, charge: Record<string, unknown>): void {
+    try {
+      this.eventEmitter.emit(evenement, charge);
+    } catch (erreur) {
+      const message = erreur instanceof Error ? erreur.message : String(erreur);
+      this.logger.error(`Publication de l'événement ${evenement} impossible : ${message}`);
+    }
+  }
 
   /** Configuration des durées, avec repli sur les valeurs par défaut. */
   get parametres(): LicencesConfig {
@@ -561,23 +578,25 @@ export class LicencesService {
   async basculerEnGrace(tenantId: string): Promise<boolean> {
     const { graceJours } = this.parametres;
 
-    return this.prisma.$transaction(async (tx) => {
+    // La transaction renvoie de quoi notifier, ou `null` si rien n'a changé :
+    // l'événement n'est publié qu'APRÈS la validation de la transaction.
+    const transition = await this.prisma.$transaction(async (tx) => {
       const tenant = await this.chargerTenant(tx, tenantId);
       const meta = this.lireMeta(tenant.settings);
       const maintenant = new Date();
 
       const echeance = tenant.subscriptionEndsAt ?? tenant.trialEndsAt;
-      if (!echeance || echeance > maintenant) return false;
+      if (!echeance || echeance > maintenant) return null;
       if (meta.statut === StatutLicence.REVOQUEE || meta.statut === StatutLicence.SUSPENDUE) {
-        return false;
+        return null;
       }
       // Déjà traité pour ce cycle : la fin de grâce dérive de cette échéance.
       const finGracePrevue = ajouterJours(echeance, graceJours);
       if (meta.graceJusquA && new Date(meta.graceJusquA).getTime() === finGracePrevue.getTime()) {
-        return false;
+        return null;
       }
-      if (meta.graceJusquA && new Date(meta.graceJusquA) > maintenant) return false;
-      if (meta.statut === StatutLicence.EXPIREE) return false;
+      if (meta.graceJusquA && new Date(meta.graceJusquA) > maintenant) return null;
+      if (meta.statut === StatutLicence.EXPIREE) return null;
 
       await tx.tenant.update({
         where: { id: tenantId },
@@ -603,8 +622,26 @@ export class LicencesService {
         },
       });
 
-      return true;
+      return {
+        nomTenant: tenant.name,
+        plan: tenant.plan as string,
+        echeance,
+        graceJusquA: finGracePrevue,
+      };
     });
+
+    if (!transition) return false;
+
+    this.publier(LICENCE_EVENTS.PERIODE_GRACE, {
+      tenantId,
+      nomTenant: transition.nomTenant,
+      plan: transition.plan,
+      echeance: transition.echeance,
+      graceJusquA: transition.graceJusquA,
+      graceJours,
+    });
+
+    return true;
   }
 
   /**
@@ -612,13 +649,13 @@ export class LicencesService {
    * déjà expirée n'est pas retraitée.
    */
   async expirerFinDeGrace(tenantId: string): Promise<boolean> {
-    return this.prisma.$transaction(async (tx) => {
+    const transition = await this.prisma.$transaction(async (tx) => {
       const tenant = await this.chargerTenant(tx, tenantId);
       const meta = this.lireMeta(tenant.settings);
       const maintenant = new Date();
 
-      if (meta.statut !== StatutLicence.GRACE) return false;
-      if (!meta.graceJusquA || new Date(meta.graceJusquA) > maintenant) return false;
+      if (meta.statut !== StatutLicence.GRACE) return null;
+      if (!meta.graceJusquA || new Date(meta.graceJusquA) > maintenant) return null;
 
       await tx.tenant.update({
         where: { id: tenantId },
@@ -642,8 +679,23 @@ export class LicencesService {
         },
       });
 
-      return true;
+      return {
+        nomTenant: tenant.name,
+        plan: tenant.plan as string,
+        expireeAt: maintenant,
+      };
     });
+
+    if (!transition) return false;
+
+    this.publier(LICENCE_EVENTS.EXPIREE, {
+      tenantId,
+      nomTenant: transition.nomTenant,
+      plan: transition.plan,
+      expireeAt: transition.expireeAt,
+    });
+
+    return true;
   }
 
   /**

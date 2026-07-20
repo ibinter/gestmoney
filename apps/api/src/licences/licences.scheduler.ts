@@ -5,6 +5,7 @@ import { PaiementStatut, TenantStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LicencesService } from './licences.service';
 import { StatutLicence } from './dto/licences.dto';
+import { LICENCE_EVENTS } from './licences.events';
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 
@@ -187,7 +188,7 @@ export class LicencesScheduler {
           const aEnvoyer = await this.licences.marquerRappelEnvoye(tenant.id, joursRestants);
           if (!aEnvoyer) continue; // déjà notifié pour ce cycle
 
-          this.eventEmitter.emit('licence.rappel-expiration', {
+          this.eventEmitter.emit(LICENCE_EVENTS.RAPPEL_EXPIRATION, {
             tenantId: tenant.id,
             nomTenant: tenant.name,
             plan: tenant.plan,
