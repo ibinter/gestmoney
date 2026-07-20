@@ -11,6 +11,11 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ["error", "warn", "log", "debug", "verbose"],
+    // Indispensable aux webhooks de paiement : la signature HMAC se calcule
+    // sur les OCTETS BRUTS reçus. Re-sérialiser le corps déjà analysé donne
+    // un JSON différent (ordre des clés, espaces) et la vérification échoue
+    // toujours — les paiements par passerelle ne s'activeraient jamais.
+    rawBody: true,
   });
 
   const configService = app.get(ConfigService);

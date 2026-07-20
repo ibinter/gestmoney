@@ -26,6 +26,8 @@ import { CommissionsModule } from "./commissions/commissions.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AiModule } from "./ai/ai.module";
+import { PaymentsModule } from "./payments/payments.module";
+import { LicencesModule } from "./licences/licences.module";
 
 @Module({
   imports: [
@@ -70,6 +72,8 @@ import { AiModule } from "./ai/ai.module";
     AccountingModule,
     HrModule,
     AiModule,
+    PaymentsModule,
+    LicencesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
