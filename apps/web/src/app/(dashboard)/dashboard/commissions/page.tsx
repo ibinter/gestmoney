@@ -10,18 +10,20 @@ import { Commission } from '@/types';
 import { formatMontant, formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
 import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
-const STATUT_LABELS: Record<string, string> = {
-  calculee: 'Calculee',
-  validee: 'Validee',
-  payee: 'Payee',
-};
+const statutLabels = (t: Translations): Record<string, string> => ({
+  calculee: t.commissions.statutLabels.calculee,
+  validee: t.commissions.statutLabels.validee,
+  payee: t.commissions.statutLabels.payee,
+});
 
-const STATUT_PILL: Record<string, { cls: string; label: string }> = {
-  calculee: { cls: 'gm-pill-pending', label: '⏳ En attente' },
-  validee: { cls: 'gm-pill-validated', label: '🔵 Validé' },
-  payee: { cls: 'gm-pill-paid', label: '✅ Payé' },
-};
+const statutPill = (t: Translations): Record<string, { cls: string; label: string }> => ({
+  calculee: { cls: 'gm-pill-pending', label: t.commissions.pills.pending },
+  validee: { cls: 'gm-pill-validated', label: t.commissions.pills.validated },
+  payee: { cls: 'gm-pill-paid', label: t.commissions.pills.paid },
+});
 
 const AVATAR_COLORS = ['#16a34a', '#2563eb', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#be185d', '#b45309'];
 
@@ -41,6 +43,9 @@ function initiales(nom: string): string {
 type Onglet = 'agents' | 'historique' | 'objectifs';
 
 export default function CommissionsPage() {
+  const t = useT();
+  const STATUT_LABELS = statutLabels(t);
+  const STATUT_PILL = statutPill(t);
   const [filtrePeriode, setFiltrePeriode] = useState('');
   const [selectionnees, setSelectionnees] = useState<string[]>([]);
   const [succes, setSucces] = useState('');
@@ -66,14 +71,14 @@ export default function CommissionsPage() {
   const handleValider = async (ids: string[]) => {
     await valider.mutateAsync(ids);
     setSelectionnees([]);
-    setSucces(`${ids.length} commission(s) validée(s).`);
+    setSucces(`${ids.length} ${t.commissions.messages.validatedSuffix}`);
     setTimeout(() => setSucces(''), 3000);
   };
 
   const handlePayer = async (ids: string[]) => {
     await payer.mutateAsync(ids);
     setSelectionnees([]);
-    setSucces(`${ids.length} commission(s) marquée(s) comme payée(s).`);
+    setSucces(`${ids.length} ${t.commissions.messages.paidSuffix}`);
     setTimeout(() => setSucces(''), 3000);
   };
 
@@ -123,15 +128,15 @@ export default function CommissionsPage() {
     exporterCsv(
       commissions,
       [
-        { titre: 'Agent', valeur: (c) => c.agentNom },
-        { titre: 'Agence', valeur: (c) => c.agenceNom },
-        { titre: 'Période', valeur: (c) => c.periode },
-        { titre: 'Transactions', valeur: (c) => c.nbTransactions },
-        { titre: 'Montant transactions (FCFA)', valeur: (c) => c.montantTransactions },
-        { titre: 'Taux (%)', valeur: (c) => c.tauxCommission },
-        { titre: 'Commission (FCFA)', valeur: (c) => c.montantCommission },
-        { titre: 'Statut', valeur: (c) => STATUT_LABELS[c.statut] ?? c.statut },
-        { titre: 'Date paiement', valeur: (c) => (c.datePaiement ? formatDate(c.datePaiement) : '') },
+        { titre: t.commissions.csv.agent, valeur: (c) => c.agentNom },
+        { titre: t.commissions.csv.agence, valeur: (c) => c.agenceNom },
+        { titre: t.commissions.csv.periode, valeur: (c) => c.periode },
+        { titre: t.commissions.csv.transactions, valeur: (c) => c.nbTransactions },
+        { titre: t.commissions.csv.montantTransactions, valeur: (c) => c.montantTransactions },
+        { titre: t.commissions.csv.taux, valeur: (c) => c.tauxCommission },
+        { titre: t.commissions.csv.commission, valeur: (c) => c.montantCommission },
+        { titre: t.commissions.csv.statut, valeur: (c) => STATUT_LABELS[c.statut] ?? c.statut },
+        { titre: t.commissions.csv.datePaiement, valeur: (c) => (c.datePaiement ? formatDate(c.datePaiement) : '') },
       ],
       'commissions',
     );
@@ -152,13 +157,13 @@ export default function CommissionsPage() {
   return (
     <>
       <GmPageHeader
-        fil={['🏠 Accueil', 'Commissions']}
-        titre="💰 Commissions"
-        sousTitre="Calcul, validation et paiement des commissions agents"
+        fil={[`🏠 ${t.common.home}`, t.commissions.breadcrumb]}
+        titre={t.commissions.title}
+        sousTitre={t.commissions.subtitle}
         actions={
           <>
             <GmButton variante="outline" petit onClick={exporter}>
-              📥 Exporter CSV
+              {t.commissions.exportCsv}
             </GmButton>
             <GmButton
               variante="primary"
@@ -167,7 +172,7 @@ export default function CommissionsPage() {
               style={{ opacity: selectionnees.length === 0 ? 0.5 : 1 }}
               onClick={() => setModalOuverte(true)}
             >
-              💳 Traiter la sélection
+              {t.commissions.processSelection}
             </GmButton>
           </>
         }
@@ -186,9 +191,7 @@ export default function CommissionsPage() {
         >
           <span style={{ fontSize: 18 }}>⚠️</span>
           <div>
-            <strong>Données de démonstration</strong> — le service des commissions
-            est injoignable. Les montants affichés sont fictifs et ne doivent
-            servir ni à valider ni à payer quoi que ce soit.
+            <strong>{t.commissions.demoTitle}</strong> {t.commissions.demoBody}
           </div>
         </div>
       )}
@@ -197,31 +200,31 @@ export default function CommissionsPage() {
       <div className="gm-stats-row">
         <div className="gm-stat-card gm-total">
           <div className="gm-stat-value">{formatMontant(totalGeneral)}</div>
-          <div className="gm-stat-label">Total commissions</div>
-          <div className="gm-stat-sub">{commissions.length} commission(s)</div>
+          <div className="gm-stat-label">{t.commissions.stats.total}</div>
+          <div className="gm-stat-sub">{commissions.length} {t.commissions.stats.commissionsSuffix}</div>
         </div>
         <div className="gm-stat-card gm-success">
           <div className="gm-stat-value">{formatMontant(totalPayees)}</div>
-          <div className="gm-stat-label">Payées</div>
+          <div className="gm-stat-label">{t.commissions.stats.paid}</div>
           <div className="gm-stat-sub">
-            {nbPayees} commission(s){totalGeneral > 0 ? ` — ${pctPaye}% du total` : ''}
+            {nbPayees} {t.commissions.stats.commissionsSuffix}{totalGeneral > 0 ? ` — ${pctPaye}% ${t.commissions.stats.pctOfTotalSuffix}` : ''}
           </div>
         </div>
         <div className="gm-stat-card gm-amount">
           <div className="gm-stat-value">{formatMontant(totalValidees)}</div>
-          <div className="gm-stat-label">Validées (à payer)</div>
-          <div className="gm-stat-sub">{nbValidees} commission(s)</div>
+          <div className="gm-stat-label">{t.commissions.stats.validated}</div>
+          <div className="gm-stat-sub">{nbValidees} {t.commissions.stats.commissionsSuffix}</div>
         </div>
         <div className="gm-stat-card gm-pending">
           <div className="gm-stat-value">{formatMontant(totalCalculees)}</div>
-          <div className="gm-stat-label">En attente de validation</div>
-          <div className="gm-stat-sub">{nbCalculees} commission(s)</div>
+          <div className="gm-stat-label">{t.commissions.stats.pendingValidation}</div>
+          <div className="gm-stat-sub">{nbCalculees} {t.commissions.stats.commissionsSuffix}</div>
         </div>
         <div className="gm-stat-card">
           <div className="gm-stat-value">{nbAgents || '—'}</div>
-          <div className="gm-stat-label">Agents concernés</div>
+          <div className="gm-stat-label">{t.commissions.stats.agentsConcerned}</div>
           <div className="gm-stat-sub">
-            {filtrePeriode ? `Période ${filtrePeriode}` : 'Toutes périodes'}
+            {filtrePeriode ? `${t.commissions.stats.periodPrefix} ${filtrePeriode}` : t.commissions.stats.allPeriods}
           </div>
         </div>
       </div>
@@ -232,19 +235,19 @@ export default function CommissionsPage() {
           className={`gm-tab-btn${onglet === 'agents' ? ' gm-active' : ''}`}
           onClick={() => setOnglet('agents')}
         >
-          💰 Commissions agents
+          {t.commissions.tabs.agents}
         </button>
         <button
           className={`gm-tab-btn${onglet === 'historique' ? ' gm-active' : ''}`}
           onClick={() => setOnglet('historique')}
         >
-          📅 Historique paiements
+          {t.commissions.tabs.historique}
         </button>
         <button
           className={`gm-tab-btn${onglet === 'objectifs' ? ' gm-active' : ''}`}
           onClick={() => setOnglet('objectifs')}
         >
-          🎯 Objectifs
+          {t.commissions.tabs.objectifs}
         </button>
       </div>
 
@@ -259,16 +262,16 @@ export default function CommissionsPage() {
         <div className="gm-actions-bar">
           <div className="gm-filter-group" style={{ maxWidth: 200, flex: 'none' }}>
             <select value={filtrePeriode} onChange={(e) => setFiltrePeriode(e.target.value)}>
-              <option value="">Toutes periodes</option>
-              <option value="2024-01">Janvier 2024</option>
-              <option value="2024-02">Fevrier 2024</option>
-              <option value="2024-03">Mars 2024</option>
+              <option value="">{t.commissions.periodOptions.all}</option>
+              <option value="2024-01">{t.commissions.periodOptions.m202401}</option>
+              <option value="2024-02">{t.commissions.periodOptions.m202402}</option>
+              <option value="2024-03">{t.commissions.periodOptions.m202403}</option>
             </select>
           </div>
           {selectionnees.length > 0 && (
             <span className="gm-selected-count">
               <strong>
-                {selectionnees.length} sélectionnée(s) — {formatMontant(montantSelection)}
+                {selectionnees.length} {t.commissions.toolbar.selectedSuffix} — {formatMontant(montantSelection)}
               </strong>
             </span>
           )}
@@ -278,7 +281,7 @@ export default function CommissionsPage() {
             disabled={commissionsPage.length === 0}
             onClick={() => basculerToutPage(true)}
           >
-            ☑️ Tout sélectionner
+            {t.commissions.toolbar.selectAll}
           </GmButton>
           <GmButton
             variante="outline"
@@ -287,7 +290,7 @@ export default function CommissionsPage() {
             style={{ opacity: aValider.length === 0 ? 0.5 : 1 }}
             onClick={() => handleValider(aValider)}
           >
-            ✅ Valider ({aValider.length})
+            {t.commissions.toolbar.validate} ({aValider.length})
           </GmButton>
           <GmButton
             variante="primary"
@@ -296,16 +299,16 @@ export default function CommissionsPage() {
             style={{ opacity: aPayer.length === 0 ? 0.5 : 1 }}
             onClick={() => setModalOuverte(true)}
           >
-            💳 Payer ({aPayer.length})
+            {t.commissions.toolbar.pay} ({aPayer.length})
           </GmButton>
           <div className="gm-actions-bar-right">
             {selectionnees.length > 0 && (
               <GmButton variante="ghost" petit onClick={() => setSelectionnees([])}>
-                Désélectionner
+                {t.commissions.toolbar.deselect}
               </GmButton>
             )}
             <GmButton variante="outline" petit onClick={exporter}>
-              📥 Exporter CSV
+              {t.commissions.exportCsv}
             </GmButton>
           </div>
         </div>
@@ -319,33 +322,33 @@ export default function CommissionsPage() {
                     type="checkbox"
                     checked={toutesPageSelectionnees}
                     onChange={(e) => basculerToutPage(e.target.checked)}
-                    aria-label="Tout sélectionner"
+                    aria-label={t.commissions.toolbar.selectAllAria}
                   />
                 </th>
-                <th>Agent</th>
-                <th>Agence</th>
-                <th>Période</th>
-                <th style={{ textAlign: 'right' }}>Transactions</th>
-                <th style={{ textAlign: 'right' }}>Vol. transactions</th>
-                <th style={{ textAlign: 'right' }}>Taux</th>
-                <th style={{ textAlign: 'right' }}>Commission</th>
-                <th>Date paiement</th>
-                <th>Statut</th>
-                <th>Actions</th>
+                <th>{t.commissions.columns.agent}</th>
+                <th>{t.commissions.columns.agence}</th>
+                <th>{t.commissions.columns.periode}</th>
+                <th style={{ textAlign: 'right' }}>{t.commissions.columns.transactions}</th>
+                <th style={{ textAlign: 'right' }}>{t.commissions.columns.volTransactions}</th>
+                <th style={{ textAlign: 'right' }}>{t.commissions.columns.taux}</th>
+                <th style={{ textAlign: 'right' }}>{t.commissions.columns.commission}</th>
+                <th>{t.commissions.columns.datePaiement}</th>
+                <th>{t.commissions.columns.statut}</th>
+                <th>{t.commissions.columns.actions}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
                   <td colSpan={11} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
-                    Chargement des commissions…
+                    {t.commissions.table.loading}
                   </td>
                 </tr>
               )}
               {!isLoading && commissionsPage.length === 0 && (
                 <tr>
                   <td colSpan={11} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
-                    Aucune commission trouvee pour cette periode
+                    {t.commissions.table.empty}
                   </td>
                 </tr>
               )}
@@ -360,7 +363,7 @@ export default function CommissionsPage() {
                           type="checkbox"
                           checked={selectionnee}
                           onChange={(e) => basculerLigne(c.id, e.target.checked)}
-                          aria-label={`Sélectionner ${c.agentNom}`}
+                          aria-label={`${t.commissions.toolbar.selectRowAria} ${c.agentNom}`}
                         />
                       </td>
                       <td>
@@ -407,7 +410,7 @@ export default function CommissionsPage() {
                               onClick={() => handleValider([c.id])}
                               disabled={valider.isPending}
                             >
-                              ✅ Valider
+                              {t.commissions.table.validate}
                             </button>
                           )}
                           {c.statut === 'validee' && (
@@ -416,7 +419,7 @@ export default function CommissionsPage() {
                               onClick={() => handlePayer([c.id])}
                               disabled={payer.isPending}
                             >
-                              💳 Payer
+                              {t.commissions.table.pay}
                             </button>
                           )}
                           {c.statut === 'payee' && (
@@ -432,7 +435,7 @@ export default function CommissionsPage() {
 
           <div className="gm-pagination">
             <div className="gm-pag-info">
-              {commissions.length} commission(s) — Page {page} / {totalPages || 1}
+              {commissions.length} {t.commissions.stats.commissionsSuffix} — {t.common.page} {page} / {totalPages || 1}
             </div>
             <div className="gm-pag-controls">
               <button className="gm-pag-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
@@ -465,19 +468,19 @@ export default function CommissionsPage() {
           <table>
             <thead>
               <tr>
-                <th>Date paiement</th>
-                <th>Agent</th>
-                <th>Agence</th>
-                <th>Période</th>
-                <th style={{ textAlign: 'right' }}>Montant</th>
-                <th>Statut</th>
+                <th>{t.commissions.columns.datePaiement}</th>
+                <th>{t.commissions.columns.agent}</th>
+                <th>{t.commissions.columns.agence}</th>
+                <th>{t.commissions.columns.periode}</th>
+                <th style={{ textAlign: 'right' }}>{t.commissions.columns.montant}</th>
+                <th>{t.commissions.columns.statut}</th>
               </tr>
             </thead>
             <tbody>
               {historique.length === 0 && (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
-                    Aucun paiement de commission enregistré
+                    {t.commissions.table.emptyHistory}
                   </td>
                 </tr>
               )}
@@ -508,7 +511,7 @@ export default function CommissionsPage() {
                     {formatMontant(c.montantCommission)}
                   </td>
                   <td>
-                    <span className="gm-status-pill gm-pill-paid">✅ Payé</span>
+                    <span className="gm-status-pill gm-pill-paid">{t.commissions.pills.paid}</span>
                   </td>
                 </tr>
               ))}
@@ -521,8 +524,8 @@ export default function CommissionsPage() {
       <div className={`gm-tab-content${onglet === 'objectifs' ? ' gm-active' : ''}`}>
         <div className="gm-charts-grid">
           <div className="gm-chart-card">
-            <div className="gm-chart-title">🎯 Avancement des paiements</div>
-            <div className="gm-chart-sub">Part des commissions déjà payées</div>
+            <div className="gm-chart-title">{t.commissions.objectifs.progressTitle}</div>
+            <div className="gm-chart-sub">{t.commissions.objectifs.progressSub}</div>
             <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--gm-primary)', marginBottom: 6 }}>
               {totalGeneral > 0 ? `${pctPaye}%` : '—'}
             </div>
@@ -535,9 +538,9 @@ export default function CommissionsPage() {
           </div>
 
           <div className="gm-chart-card">
-            <div className="gm-chart-title">🥇 Commission la plus élevée</div>
+            <div className="gm-chart-title">{t.commissions.objectifs.topTitle}</div>
             <div className="gm-chart-sub">
-              {filtrePeriode ? `Période ${filtrePeriode}` : 'Toutes périodes'}
+              {filtrePeriode ? `${t.commissions.stats.periodPrefix} ${filtrePeriode}` : t.commissions.stats.allPeriods}
             </div>
             {topAgent ? (
               <>
@@ -551,7 +554,7 @@ export default function CommissionsPage() {
                   {formatMontant(topAgent.montantCommission)}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--gm-text-2)', marginTop: 4 }}>
-                  {formatMontant(topAgent.montantTransactions)} de volume
+                  {formatMontant(topAgent.montantTransactions)} {t.commissions.objectifs.volumeSuffix}
                 </div>
               </>
             ) : (
@@ -560,18 +563,18 @@ export default function CommissionsPage() {
           </div>
 
           <div className="gm-chart-card">
-            <div className="gm-chart-title">📊 Répartition par statut</div>
-            <div className="gm-chart-sub">{commissions.length} commission(s)</div>
+            <div className="gm-chart-title">{t.commissions.objectifs.repartitionTitle}</div>
+            <div className="gm-chart-sub">{commissions.length} {t.commissions.stats.commissionsSuffix}</div>
             <div className="gm-tariff-tier">
-              <span className="gm-tariff-range">⏳ En attente ({nbCalculees})</span>
+              <span className="gm-tariff-range">{t.commissions.objectifs.pendingLabel} ({nbCalculees})</span>
               <span className="gm-tariff-rate">{formatMontant(totalCalculees)}</span>
             </div>
             <div className="gm-tariff-tier">
-              <span className="gm-tariff-range">🔵 Validées ({nbValidees})</span>
+              <span className="gm-tariff-range">{t.commissions.objectifs.validatedLabel} ({nbValidees})</span>
               <span className="gm-tariff-rate">{formatMontant(totalValidees)}</span>
             </div>
             <div className="gm-tariff-tier">
-              <span className="gm-tariff-range">✅ Payées ({nbPayees})</span>
+              <span className="gm-tariff-range">{t.commissions.objectifs.paidLabel} ({nbPayees})</span>
               <span className="gm-tariff-rate">{formatMontant(totalPayees)}</span>
             </div>
           </div>
@@ -587,42 +590,42 @@ export default function CommissionsPage() {
       >
         <div className="gm-modal">
           <div className="gm-modal-header">
-            <div className="gm-modal-title">💳 Confirmation</div>
-            <button className="gm-modal-close" onClick={() => setModalOuverte(false)} aria-label="Fermer">
+            <div className="gm-modal-title">{t.commissions.modal.title}</div>
+            <button className="gm-modal-close" onClick={() => setModalOuverte(false)} aria-label={t.commissions.modal.close}>
               ✕
             </button>
           </div>
           <div className="gm-modal-body">
             <p style={{ fontSize: 13, color: 'var(--gm-text-2)', marginBottom: 16 }}>
-              Vous êtes sur le point de traiter les commissions sélectionnées.
+              {t.commissions.modal.intro}
             </p>
             <div className="gm-modal-summary-row">
-              <span>Commissions sélectionnées</span>
+              <span>{t.commissions.modal.rowSelected}</span>
               <span style={{ fontWeight: 600 }}>{selectionnees.length}</span>
             </div>
             <div className="gm-modal-summary-row">
-              <span>À valider</span>
+              <span>{t.commissions.modal.rowToValidate}</span>
               <span style={{ fontWeight: 600 }}>{aValider.length}</span>
             </div>
             <div className="gm-modal-summary-row">
-              <span>À marquer payées</span>
+              <span>{t.commissions.modal.rowToPay}</span>
               <span style={{ fontWeight: 600 }}>{aPayer.length}</span>
             </div>
             <div className="gm-modal-summary-row">
-              <span style={{ fontSize: 14 }}>Montant total sélectionné</span>
+              <span style={{ fontSize: 14 }}>{t.commissions.modal.rowTotal}</span>
               <span style={{ color: 'var(--gm-success)' }}>{formatMontant(montantSelection)}</span>
             </div>
           </div>
           <div className="gm-modal-footer">
             <GmButton variante="outline" onClick={() => setModalOuverte(false)}>
-              Annuler
+              {t.common.cancel}
             </GmButton>
             <GmButton
               variante="primary"
               disabled={enCours || (aValider.length === 0 && aPayer.length === 0)}
               onClick={traiterSelection}
             >
-              {enCours ? 'Traitement…' : '✅ Confirmer'}
+              {enCours ? t.commissions.modal.processing : t.commissions.modal.confirm}
             </GmButton>
           </div>
         </div>

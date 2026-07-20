@@ -14,16 +14,11 @@ import {
   type TypeNotification,
 } from '@/hooks/useNotifications';
 import { formatRelativeTime } from '@/lib/formatters';
+import { useT } from '@/lib/i18n';
 
 type Filtre = 'toutes' | 'non_lues' | 'alerte' | 'transaction' | 'systeme';
 
-const FILTRES: { key: Filtre; label: string }[] = [
-  { key: 'toutes', label: 'Toutes' },
-  { key: 'non_lues', label: 'Non lues' },
-  { key: 'alerte', label: 'Alertes' },
-  { key: 'transaction', label: 'Transactions' },
-  { key: 'systeme', label: 'Système' },
-];
+const CLES_FILTRES: Filtre[] = ['toutes', 'non_lues', 'alerte', 'transaction', 'systeme'];
 
 const TYPE_ICONS: Record<TypeNotification, string> = {
   alerte: '🔔',
@@ -42,6 +37,7 @@ const TYPE_COLORS: Record<TypeNotification, string> = {
 };
 
 export default function NotificationsPage() {
+  const t = useT();
   const [filtre, setFiltre] = useState<Filtre>('toutes');
   const [page, setPage] = useState(1);
   const LIMIT = 6;
@@ -76,9 +72,9 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Notifications</h1>
+          <h1 className="text-2xl font-bold text-text-main">{t.notifications.title}</h1>
           <p className="text-sm text-text-muted mt-1">
-            Gérez vos alertes et messages du système
+            {t.notifications.subtitle}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -90,33 +86,33 @@ export default function NotificationsPage() {
             loading={markAllAsRead.isPending}
             disabled={nonLuesCount === 0}
           >
-            Tout marquer lu
+            {t.notifications.markAllRead}
           </Button>
           <Button
             variante="outline"
             taille="sm"
             icone={<Settings size={16} />}
           >
-            Paramètres
+            {t.notifications.settings}
           </Button>
         </div>
       </div>
 
       {/* Filtres */}
       <div className="flex gap-2 flex-wrap">
-        {FILTRES.map((f) => (
+        {CLES_FILTRES.map((f) => (
           <button
-            key={f.key}
-            onClick={() => handleFiltreChange(f.key)}
+            key={f}
+            onClick={() => handleFiltreChange(f)}
             className={clsx(
               'px-4 py-2 rounded-full text-sm font-medium transition-colors duration-150 flex items-center gap-2',
-              filtre === f.key
+              filtre === f
                 ? 'bg-sidebar text-white'
                 : 'bg-white text-text-muted hover:text-text-main border border-gray-200'
             )}
           >
-            {f.label}
-            {f.key === 'non_lues' && nonLuesCount > 0 && (
+            {t.notifications.filtres[f]}
+            {f === 'non_lues' && nonLuesCount > 0 && (
               <span className={clsx(
                 'text-xs font-bold px-1.5 py-0.5 rounded-full',
                 filtre === 'non_lues' ? 'bg-white text-sidebar' : 'bg-red-500 text-white'
@@ -133,7 +129,7 @@ export default function NotificationsPage() {
         {isLoading ? (
           <div className="py-16 flex flex-col items-center gap-3 text-text-muted">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm">Chargement…</span>
+            <span className="text-sm">{t.notifications.loading}</span>
           </div>
         ) : notifications.length === 0 ? (
           /* État vide */
@@ -142,11 +138,11 @@ export default function NotificationsPage() {
               <Bell size={36} className="text-gray-300" />
             </div>
             <div className="text-center">
-              <p className="text-base font-semibold text-text-main">Aucune notification</p>
+              <p className="text-base font-semibold text-text-main">{t.notifications.empty}</p>
               <p className="text-sm mt-1">
                 {filtre === 'non_lues'
-                  ? 'Toutes vos notifications ont été lues.'
-                  : 'Aucune notification dans cette catégorie.'}
+                  ? t.notifications.emptyUnread
+                  : t.notifications.emptyCategory}
               </p>
             </div>
           </div>
@@ -180,7 +176,7 @@ export default function NotificationsPage() {
                   </p>
                   <div className="flex items-center gap-2 shrink-0">
                     {!notif.lue && (
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" aria-label="Non lue" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" aria-label={t.notifications.unreadDot} />
                     )}
                     <span className="text-xs text-text-muted whitespace-nowrap">
                       {formatRelativeTime(notif.date)}
@@ -195,7 +191,7 @@ export default function NotificationsPage() {
                 {!notif.lue && (
                   <button
                     onClick={() => markAsRead.mutate(notif.id)}
-                    aria-label="Marquer comme lue"
+                    aria-label={t.notifications.markRead}
                     className="p-2 rounded-lg text-text-muted hover:text-green-600 hover:bg-green-50 transition-colors"
                   >
                     <Check size={16} />
@@ -203,7 +199,7 @@ export default function NotificationsPage() {
                 )}
                 <button
                   onClick={() => deleteNotif.mutate(notif.id)}
-                  aria-label="Supprimer la notification"
+                  aria-label={t.notifications.delete}
                   className="p-2 rounded-lg text-text-muted hover:text-red-600 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={16} />
@@ -222,7 +218,7 @@ export default function NotificationsPage() {
             disabled={page === 1}
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-text-muted hover:text-text-main hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Précédent
+            {t.notifications.prev}
           </button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <button
@@ -243,7 +239,7 @@ export default function NotificationsPage() {
             disabled={page === totalPages}
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-text-muted hover:text-text-main hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Suivant
+            {t.notifications.next}
           </button>
         </div>
       )}

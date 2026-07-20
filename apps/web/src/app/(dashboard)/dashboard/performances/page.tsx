@@ -8,14 +8,15 @@ import { Select } from '@/components/ui/Input';
 import { formatMontant } from '@/lib/formatters';
 import { usePerformances } from '@/hooks/usePerformances';
 import { clsx } from 'clsx';
-
-const PERIODES = [
-  { value: 'semaine', label: 'Cette semaine' },
-  { value: 'mois', label: 'Ce mois' },
-  { value: 'trimestre', label: 'Ce trimestre' },
-];
+import { useT } from '@/lib/i18n';
 
 export default function PerformancesPage() {
+  const t = useT();
+  const PERIODES = [
+    { value: 'semaine', label: t.performances.periods.semaine },
+    { value: 'mois', label: t.performances.periods.mois },
+    { value: 'trimestre', label: t.performances.periods.trimestre },
+  ];
   const [periode, setPeriode] = useState('mois');
   const { data, isLoading } = usePerformances(periode);
 
@@ -48,11 +49,11 @@ export default function PerformancesPage() {
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Performances</h1>
-          <p className="text-sm text-gray-500">Indicateurs clés du réseau Mobile Money</p>
+          <h1 className="text-2xl font-bold text-text-main">{t.performances.title}</h1>
+          <p className="text-sm text-gray-500">{t.performances.subtitle}</p>
         </div>
         <Select
-          placeholder="Période"
+          placeholder={t.performances.periodPlaceholder}
           value={periode}
           onChange={(e) => setPeriode(e.target.value)}
           options={PERIODES}
@@ -61,18 +62,18 @@ export default function PerformancesPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard titre="Volume total" valeur={formatMontant(totalVol)} variation={data?.evolutionVolume} icone={<Activity size={18} />} couleur="success" />
-        <StatCard titre="Nb transactions" valeur={totalTx.toLocaleString('fr-FR')} variation={data?.evolutionTransactions} icone="💳" couleur="primary" />
-        <StatCard titre="Taux de succès" valeur={`${tauxSucces}%`} sousTexte="Objectif 95%" icone="✅" couleur="success" />
-        <StatCard titre="Ticket moyen" valeur={formatMontant(ticketMoyen)} icone="🎫" couleur="default" />
+        <StatCard titre={t.performances.kpi.volumeTotal} valeur={formatMontant(totalVol)} variation={data?.evolutionVolume} icone={<Activity size={18} />} couleur="success" />
+        <StatCard titre={t.performances.kpi.nbTransactions} valeur={totalTx.toLocaleString('fr-FR')} variation={data?.evolutionTransactions} icone="💳" couleur="primary" />
+        <StatCard titre={t.performances.kpi.tauxSucces} valeur={`${tauxSucces}%`} sousTexte={t.performances.kpi.objectif95} icone="✅" couleur="success" />
+        <StatCard titre={t.performances.kpi.ticketMoyen} valeur={formatMontant(ticketMoyen)} icone="🎫" couleur="default" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Évolution hebdomadaire */}
         <Card>
           <CardHeader>
-            <CardTitle>Évolution des volumes</CardTitle>
-            <span className="text-xs text-gray-400">7 derniers jours</span>
+            <CardTitle>{t.performances.evolution.title}</CardTitle>
+            <span className="text-xs text-gray-400">{t.performances.evolution.sub}</span>
           </CardHeader>
           <div className="space-y-2">
             {evolutionHebdo.map((d) => {
@@ -88,7 +89,7 @@ export default function PerformancesPage() {
                   </div>
                   <div className="text-right w-24 flex-shrink-0">
                     <p className="text-xs font-semibold text-text-main">{formatMontant(d.volume)}</p>
-                    <p className="text-[10px] text-gray-400">{d.nbTransactions} tx</p>
+                    <p className="text-[10px] text-gray-400">{d.nbTransactions} {t.performances.evolution.txSuffix}</p>
                   </div>
                 </div>
               );
@@ -99,7 +100,7 @@ export default function PerformancesPage() {
         {/* Performance par opérateur */}
         <Card>
           <CardHeader>
-            <CardTitle>Performance par opérateur</CardTitle>
+            <CardTitle>{t.performances.operatorTitle}</CardTitle>
           </CardHeader>
           <div className="space-y-4">
             {parOperateur.map((op) => {
@@ -111,7 +112,7 @@ export default function PerformancesPage() {
                       <span>{op.logo}</span>
                       <div>
                         <span className="text-sm font-medium text-text-main">{op.label}</span>
-                        <span className="text-xs text-gray-400 ml-2">{op.nbTransactions.toLocaleString('fr-FR')} tx</span>
+                        <span className="text-xs text-gray-400 ml-2">{op.nbTransactions.toLocaleString('fr-FR')} {t.performances.evolution.txSuffix}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -139,20 +140,20 @@ export default function PerformancesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Award size={18} className="text-primary" /> Classement des agents
+            <Award size={18} className="text-primary" /> {t.performances.ranking.title}
           </CardTitle>
-          <Badge couleur="info">{periode === 'semaine' ? 'Semaine' : periode === 'mois' ? 'Mois' : 'Trimestre'}</Badge>
+          <Badge couleur="info">{periode === 'semaine' ? t.performances.periodBadges.semaine : periode === 'mois' ? t.performances.periodBadges.mois : t.performances.periodBadges.trimestre}</Badge>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Rang</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Agent</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Volume</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Transactions</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Taux succès</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Évolution</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t.performances.ranking.colRang}</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t.performances.ranking.colAgent}</th>
+                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t.performances.ranking.colVolume}</th>
+                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t.performances.ranking.colTransactions}</th>
+                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t.performances.ranking.colTauxSucces}</th>
+                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">{t.performances.ranking.colEvolution}</th>
               </tr>
             </thead>
             <tbody>
@@ -177,7 +178,7 @@ export default function PerformancesPage() {
                   <td className="py-3 px-4 text-right">
                     <span className={clsx('flex items-center justify-end gap-0.5 text-xs font-medium', a.evolution >= 0 ? 'text-success' : 'text-danger')}>
                       {a.evolution >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      {Math.abs(a.evolution)} rangs
+                      {Math.abs(a.evolution)} {t.performances.ranking.ranksSuffix}
                     </span>
                   </td>
                 </tr>
@@ -191,9 +192,9 @@ export default function PerformancesPage() {
       {objectifs && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Objectif volume mensuel', actuel: objectifs.volume.actuel, cible: objectifs.volume.cible, couleur: '#6C5CE7' },
-            { label: 'Objectif nb transactions', actuel: objectifs.transactions.actuel, cible: objectifs.transactions.cible, couleur: '#00B894', format: 'nombre' as const },
-            { label: 'Taux de succès cible', actuel: objectifs.tauxSucces.actuel, cible: objectifs.tauxSucces.cible, couleur: '#FDCB6E', format: 'pct' as const },
+            { label: t.performances.objectifs.volume, actuel: objectifs.volume.actuel, cible: objectifs.volume.cible, couleur: '#6C5CE7' },
+            { label: t.performances.objectifs.transactions, actuel: objectifs.transactions.actuel, cible: objectifs.transactions.cible, couleur: '#00B894', format: 'nombre' as const },
+            { label: t.performances.objectifs.tauxSucces, actuel: objectifs.tauxSucces.actuel, cible: objectifs.tauxSucces.cible, couleur: '#FDCB6E', format: 'pct' as const },
           ].map((obj) => {
             const pct = Math.min(Math.round((obj.actuel / obj.cible) * 100), 100);
             const valStr = obj.format === 'nombre'
@@ -223,7 +224,7 @@ export default function PerformancesPage() {
                   />
                 </div>
                 <p className={clsx('text-xs mt-2', pct >= 80 ? 'text-success' : pct >= 50 ? 'text-warning' : 'text-danger')}>
-                  {pct >= 100 ? 'Objectif atteint ✓' : pct >= 80 ? 'En bonne voie' : pct >= 50 ? 'Attention requise' : 'En retard'}
+                  {pct >= 100 ? t.performances.objectifs.reached : pct >= 80 ? t.performances.objectifs.onTrack : pct >= 50 ? t.performances.objectifs.attention : t.performances.objectifs.late}
                 </p>
               </div>
             );

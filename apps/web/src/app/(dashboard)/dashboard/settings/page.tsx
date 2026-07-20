@@ -51,7 +51,7 @@ function OngletProfil() {
               {(form.prenom[0] ?? '').toUpperCase()}{(form.nom[0] ?? '').toUpperCase()}
             </div>
             <button
-              aria-label="Changer la photo de profil"
+              aria-label={t.settings.changePhoto}
               className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-yellow-400 transition-colors"
             >
               <Camera size={14} className="text-sidebar" />
@@ -59,9 +59,9 @@ function OngletProfil() {
           </div>
           <div>
             <p className="font-semibold text-text-main">{form.prenom} {form.nom}</p>
-            <p className="text-sm text-text-muted mt-0.5">{user?.role ?? 'Utilisateur'}</p>
+            <p className="text-sm text-text-muted mt-0.5">{user?.role ?? t.settings.defaultUser}</p>
             <button className="text-xs text-primary hover:underline mt-2">
-              Télécharger une photo
+              {t.settings.uploadPhoto}
             </button>
           </div>
         </div>
@@ -72,29 +72,29 @@ function OngletProfil() {
         <h3 className="text-base font-semibold text-text-main mb-5">{t.settings.profile}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Prénom"
+            label={t.settings.firstName}
             value={form.prenom}
             onChange={(e) => handleChange('prenom', e.target.value)}
           />
           <Input
-            label="Nom"
+            label={t.settings.lastName}
             value={form.nom}
             onChange={(e) => handleChange('nom', e.target.value)}
           />
           <Input
-            label="Email"
+            label={t.settings.email}
             type="email"
             value={form.email}
             onChange={(e) => handleChange('email', e.target.value)}
           />
           <Input
-            label="Téléphone"
+            label={t.settings.phone}
             type="tel"
             value={form.telephone}
             onChange={(e) => handleChange('telephone', e.target.value)}
           />
           <div>
-            <label className="block text-sm font-medium text-text-main mb-1.5">Langue</label>
+            <label className="block text-sm font-medium text-text-main mb-1.5">{t.settings.languageField}</label>
             <select
               value={form.langue}
               onChange={(e) => handleChange('langue', e.target.value)}
@@ -105,7 +105,7 @@ function OngletProfil() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-main mb-1.5">Fuseau horaire</label>
+            <label className="block text-sm font-medium text-text-main mb-1.5">{t.settings.timezone}</label>
             <select
               value={form.fuseau}
               onChange={(e) => handleChange('fuseau', e.target.value)}
@@ -155,9 +155,9 @@ function OngletSecurite() {
         <h3 className="text-base font-semibold text-text-main mb-5">{t.settings.security}</h3>
         <div className="space-y-4">
           {[
-            { field: 'ancien', label: 'Ancien mot de passe', show: showOld, toggle: () => setShowOld((v) => !v) },
-            { field: 'nouveau', label: 'Nouveau mot de passe', show: showNew, toggle: () => setShowNew((v) => !v) },
-            { field: 'confirmer', label: 'Confirmer le nouveau mot de passe', show: showConfirm, toggle: () => setShowConfirm((v) => !v) },
+            { field: 'ancien', label: t.settings.oldPassword, show: showOld, toggle: () => setShowOld((v) => !v) },
+            { field: 'nouveau', label: t.settings.newPassword, show: showNew, toggle: () => setShowNew((v) => !v) },
+            { field: 'confirmer', label: t.settings.confirmPassword, show: showConfirm, toggle: () => setShowConfirm((v) => !v) },
           ].map(({ field, label, show, toggle }) => (
             <div key={field} className="relative">
               <label className="block text-sm font-medium text-text-main mb-1.5">{label}</label>
@@ -172,7 +172,7 @@ function OngletSecurite() {
                 <button
                   type="button"
                   onClick={toggle}
-                  aria-label={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  aria-label={show ? t.settings.hidePassword : t.settings.showPassword}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main"
                 >
                   {show ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -190,9 +190,9 @@ function OngletSecurite() {
       <Card padding="md">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-text-main">Authentification à deux facteurs</h3>
+            <h3 className="text-base font-semibold text-text-main">{t.settings.twoFactor}</h3>
             <p className="text-sm text-text-muted mt-1">
-              Renforcez la sécurité de votre compte avec un code temporaire (TOTP).
+              {t.settings.twoFactorSub}
             </p>
           </div>
           <Toggle checked={deux_fa} onChange={setDeuxFa} label="" />
@@ -201,11 +201,11 @@ function OngletSecurite() {
         {deux_fa && (
           <div className="mt-5 pt-5 border-t border-gray-100">
             <p className="text-sm text-text-main mb-3 font-medium">
-              Scannez ce QR code avec votre application d&apos;authentification
+              {t.settings.scanQr}
             </p>
             {/* QR Code fictif SVG */}
             <div className="inline-block p-3 bg-white border-2 border-gray-200 rounded-xl">
-              <svg width="120" height="120" viewBox="0 0 120 120" aria-label="QR Code 2FA">
+              <svg width="120" height="120" viewBox="0 0 120 120" aria-label={t.settings.qrLabel}>
                 {Array.from({ length: 9 }, (_, row) =>
                   Array.from({ length: 9 }, (_, col) => {
                     const fill = ((row + col + row * col) % 3 === 0) || (row < 3 && col < 3) || (row < 3 && col > 5) || (row > 5 && col < 3);
@@ -217,7 +217,7 @@ function OngletSecurite() {
               </svg>
             </div>
             <p className="text-xs text-text-muted mt-2">
-              Code secret : <code className="bg-gray-100 px-2 py-0.5 rounded font-mono">JBSWY3DPEHPK3PXP</code>
+              {t.settings.secretCode} <code className="bg-gray-100 px-2 py-0.5 rounded font-mono">JBSWY3DPEHPK3PXP</code>
             </p>
           </div>
         )}
@@ -225,7 +225,7 @@ function OngletSecurite() {
 
       {/* Sessions actives */}
       <Card padding="md">
-        <h3 className="text-base font-semibold text-text-main mb-4">Sessions actives</h3>
+        <h3 className="text-base font-semibold text-text-main mb-4">{t.settings.activeSessions}</h3>
         <div className="space-y-3">
           {sessions.map((session) => (
             <div key={session.id} className="flex items-center justify-between gap-4 py-3 border-b border-gray-100 last:border-0">
@@ -234,7 +234,7 @@ function OngletSecurite() {
                   {session.device}
                   {session.actuel && (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-normal">
-                      Session actuelle
+                      {t.settings.currentSession}
                     </span>
                   )}
                 </p>
@@ -242,7 +242,7 @@ function OngletSecurite() {
               </div>
               {!session.actuel && (
                 <Button variante="danger" taille="sm">
-                  Révoquer
+                  {t.settings.revoke}
                 </Button>
               )}
             </div>
@@ -256,8 +256,8 @@ function OngletSecurite() {
 // ——————————————————————————————————————
 // Onglet Notifications Paramètres
 // ——————————————————————————————————————
-const CATEGORIES = ['Transactions', 'Float', 'Commissions', 'Fraude', 'Système'];
-const CANAUX = ['Email', 'SMS', 'Push', 'In-app'];
+const CATEGORIES = ['transactions', 'float', 'commissions', 'fraude', 'systeme'] as const;
+const CANAUX = ['email', 'sms', 'push', 'inApp'] as const;
 
 function OngletNotifications() {
   const t = useT();
@@ -281,16 +281,16 @@ function OngletNotifications() {
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <th className="text-left text-text-muted font-medium pb-3 pr-6 min-w-[140px]">Catégorie</th>
+                <th className="text-left text-text-muted font-medium pb-3 pr-6 min-w-[140px]">{t.settings.notifCategory}</th>
                 {CANAUX.map((canal) => (
-                  <th key={canal} className="text-center text-text-muted font-medium pb-3 px-4">{canal}</th>
+                  <th key={canal} className="text-center text-text-muted font-medium pb-3 px-4">{t.settings.notifChannels[canal]}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {CATEGORIES.map((cat) => (
                 <tr key={cat}>
-                  <td className="py-3 pr-6 font-medium text-text-main">{cat}</td>
+                  <td className="py-3 pr-6 font-medium text-text-main">{t.settings.notifCategories[cat]}</td>
                   {CANAUX.map((canal) => {
                     const key = `${cat}-${canal}`;
                     return (
@@ -299,7 +299,9 @@ function OngletNotifications() {
                           <Toggle
                             checked={toggles[key]}
                             onChange={() => toggle(key)}
-                            aria-label={`${cat} via ${canal}`}
+                            aria-label={t.settings.notifVia
+                              .replace('{cat}', t.settings.notifCategories[cat])
+                              .replace('{canal}', t.settings.notifChannels[canal])}
                           />
                         </div>
                       </td>

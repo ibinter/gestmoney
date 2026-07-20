@@ -8,6 +8,8 @@ import Link from 'next/link';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { Badge } from '@/components/ui/Badge';
 import { formatMontant, formatRelativeTime } from '@/lib/formatters';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 import api from '@/lib/api';
 
 // ─── Données mock SuperAdmin (fallback si API absente) ─────────────────────
@@ -53,9 +55,7 @@ const STATUT_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'danger'> = 
   ACTIVE: 'success', TRIAL: 'info', SUSPENDED: 'danger', EXPIRED: 'neutral',
 };
 
-const STATUT_LABEL: Record<string, string> = {
-  ACTIVE: 'Actif', TRIAL: 'Essai', SUSPENDED: 'Suspendu', EXPIRED: 'Expiré',
-};
+const statutLabels = (t: Translations): Record<string, string> => t.superadmin.statutLabels;
 
 function KpiCard({ titre, valeur, soustitre, icone, couleur }: { titre: string; valeur: string | number; soustitre?: string; icone: React.ReactNode; couleur: string }) {
   return (
@@ -73,6 +73,8 @@ function KpiCard({ titre, valeur, soustitre, icone, couleur }: { titre: string; 
 }
 
 export default function SuperAdminPage() {
+  const t = useT();
+  const STATUT_LABEL = statutLabels(t);
   const router = useRouter();
   const { user } = useAuthStore();
 
@@ -137,13 +139,13 @@ export default function SuperAdminPage() {
             <Shield size={20} className="text-[#b8960a] dark:text-[#FFD000]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-text-main">Console SuperAdmin</h1>
-            <p className="text-sm text-text-muted">Pilotage global IBIG Soft — accès restreint</p>
+            <h1 className="text-2xl font-bold text-text-main">{t.superadmin.title}</h1>
+            <p className="text-sm text-text-muted">{t.superadmin.subtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 bg-[#009E00]/10 border border-[#009E00]/20 rounded-full px-3 py-1.5">
           <span className="w-2 h-2 rounded-full bg-[#009E00] animate-pulse" />
-          <span className="text-xs font-semibold text-[#009E00]">Système opérationnel · {s.sante?.uptime_pct ?? 99.9}% uptime</span>
+          <span className="text-xs font-semibold text-[#009E00]">{t.superadmin.operational} · {s.sante?.uptime_pct ?? 99.9}% {t.superadmin.uptime}</span>
         </div>
       </div>
 
@@ -159,28 +161,28 @@ export default function SuperAdminPage() {
               affiche « — » plutôt que d'inventer un chiffre, et surtout la
               page ne doit jamais tomber sur une donnée manquante — c'est ce
               qui la rendait entièrement blanche. */}
-          <KpiCard titre="Tenants actifs"       valeur={n(s.tenants?.actifs)}       soustitre={`${n(s.tenants?.total)} au total`}              icone={<Building2 size={18} />}  couleur="#009E00" />
-          <KpiCard titre="Essais en cours"      valeur={n(s.tenants?.essai)}        soustitre={`${n(s.tenants?.expires)} expiré(s)`}           icone={<Clock size={18} />}      couleur="#FFD000" />
-          <KpiCard titre="Utilisateurs actifs"  valeur={n(s.utilisateurs?.actifs)}  soustitre={`${n(s.utilisateurs?.total)} inscrits`}         icone={<Users size={18} />}      couleur="#3B82F6" />
-          <KpiCard titre="Tx aujourd'hui"       valeur={n(s.transactions?.aujourd_hui)} soustitre={m(s.transactions?.montant_aujourd_hui)}    icone={<Activity size={18} />}   couleur="#8B5CF6" />
-          <KpiCard titre="MRR"                  valeur={m(s.revenus?.mrr)}          soustitre={`ARR : ${m(s.revenus?.arr)}`}                   icone={<TrendingUp size={18} />} couleur="#10B981" />
-          <KpiCard titre="En attente paiement"  valeur={m(s.revenus?.en_attente)}   soustitre="À relancer"                                    icone={<AlertTriangle size={18} />} couleur="#F59E0B" />
-          <KpiCard titre="Tickets ouverts"      valeur={n(s.tickets?.ouverts)}      soustitre={s.tickets ? `${n(s.tickets.en_cours)} en cours` : 'Module non branché'} icone={<AlertTriangle size={18} />} couleur="#EF4444" />
-          <KpiCard titre="Latence API"          valeur={s.sante ? `${n(s.sante.api_latency_ms)} ms` : '—'} soustitre={s.sante ? `${n(s.sante.erreurs_24h)} erreur(s) / 24h` : 'Supervision non branchée'} icone={<Server size={18} />} couleur="#6B7280" />
+          <KpiCard titre={t.superadmin.tenants} valeur={n(s.tenants?.actifs)} soustitre={`${n(s.tenants?.total)} ${t.superadmin.kpi.totalSuffix}`}              icone={<Building2 size={18} />}  couleur="#009E00" />
+          <KpiCard titre={t.superadmin.trials} valeur={n(s.tenants?.essai)} soustitre={`${n(s.tenants?.expires)} ${t.superadmin.kpi.expiredSuffix}`}           icone={<Clock size={18} />}      couleur="#FFD000" />
+          <KpiCard titre={t.superadmin.activeUsers} valeur={n(s.utilisateurs?.actifs)} soustitre={`${n(s.utilisateurs?.total)} ${t.superadmin.kpi.registeredSuffix}`}         icone={<Users size={18} />}      couleur="#3B82F6" />
+          <KpiCard titre={t.superadmin.todayTx} valeur={n(s.transactions?.aujourd_hui)} soustitre={m(s.transactions?.montant_aujourd_hui)}    icone={<Activity size={18} />}   couleur="#8B5CF6" />
+          <KpiCard titre={t.superadmin.mrr} valeur={m(s.revenus?.mrr)} soustitre={`${t.superadmin.kpi.arrPrefix} ${m(s.revenus?.arr)}`}                   icone={<TrendingUp size={18} />} couleur="#10B981" />
+          <KpiCard titre={t.superadmin.pendingPayment} valeur={m(s.revenus?.en_attente)} soustitre={t.superadmin.kpi.toFollowUp}                                    icone={<AlertTriangle size={18} />} couleur="#F59E0B" />
+          <KpiCard titre={t.superadmin.openTickets} valeur={n(s.tickets?.ouverts)} soustitre={s.tickets ? `${n(s.tickets.en_cours)} ${t.superadmin.kpi.inProgressSuffix}` : t.superadmin.kpi.moduleOffline} icone={<AlertTriangle size={18} />} couleur="#EF4444" />
+          <KpiCard titre={t.superadmin.apiLatency} valeur={s.sante ? `${n(s.sante.api_latency_ms)} ms` : '—'} soustitre={s.sante ? `${n(s.sante.erreurs_24h)} ${t.superadmin.kpi.errors24h}` : t.superadmin.kpi.monitoringOffline} icone={<Server size={18} />} couleur="#6B7280" />
         </div>
       )}
 
       {/* Tableau des tenants */}
       <div className="bg-white dark:bg-white/03 rounded-card shadow-card">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-white/08 flex items-center justify-between">
-          <h2 className="font-semibold text-text-main">Clients & tenants</h2>
-          <span className="text-xs text-text-muted">{tenants.length} entrée(s)</span>
+          <h2 className="font-semibold text-text-main">{t.superadmin.clients}</h2>
+          <span className="text-xs text-text-muted">{tenants.length} {t.superadmin.entries}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-white/08">
-                {['Société', 'Plan', 'Statut', 'Utilisateurs', 'Tx ce mois', 'Renouvellement'].map((h) => (
+                {[t.superadmin.columns.societe, t.superadmin.columns.plan, t.superadmin.columns.statut, t.superadmin.columns.utilisateurs, t.superadmin.columns.txMois, t.superadmin.columns.renouvellement].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-text-muted px-4 py-3 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -216,8 +218,8 @@ export default function SuperAdminPage() {
             <Mail size={17} className="text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-text-main">Emails automatiques</p>
-            <p className="text-xs text-text-muted">6 templates · Config SMTP</p>
+            <p className="text-sm font-semibold text-text-main">{t.superadmin.quick.emails}</p>
+            <p className="text-xs text-text-muted">{t.superadmin.quick.emailsSub}</p>
           </div>
         </Link>
         <Link href="/superadmin/licences" className="bg-white dark:bg-white/03 rounded-card shadow-card p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/05 transition-colors group border border-gray-100 dark:border-white/08">
@@ -225,8 +227,8 @@ export default function SuperAdminPage() {
             <CreditCard size={17} className="text-yellow-600 dark:text-yellow-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-text-main">Licences & Facturation</p>
-            <p className="text-xs text-text-muted">{MOCK_TENANTS.length} licences · MRR</p>
+            <p className="text-sm font-semibold text-text-main">{t.superadmin.quick.licences}</p>
+            <p className="text-xs text-text-muted">{MOCK_TENANTS.length} {t.superadmin.quick.licencesSub}</p>
           </div>
         </Link>
         <div className="bg-white dark:bg-white/03 rounded-card shadow-card p-4 flex items-center gap-3 opacity-60 border border-gray-100 dark:border-white/08 cursor-not-allowed">
@@ -234,8 +236,8 @@ export default function SuperAdminPage() {
             <Server size={17} className="text-text-muted" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-text-main">Infrastructure</p>
-            <p className="text-xs text-text-muted">Bientôt disponible</p>
+            <p className="text-sm font-semibold text-text-main">{t.superadmin.quick.infra}</p>
+            <p className="text-xs text-text-muted">{t.superadmin.quick.infraSub}</p>
           </div>
         </div>
       </div>
@@ -243,8 +245,8 @@ export default function SuperAdminPage() {
       {/* Journal d'audit global */}
       <div className="bg-white dark:bg-white/03 rounded-card shadow-card">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-white/08">
-          <h2 className="font-semibold text-text-main">Journal d&apos;audit global</h2>
-          <p className="text-xs text-text-muted mt-0.5">Dernières actions sur l&apos;ensemble de la plateforme</p>
+          <h2 className="font-semibold text-text-main">{t.superadmin.auditLog}</h2>
+          <p className="text-xs text-text-muted mt-0.5">{t.superadmin.auditSub}</p>
         </div>
         <div className="divide-y divide-gray-50 dark:divide-white/05">
           {auditLoading ? (

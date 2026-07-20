@@ -23,6 +23,8 @@ import {
 } from '@/hooks/useComptabilite';
 import { formatDate } from '@/lib/formatters';
 import { clsx } from 'clsx';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 // ─── Helpers d'affichage ─────────────────────────────────────────────────────
 
@@ -46,12 +48,12 @@ function sommePostes(postes: PosteBilan[] | undefined): number {
 
 type Onglet = 'grandlivre' | 'balance' | 'resultat' | 'bilan' | 'plan';
 
-const ONGLETS: { cle: Onglet; label: string }[] = [
-  { cle: 'grandlivre', label: 'Grand Livre' },
-  { cle: 'balance', label: 'Balance' },
-  { cle: 'resultat', label: 'Compte de Résultat' },
-  { cle: 'bilan', label: 'Bilan' },
-  { cle: 'plan', label: 'Plan comptable' },
+const onglets = (t: Translations): { cle: Onglet; label: string }[] => [
+  { cle: 'grandlivre', label: t.comptabilite.onglets.grandlivre },
+  { cle: 'balance', label: t.comptabilite.onglets.balance },
+  { cle: 'resultat', label: t.comptabilite.onglets.resultat },
+  { cle: 'bilan', label: t.comptabilite.onglets.bilan },
+  { cle: 'plan', label: t.comptabilite.onglets.plan },
 ];
 
 /** Bandeau générique chargement / erreur / vide, sans jamais afficher de chiffres factices. */
@@ -66,24 +68,25 @@ function EtatBloc({
   vide?: boolean;
   messageVide?: string;
 }) {
+  const t = useT();
   if (chargement) {
     return (
       <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--gm-text-2)', fontSize: 13 }}>
-        Chargement des données comptables…
+        {t.comptabilite.etat.loading}
       </div>
     );
   }
   if (erreur) {
     return (
       <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--gm-danger)', fontSize: 13 }}>
-        Données comptables indisponibles. Aucun montant ne peut être affiché.
+        {t.comptabilite.etat.error}
       </div>
     );
   }
   if (vide) {
     return (
       <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--gm-text-2)', fontSize: 13 }}>
-        {messageVide ?? 'Aucune donnée'}
+        {messageVide ?? t.comptabilite.etat.empty}
       </div>
     );
   }
@@ -93,6 +96,8 @@ function EtatBloc({
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function ComptabilitePage() {
+  const t = useT();
+  const ONGLETS = onglets(t);
   const [onglet, setOnglet] = useState<Onglet>('grandlivre');
   const [exerciceId, setExerciceId] = useState<string>('');
 
@@ -117,27 +122,27 @@ export default function ComptabilitePage() {
   const tresorerie = bilan.data ? sommePostes(bilan.data.actif?.tresorerie) : undefined;
 
   const sousTitre = exercices.isLoading
-    ? 'Chargement des exercices…'
+    ? t.comptabilite.loadingFiscalYears
     : exerciceCourant
-      ? `Exercice ${exerciceCourant.label} · ${formatDate(exerciceCourant.startDate)} → ${formatDate(exerciceCourant.endDate)}`
+      ? `${t.comptabilite.fiscalYearPrefix} ${exerciceCourant.label} · ${formatDate(exerciceCourant.startDate)} → ${formatDate(exerciceCourant.endDate)}`
       : (exercices.data ?? []).length === 0
-        ? 'Aucun exercice fiscal ouvert'
-        : 'Tous exercices confondus';
+        ? t.comptabilite.noFiscalYear
+        : t.comptabilite.allYearsCombined;
 
   return (
     <>
       <GmPageHeader
-        fil={['Accueil', 'Comptabilité']}
-        titre="Comptabilité SYSCOHADA"
+        fil={[t.common.home, t.comptabilite.breadcrumb]}
+        titre={t.comptabilite.title}
         sousTitre={sousTitre}
         actions={
           <select
             className="gm-filter-select"
             value={exerciceId}
             onChange={(e) => setExerciceId(e.target.value)}
-            aria-label="Exercice fiscal"
+            aria-label={t.comptabilite.fiscalYearAria}
           >
-            <option value="">Tous les exercices</option>
+            <option value="">{t.comptabilite.allFiscalYears}</option>
             {(exercices.data ?? []).map((ex) => (
               <option key={ex.id} value={ex.id}>
                 {ex.label}
@@ -151,29 +156,29 @@ export default function ComptabilitePage() {
       <div className="gm-kpi-grid">
         <div className="gm-kpi-card">
           <div className="gm-kpi-icon">📈</div>
-          <div className="gm-kpi-label">Produits (classe 7)</div>
+          <div className="gm-kpi-label">{t.comptabilite.kpi.produits}</div>
           <div className="gm-kpi-value" style={{ color: 'var(--gm-success)' }}>
             {resultat.isLoading ? '…' : resultat.isError ? '—' : montant(totalProduits)}
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
-            {resultat.isError ? 'Indisponible' : 'Cumul de la période'}
+            {resultat.isError ? t.comptabilite.kpi.unavailable : t.comptabilite.kpi.periodCumul}
           </div>
         </div>
 
         <div className="gm-kpi-card">
           <div className="gm-kpi-icon">📉</div>
-          <div className="gm-kpi-label">Charges (classe 6)</div>
+          <div className="gm-kpi-label">{t.comptabilite.kpi.charges}</div>
           <div className="gm-kpi-value" style={{ color: 'var(--gm-danger)' }}>
             {resultat.isLoading ? '…' : resultat.isError ? '—' : montant(totalCharges)}
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
-            {resultat.isError ? 'Indisponible' : 'Cumul de la période'}
+            {resultat.isError ? t.comptabilite.kpi.unavailable : t.comptabilite.kpi.periodCumul}
           </div>
         </div>
 
         <div className="gm-kpi-card">
           <div className="gm-kpi-icon">{resultatNetNum >= 0 ? '✅' : '⚠️'}</div>
-          <div className="gm-kpi-label">Résultat net</div>
+          <div className="gm-kpi-label">{t.comptabilite.kpi.resultatNet}</div>
           <div
             className="gm-kpi-value"
             style={{ color: resultatNetNum >= 0 ? 'var(--gm-success)' : 'var(--gm-danger)' }}
@@ -182,21 +187,21 @@ export default function ComptabilitePage() {
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
             {resultat.isError
-              ? 'Indisponible'
+              ? t.comptabilite.kpi.unavailable
               : resultatNetNum >= 0
-                ? 'Produits − Charges'
-                : 'Exercice déficitaire'}
+                ? t.comptabilite.kpi.produitsMoinsCharges
+                : t.comptabilite.kpi.deficitaire}
           </div>
         </div>
 
         <div className="gm-kpi-card">
           <div className="gm-kpi-icon">🏦</div>
-          <div className="gm-kpi-label">Trésorerie (classe 5)</div>
+          <div className="gm-kpi-label">{t.comptabilite.kpi.tresorerie}</div>
           <div className="gm-kpi-value">
             {bilan.isLoading ? '…' : bilan.isError || tresorerie === undefined ? '—' : montant(tresorerie)}
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
-            {bilan.isError ? 'Indisponible' : 'Postes de trésorerie du bilan'}
+            {bilan.isError ? t.comptabilite.kpi.unavailable : t.comptabilite.kpi.bilanTresorerie}
           </div>
         </div>
       </div>
@@ -220,10 +225,10 @@ export default function ComptabilitePage() {
         <div className="gm-table-wrap">
           <div className="gm-table-toolbar">
             <div className="gm-table-toolbar-left">
-              <strong style={{ fontSize: 14 }}>Écritures du journal</strong>
+              <strong style={{ fontSize: 14 }}>{t.comptabilite.journal.title}</strong>
               {journal.data && (
                 <span style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>
-                  {journal.data.total} écriture{journal.data.total > 1 ? 's' : ''}
+                  {journal.data.total} {t.comptabilite.journal.countSuffix}
                 </span>
               )}
             </div>
@@ -233,7 +238,7 @@ export default function ComptabilitePage() {
             chargement={journal.isLoading}
             erreur={journal.error}
             vide={(journal.data?.data.length ?? 0) === 0}
-            messageVide="Aucune écriture comptable pour cet exercice"
+            messageVide={t.comptabilite.journal.empty}
           />
 
           {!journal.isLoading && !journal.isError && (journal.data?.data.length ?? 0) > 0 && (
@@ -241,13 +246,13 @@ export default function ComptabilitePage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Référence</th>
-                    <th>Compte</th>
-                    <th>Libellé</th>
-                    <th>Débit</th>
-                    <th>Crédit</th>
-                    <th>Statut</th>
+                    <th>{t.comptabilite.journal.colDate}</th>
+                    <th>{t.comptabilite.journal.colReference}</th>
+                    <th>{t.comptabilite.journal.colCompte}</th>
+                    <th>{t.comptabilite.journal.colLibelle}</th>
+                    <th>{t.comptabilite.journal.colDebit}</th>
+                    <th>{t.comptabilite.journal.colCredit}</th>
+                    <th>{t.comptabilite.journal.colStatut}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -263,8 +268,8 @@ export default function ComptabilitePage() {
                         <td>
                           {i === 0 && (
                             <span className="gm-source-badge">
-                              {ec.isAutoGenerated ? 'Auto' : 'Manuelle'}
-                              {ec.isReconciled ? ' · Validée' : ''}
+                              {ec.isAutoGenerated ? t.comptabilite.journal.auto : t.comptabilite.journal.manuelle}
+                              {ec.isReconciled ? ` · ${t.comptabilite.journal.validee}` : ''}
                             </span>
                           )}
                         </td>
@@ -283,7 +288,7 @@ export default function ComptabilitePage() {
         <div className="gm-table-wrap">
           <div className="gm-table-toolbar">
             <div className="gm-table-toolbar-left">
-              <strong style={{ fontSize: 14 }}>Balance de vérification</strong>
+              <strong style={{ fontSize: 14 }}>{t.comptabilite.balance.title}</strong>
             </div>
           </div>
 
@@ -291,7 +296,7 @@ export default function ComptabilitePage() {
             chargement={balance.isLoading}
             erreur={balance.error}
             vide={(balance.data?.lines.length ?? 0) === 0}
-            messageVide="Aucun mouvement comptable à balancer"
+            messageVide={t.comptabilite.balance.empty}
           />
 
           {!balance.isLoading && !balance.isError && (balance.data?.lines.length ?? 0) > 0 && (
@@ -300,12 +305,12 @@ export default function ComptabilitePage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>N° compte</th>
-                      <th>Intitulé</th>
-                      <th>Total débit</th>
-                      <th>Total crédit</th>
-                      <th>Solde</th>
-                      <th>Sens</th>
+                      <th>{t.comptabilite.balance.colNumero}</th>
+                      <th>{t.comptabilite.balance.colIntitule}</th>
+                      <th>{t.comptabilite.balance.colTotalDebit}</th>
+                      <th>{t.comptabilite.balance.colTotalCredit}</th>
+                      <th>{t.comptabilite.balance.colSolde}</th>
+                      <th>{t.comptabilite.balance.colSens}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -318,12 +323,16 @@ export default function ComptabilitePage() {
                         <td className={l.balanceType === 'DEBITEUR' ? 'gm-solde-pos' : 'gm-solde-neg'}>
                           {montant(l.balance)}
                         </td>
-                        <td>{l.balanceType === 'DEBITEUR' ? 'Débiteur' : 'Créditeur'}</td>
+                        <td>
+                          {l.balanceType === 'DEBITEUR'
+                            ? t.comptabilite.balance.debiteur
+                            : t.comptabilite.balance.crediteur}
+                        </td>
                       </tr>
                     ))}
                     <tr className="gm-total-row">
                       <td colSpan={2}>
-                        <strong>TOTAUX</strong>
+                        <strong>{t.comptabilite.balance.totaux}</strong>
                       </td>
                       <td className="gm-debit-col">
                         <strong>{montant(balance.data?.totalDebit)}</strong>
@@ -338,8 +347,8 @@ export default function ComptabilitePage() {
               </GmTableWrap>
               <div className="gm-balance-check">
                 {balance.data?.isBalanced
-                  ? '✅ Balance équilibrée — Total débit = Total crédit'
-                  : '⚠️ Balance déséquilibrée — vérifiez les écritures'}
+                  ? t.comptabilite.balance.equilibree
+                  : t.comptabilite.balance.desequilibree}
               </div>
             </>
           )}
@@ -356,17 +365,17 @@ export default function ComptabilitePage() {
             resultat.data.produits.length === 0 &&
             resultat.data.charges.length === 0
           }
-          messageVide="Aucun produit ni charge enregistré sur la période"
+          messageVide={t.comptabilite.resultat.empty}
         />
 
         {!resultat.isLoading && !resultat.isError && resultat.data && (
           <>
             <div className="gm-cr-grid">
               <div className="gm-cr-col">
-                <div className="gm-cr-header gm-cr-header-produits">📈 Produits — Classe 7</div>
+                <div className="gm-cr-header gm-cr-header-produits">{t.comptabilite.resultat.produitsHeader}</div>
                 {resultat.data.produits.length === 0 ? (
                   <div className="gm-cr-row">
-                    <span>Aucun produit enregistré</span>
+                    <span>{t.comptabilite.resultat.noProduit}</span>
                   </div>
                 ) : (
                   resultat.data.produits.map((p) => (
@@ -381,16 +390,16 @@ export default function ComptabilitePage() {
                   ))
                 )}
                 <div className="gm-cr-total gm-cr-total-produits">
-                  <span>TOTAL PRODUITS</span>
+                  <span>{t.comptabilite.resultat.totalProduits}</span>
                   <span>{montant(resultat.data.totalProduits)} XOF</span>
                 </div>
               </div>
 
               <div className="gm-cr-col">
-                <div className="gm-cr-header gm-cr-header-charges">📉 Charges — Classe 6</div>
+                <div className="gm-cr-header gm-cr-header-charges">{t.comptabilite.resultat.chargesHeader}</div>
                 {resultat.data.charges.length === 0 ? (
                   <div className="gm-cr-row">
-                    <span>Aucune charge enregistrée</span>
+                    <span>{t.comptabilite.resultat.noCharge}</span>
                   </div>
                 ) : (
                   resultat.data.charges.map((c) => (
@@ -405,7 +414,7 @@ export default function ComptabilitePage() {
                   ))
                 )}
                 <div className="gm-cr-total gm-cr-total-charges">
-                  <span>TOTAL CHARGES</span>
+                  <span>{t.comptabilite.resultat.totalCharges}</span>
                   <span>{montant(resultat.data.totalCharges)} XOF</span>
                 </div>
               </div>
@@ -413,7 +422,7 @@ export default function ComptabilitePage() {
 
             <div className="gm-resultat-net">
               <div>
-                <div className="gm-resultat-label">Résultat net de l&apos;exercice</div>
+                <div className="gm-resultat-label">{t.comptabilite.resultat.netTitle}</div>
                 <div className="gm-resultat-sub">
                   {formatDate(resultat.data.period.startDate)} → {formatDate(resultat.data.period.endDate)}
                 </div>
@@ -424,7 +433,9 @@ export default function ComptabilitePage() {
                   {montant(resultat.data.resultatNet)} XOF
                 </div>
                 <div className="gm-resultat-sub">
-                  {resultatNetNum >= 0 ? 'Exercice bénéficiaire' : 'Exercice déficitaire'}
+                  {resultatNetNum >= 0
+                    ? t.comptabilite.resultat.beneficiaire
+                    : t.comptabilite.resultat.deficitaire}
                 </div>
               </div>
             </div>
@@ -439,20 +450,20 @@ export default function ComptabilitePage() {
         {!bilan.isLoading && !bilan.isError && bilan.data && (
           <div className="gm-bilan-grid">
             <div className="gm-bilan-col gm-bilan-actif">
-              <div className="gm-bilan-header">ACTIF</div>
+              <div className="gm-bilan-header">{t.comptabilite.bilan.actif}</div>
               {(
                 [
-                  ['Immobilisations', bilan.data.actif.immobilisations],
-                  ['Stocks', bilan.data.actif.stocks],
-                  ['Créances', bilan.data.actif.creances],
-                  ['Trésorerie', bilan.data.actif.tresorerie],
+                  [t.comptabilite.bilan.immobilisations, bilan.data.actif.immobilisations],
+                  [t.comptabilite.bilan.stocks, bilan.data.actif.stocks],
+                  [t.comptabilite.bilan.creances, bilan.data.actif.creances],
+                  [t.comptabilite.bilan.tresorerie, bilan.data.actif.tresorerie],
                 ] as [string, PosteBilan[]][]
               ).map(([section, postes]) => (
                 <React.Fragment key={section}>
                   <div className="gm-bilan-section">{section}</div>
                   {(postes ?? []).length === 0 ? (
                     <div className="gm-bilan-row">
-                      <span>Aucun poste</span>
+                      <span>{t.comptabilite.bilan.noPoste}</span>
                     </div>
                   ) : (
                     postes.map((p) => (
@@ -467,24 +478,24 @@ export default function ComptabilitePage() {
                 </React.Fragment>
               ))}
               <div className="gm-bilan-total">
-                <span>TOTAL ACTIF</span>
+                <span>{t.comptabilite.bilan.totalActif}</span>
                 <span>{montant(bilan.data.actif.totalActif)} XOF</span>
               </div>
             </div>
 
             <div className="gm-bilan-col gm-bilan-passif">
-              <div className="gm-bilan-header">PASSIF</div>
+              <div className="gm-bilan-header">{t.comptabilite.bilan.passif}</div>
               {(
                 [
-                  ['Capitaux propres', bilan.data.passif.capitaux],
-                  ['Dettes', bilan.data.passif.dettes],
+                  [t.comptabilite.bilan.capitaux, bilan.data.passif.capitaux],
+                  [t.comptabilite.bilan.dettes, bilan.data.passif.dettes],
                 ] as [string, PosteBilan[]][]
               ).map(([section, postes]) => (
                 <React.Fragment key={section}>
                   <div className="gm-bilan-section">{section}</div>
                   {(postes ?? []).length === 0 ? (
                     <div className="gm-bilan-row">
-                      <span>Aucun poste</span>
+                      <span>{t.comptabilite.bilan.noPoste}</span>
                     </div>
                   ) : (
                     postes.map((p) => (
@@ -499,7 +510,7 @@ export default function ComptabilitePage() {
                 </React.Fragment>
               ))}
               <div className="gm-bilan-total">
-                <span>TOTAL PASSIF</span>
+                <span>{t.comptabilite.bilan.totalPassif}</span>
                 <span>{montant(bilan.data.passif.totalPassif)} XOF</span>
               </div>
             </div>
@@ -508,7 +519,7 @@ export default function ComptabilitePage() {
 
         {!bilan.isLoading && !bilan.isError && bilan.data && !bilan.data.isBalanced && (
           <div className="gm-balance-check">
-            ⚠️ Bilan déséquilibré — écart de {montant(bilan.data.difference)} XOF
+            {t.comptabilite.bilan.desequilibrePrefix} {montant(bilan.data.difference)} XOF
           </div>
         )}
       </div>
@@ -518,9 +529,11 @@ export default function ComptabilitePage() {
         <div className="gm-table-wrap">
           <div className="gm-table-toolbar">
             <div className="gm-table-toolbar-left">
-              <strong style={{ fontSize: 14 }}>Plan comptable SYSCOHADA</strong>
+              <strong style={{ fontSize: 14 }}>{t.comptabilite.plan.title}</strong>
               {plan.data && (
-                <span style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{plan.data.length} comptes</span>
+                <span style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>
+                  {plan.data.length} {t.comptabilite.plan.countSuffix}
+                </span>
               )}
             </div>
           </div>
@@ -529,7 +542,7 @@ export default function ComptabilitePage() {
             chargement={plan.isLoading}
             erreur={plan.error}
             vide={(plan.data?.length ?? 0) === 0}
-            messageVide="Plan comptable non initialisé pour ce tenant"
+            messageVide={t.comptabilite.plan.empty}
           />
 
           {!plan.isLoading && !plan.isError && (plan.data?.length ?? 0) > 0 && (
@@ -537,10 +550,10 @@ export default function ComptabilitePage() {
               <table>
                 <thead>
                   <tr>
-                    <th>N° compte</th>
-                    <th>Intitulé</th>
-                    <th>Type</th>
-                    <th>Sens normal</th>
+                    <th>{t.comptabilite.plan.colNumero}</th>
+                    <th>{t.comptabilite.plan.colIntitule}</th>
+                    <th>{t.comptabilite.plan.colType}</th>
+                    <th>{t.comptabilite.plan.colSens}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -549,7 +562,7 @@ export default function ComptabilitePage() {
                       <td style={{ fontVariantNumeric: 'tabular-nums' }}>{c.code}</td>
                       <td>{c.name}</td>
                       <td>{c.type}</td>
-                      <td>{c.normalBalance === 'DEBIT' ? 'Débit' : 'Crédit'}</td>
+                      <td>{c.normalBalance === 'DEBIT' ? t.comptabilite.plan.debit : t.comptabilite.plan.credit}</td>
                     </tr>
                   ))}
                 </tbody>

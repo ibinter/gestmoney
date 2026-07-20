@@ -5,14 +5,10 @@ import { Mail, Eye, ToggleLeft as ToggleIcon, Send, ChevronRight, CheckCircle2, 
 import { useAuthStore } from '@/store/authStore';
 import { TEMPLATES_INFO, rendreDemoTemplate, TemplateId, TemplateInfo } from '@/lib/emailTemplates';
 import { clsx } from 'clsx';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
-const CATEGORIE_LABEL: Record<string, string> = {
-  auth: 'Authentification',
-  transaction: 'Transaction',
-  alerte: 'Alerte',
-  rapport: 'Rapport',
-  reseau: 'Réseau',
-};
+const categorieLabel = (t: Translations): Record<string, string> => t.superadmin.emailsPage.categories;
 
 const CATEGORIE_COLOR: Record<string, string> = {
   auth: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -40,8 +36,13 @@ const STATS_MOCK = {
 
 // ─── Modal prévisualisation ────────────────────────────────────────────────
 function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFermer: () => void }) {
+  const t = useT();
   const html = rendreDemoTemplate(templateId);
-  const info = TEMPLATES_INFO.find((t) => t.id === templateId)!;
+  // Séparation nette : TEMPLATES_INFO porte la STRUCTURE (catégorie,
+  // variables disponibles), le dictionnaire porte le TEXTE affiché. Sans
+  // cela la page restait en français même en anglais.
+  const structure = TEMPLATES_INFO.find((tpl) => tpl.id === templateId)!;
+  const info = t.superadmin.emailsPage.templates[templateId];
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0e0e0e]">
@@ -49,7 +50,7 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-[#111] flex-shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onFermer} className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-1">
-            ← Retour
+            {t.superadmin.emailsPage.back}
           </button>
           <span className="text-white/20">|</span>
           <span className="text-white text-sm font-medium">{info.titre}</span>
@@ -57,7 +58,7 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-white/08 rounded-xl p-1 gap-1">
-            {['Desktop', 'Mobile'].map((v) => (
+            {[t.superadmin.emailsPage.desktop, t.superadmin.emailsPage.mobile].map((v) => (
               <button key={v} className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors">{v}</button>
             ))}
           </div>
@@ -65,7 +66,7 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
             onClick={onFermer}
             className="text-gray-400 hover:text-white px-3 py-1.5 rounded-lg text-sm hover:bg-white/08 transition-colors"
           >
-            Fermer
+            {t.superadmin.emailsPage.close}
           </button>
         </div>
       </div>
@@ -74,9 +75,9 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
       <div className="flex-1 overflow-auto bg-[#1a1a2e] flex flex-col items-center py-8 px-4">
         {/* En-tête simulé inbox */}
         <div className="w-full max-w-[620px] bg-[#22222e] rounded-t-xl border border-white/10 px-5 py-3 text-sm text-gray-400 flex items-center gap-4">
-          <span className="text-gray-500 text-xs">De :</span>
+          <span className="text-gray-500 text-xs">{t.superadmin.emailsPage.from}</span>
           <span className="text-gray-300 font-medium">GESTMONEY &lt;noreply@gestmoney.ibigsoft.com&gt;</span>
-          <span className="text-gray-500 text-xs ml-auto">Objet :</span>
+          <span className="text-gray-500 text-xs ml-auto">{t.superadmin.emailsPage.subject}</span>
           <span className="text-gray-300 truncate max-w-[200px] text-xs">{info.sujet}</span>
         </div>
 
@@ -84,7 +85,7 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
         <div className="w-full max-w-[620px] border-x border-b border-white/10 rounded-b-xl overflow-hidden shadow-2xl">
           <iframe
             srcDoc={html}
-            title={`Prévisualisation : ${info.titre}`}
+            title={`${t.superadmin.emailsPage.previewTitle} ${info.titre}`}
             className="w-full border-0"
             style={{ height: '600px', background: '#F0F2F5' }}
             sandbox="allow-same-origin"
@@ -93,9 +94,9 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
 
         {/* Infos */}
         <div className="w-full max-w-[620px] mt-4 bg-white/05 rounded-xl border border-white/10 p-4">
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-2">Variables disponibles</p>
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-2">{t.superadmin.emailsPage.availableVars}</p>
           <div className="flex flex-wrap gap-2">
-            {info.variables.map((v) => (
+            {structure.variables.map((v) => (
               <code key={v} className="text-xs bg-white/08 text-[#44C767] px-2 py-1 rounded-lg font-mono">{`{{${v}}}`}</code>
             ))}
           </div>
@@ -119,6 +120,11 @@ function TemplateCard({
   onPreview: () => void;
   onTest: () => void;
 }) {
+  const t = useT();
+  const CATEGORIE_LABEL = categorieLabel(t);
+  // `info` porte la structure (id, catégorie, variables) ; le texte affiché
+  // vient du dictionnaire, sans quoi la carte resterait en français.
+  const libelles = t.superadmin.emailsPage.templates[info.id];
   return (
     <div className={clsx(
       'bg-white dark:bg-white/03 rounded-2xl border transition-all duration-200',
@@ -141,7 +147,7 @@ function TemplateCard({
               actif ? 'bg-primary' : 'bg-gray-200 dark:bg-white/15'
             )}
             style={{ height: '22px' }}
-            aria-label={actif ? 'Désactiver' : 'Activer'}
+            aria-label={actif ? t.superadmin.emailsPage.disable : t.superadmin.emailsPage.enable}
           >
             <span
               className={clsx(
@@ -153,12 +159,12 @@ function TemplateCard({
           </button>
         </div>
 
-        <h3 className="text-sm font-bold text-text-main mb-1">{info.titre}</h3>
-        <p className="text-xs text-text-muted leading-relaxed mb-3">{info.description}</p>
+        <h3 className="text-sm font-bold text-text-main mb-1">{libelles.titre}</h3>
+        <p className="text-xs text-text-muted leading-relaxed mb-3">{libelles.description}</p>
 
         <div className="flex items-center gap-2 text-xs text-text-muted">
           <Zap size={11} className="text-[#FFD000] flex-shrink-0" />
-          <span className="truncate">{info.declencheur}</span>
+          <span className="truncate">{libelles.declencheur}</span>
         </div>
       </div>
 
@@ -167,14 +173,14 @@ function TemplateCard({
           onClick={onPreview}
           className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
         >
-          <Eye size={13} /> Prévisualiser
+          <Eye size={13} /> {t.superadmin.emailsPage.preview}
         </button>
         <span className="text-gray-200 dark:text-white/10">|</span>
         <button
           onClick={onTest}
           className="flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-text-main transition-colors"
         >
-          <Send size={13} /> Envoyer un test
+          <Send size={13} /> {t.superadmin.emailsPage.sendTest}
         </button>
         <span className="ml-auto text-[10px] text-text-muted font-mono">{info.id}</span>
       </div>
@@ -184,6 +190,8 @@ function TemplateCard({
 
 // ─── Page principale ───────────────────────────────────────────────────────
 export default function EmailsPage() {
+  const t = useT();
+  const CATEGORIE_LABEL = categorieLabel(t);
   const router = useRouter();
   const { user } = useAuthStore();
 
@@ -227,30 +235,30 @@ export default function EmailsPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <button onClick={() => router.push('/superadmin')} className="text-sm text-text-muted hover:text-text-main transition-colors">Console SuperAdmin</button>
+              <button onClick={() => router.push('/superadmin')} className="text-sm text-text-muted hover:text-text-main transition-colors">{t.superadmin.emailsPage.breadcrumb}</button>
               <ChevronRight size={14} className="text-text-muted" />
-              <span className="text-sm font-semibold text-text-main">Emails automatiques</span>
+              <span className="text-sm font-semibold text-text-main">{t.superadmin.emailsPage.title}</span>
             </div>
-            <p className="text-xs text-text-muted mt-0.5">{nbActifs}/{TEMPLATES_INFO.length} templates actifs</p>
+            <p className="text-xs text-text-muted mt-0.5">{nbActifs}/{TEMPLATES_INFO.length} {t.superadmin.emailsPage.templatesActive}</p>
           </div>
         </div>
 
         <button
           className="flex items-center gap-2 bg-primary text-sidebar text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors"
-          onClick={() => alert('Ouvre l\'éditeur SMTP dans un vrai déploiement')}
+          onClick={() => alert(t.superadmin.emailsPage.smtpAlert)}
         >
           <Mail size={15} />
-          Config. SMTP
+          {t.superadmin.emailsPage.smtpButton}
         </button>
       </div>
 
       {/* KPIs email */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Envoyés (30j)', valeur: STATS_MOCK.envoyes_30j.toLocaleString('fr-FR'), couleur: '#3B82F6', icone: <Mail size={16} /> },
-          { label: 'Taux d\'ouverture', valeur: `${STATS_MOCK.taux_ouverture}%`, couleur: '#10B981', icone: <Eye size={16} /> },
-          { label: 'Taux de clic', valeur: `${STATS_MOCK.taux_clic}%`, couleur: '#8B5CF6', icone: <ChevronRight size={16} /> },
-          { label: 'Erreurs d\'envoi', valeur: STATS_MOCK.en_erreur.toString(), couleur: '#EF4444', icone: <AlertTriangle size={16} /> },
+          { label: t.superadmin.emailsPage.kpi.sent30d, valeur: STATS_MOCK.envoyes_30j.toLocaleString('fr-FR'), couleur: '#3B82F6', icone: <Mail size={16} /> },
+          { label: t.superadmin.emailsPage.kpi.openRate, valeur: `${STATS_MOCK.taux_ouverture}%`, couleur: '#10B981', icone: <Eye size={16} /> },
+          { label: t.superadmin.emailsPage.kpi.clickRate, valeur: `${STATS_MOCK.taux_clic}%`, couleur: '#8B5CF6', icone: <ChevronRight size={16} /> },
+          { label: t.superadmin.emailsPage.kpi.errors, valeur: STATS_MOCK.en_erreur.toString(), couleur: '#EF4444', icone: <AlertTriangle size={16} /> },
         ].map((k) => (
           <div key={k.label} className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 p-5 flex items-start gap-4">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: k.couleur + '18' }}>
@@ -268,7 +276,7 @@ export default function EmailsPage() {
       {testEnvoye && (
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
           <CheckCircle2 size={16} />
-          Email de test « {TEMPLATES_INFO.find(t => t.id === testEnvoye)?.titre} » envoyé à {user?.email}
+          {t.superadmin.emailsPage.testSentPrefix} {TEMPLATES_INFO.find((tpl) => tpl.id === testEnvoye)?.titre} {t.superadmin.emailsPage.testSentSuffix} {user?.email}
         </div>
       )}
 
@@ -285,7 +293,7 @@ export default function EmailsPage() {
                 : 'bg-white dark:bg-white/05 text-text-muted border border-gray-200 dark:border-white/10 hover:border-primary hover:text-primary'
             )}
           >
-            {cat === 'all' ? 'Tous' : CATEGORIE_LABEL[cat]}
+            {cat === 'all' ? t.superadmin.emailsPage.all : CATEGORIE_LABEL[cat]}
           </button>
         ))}
       </div>
@@ -311,20 +319,20 @@ export default function EmailsPage() {
             <Mail size={16} className="text-text-muted" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-text-main">Configuration SMTP</h2>
-            <p className="text-xs text-text-muted">Paramètres d'envoi des emails transactionnels</p>
+            <h2 className="text-sm font-bold text-text-main">{t.superadmin.emailsPage.smtpTitle}</h2>
+            <p className="text-xs text-text-muted">{t.superadmin.emailsPage.smtpSub}</p>
           </div>
           <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[#009E00] bg-[#009E00]/10 px-2.5 py-1 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-[#009E00] animate-pulse" />
-            Connecté
+            {t.superadmin.emailsPage.connected}
           </span>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           {[
-            { label: 'Serveur SMTP', valeur: 'smtp.sendgrid.net' },
-            { label: 'Port', valeur: '587 (TLS)' },
-            { label: 'Expéditeur', valeur: 'noreply@gestmoney.ibigsoft.com' },
-            { label: 'Nom affiché', valeur: 'GESTMONEY' },
+            { label: t.superadmin.emailsPage.smtpFields.server, valeur: 'smtp.sendgrid.net' },
+            { label: t.superadmin.emailsPage.smtpFields.port, valeur: '587 (TLS)' },
+            { label: t.superadmin.emailsPage.smtpFields.sender, valeur: 'noreply@gestmoney.ibigsoft.com' },
+            { label: t.superadmin.emailsPage.smtpFields.displayName, valeur: 'GESTMONEY' },
           ].map((row) => (
             <div key={row.label} className="bg-gray-50 dark:bg-white/04 rounded-xl px-3 py-2.5">
               <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide">{row.label}</p>

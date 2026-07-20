@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { formatMontant } from '@/lib/formatters';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 const OFFRES = [
   { id: 'OFF-001', prospect: 'Fatoumata Diallo', entreprise: 'Wave SN', email: 'fdiallo@wave.com', plan: 'PROFESSIONAL', prixHT: 1788000, remise: 10, taxes: 18, statut: 'ENVOYEE', validiteJours: 30, dateCreation: '2026-07-10', dateExpiration: '2026-08-09' },
@@ -11,14 +13,18 @@ const OFFRES = [
   { id: 'OFF-005', prospect: 'Ibrahim Touré', entreprise: 'Moov BJ', email: 'itoure@moov.bj', plan: 'PROFESSIONAL', prixHT: 1788000, remise: 5, taxes: 18, statut: 'EXPIREE', validiteJours: 30, dateCreation: '2026-05-01', dateExpiration: '2026-05-31' },
 ];
 
-const STATUT_MAP: Record<string, { label: string; couleur: 'neutral' | 'info' | 'warning' | 'success' | 'danger' }> = {
-  BROUILLON: { label: 'Brouillon', couleur: 'neutral' },
-  ENVOYEE: { label: 'Envoyée', couleur: 'info' },
-  EN_NEGOCIATION: { label: 'Négociation', couleur: 'warning' },
-  CONVERTIE: { label: 'Convertie ✓', couleur: 'success' },
-  REFUSEE: { label: 'Refusée', couleur: 'danger' },
-  EXPIREE: { label: 'Expirée', couleur: 'neutral' },
+type CouleurStatut = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+
+const STATUT_COULEUR: Record<string, CouleurStatut> = {
+  BROUILLON: 'neutral', ENVOYEE: 'info', EN_NEGOCIATION: 'warning',
+  CONVERTIE: 'success', REFUSEE: 'danger', EXPIREE: 'neutral',
 };
+
+/** Libellé + couleur de statut pour la langue active. */
+const statutMap = (t: Translations): Record<string, { label: string; couleur: CouleurStatut }> =>
+  Object.fromEntries(
+    Object.keys(STATUT_COULEUR).map((k) => [k, { label: t.superadmin.offres.statuts[k as keyof typeof t.superadmin.offres.statuts], couleur: STATUT_COULEUR[k] }]),
+  );
 
 const PLAN_PRIX: Record<string, number> = {
   STARTER: 49000,
@@ -32,6 +38,8 @@ function prixTTC(ht: number, remise: number, taxes: number) {
 }
 
 export default function OffresPage() {
+  const t = useT();
+  const STATUT_MAP = statutMap(t);
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [selected, setSelected] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -46,21 +54,21 @@ export default function OffresPage() {
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-text-main">Offres & Devis</h1>
-          <p className="text-sm text-text-muted">Gestion des propositions commerciales</p>
+          <h1 className="text-2xl font-black text-text-main">{t.superadmin.offres.title}</h1>
+          <p className="text-sm text-text-muted">{t.superadmin.offres.subtitle}</p>
         </div>
         <button onClick={() => setShowForm(true)} className="px-4 py-2 rounded-xl bg-brand-green text-white text-sm font-bold hover:bg-green-700 transition-colors">
-          + Nouvelle offre
+          {t.superadmin.offres.newOffer}
         </button>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Pipeline', val: formatMontant(pipeline) + ' XOF', c: '#0ea5e9' },
-          { label: 'Converties', val: OFFRES.filter(o => o.statut === 'CONVERTIE').length, c: '#009E00' },
-          { label: 'En cours', val: OFFRES.filter(o => ['ENVOYEE','EN_NEGOCIATION'].includes(o.statut)).length, c: '#f59e0b' },
-          { label: 'Taux conv.', val: Math.round(OFFRES.filter(o=>o.statut==='CONVERTIE').length / OFFRES.filter(o=>o.statut!=='BROUILLON').length * 100) + '%', c: '#FFD000' },
+          { label: t.superadmin.offres.kpi.pipeline, val: formatMontant(pipeline) + ' XOF', c: '#0ea5e9' },
+          { label: t.superadmin.offres.kpi.converties, val: OFFRES.filter(o => o.statut === 'CONVERTIE').length, c: '#009E00' },
+          { label: t.superadmin.offres.kpi.enCours, val: OFFRES.filter(o => ['ENVOYEE','EN_NEGOCIATION'].includes(o.statut)).length, c: '#f59e0b' },
+          { label: t.superadmin.offres.kpi.tauxConv, val: Math.round(OFFRES.filter(o=>o.statut==='CONVERTIE').length / OFFRES.filter(o=>o.statut!=='BROUILLON').length * 100) + '%', c: '#FFD000' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-white/5 rounded-2xl p-4 border border-border">
             <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">{k.label}</p>
@@ -71,10 +79,10 @@ export default function OffresPage() {
 
       {/* Filtres */}
       <div className="flex gap-2 flex-wrap mb-4">
-        {['Tous', ...Object.keys(STATUT_MAP)].map(s => (
+        {['Tous', ...Object.keys(STATUT_COULEUR)].map(s => (
           <button key={s} onClick={() => setFiltreStatut(s)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${filtreStatut === s ? 'bg-brand-green text-white border-brand-green' : 'bg-white dark:bg-white/5 text-text-muted border-border hover:border-brand-green'}`}>
-            {s === 'Tous' ? 'Toutes' : STATUT_MAP[s]?.label ?? s}
+            {s === 'Tous' ? t.superadmin.offres.all : STATUT_MAP[s]?.label ?? s}
           </button>
         ))}
       </div>
@@ -85,7 +93,7 @@ export default function OffresPage() {
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-border bg-gray-50 dark:bg-white/3">
-                {['Référence', 'Prospect', 'Plan', 'HT', 'Remise', 'TTC', 'Statut', 'Expiration', ''].map(h => (
+                {[t.superadmin.offres.columns.reference, t.superadmin.offres.columns.prospect, t.superadmin.offres.columns.plan, t.superadmin.offres.columns.ht, t.superadmin.offres.columns.remise, t.superadmin.offres.columns.ttc, t.superadmin.offres.columns.statut, t.superadmin.offres.columns.expiration, ''].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-bold text-text-muted uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -108,7 +116,7 @@ export default function OffresPage() {
                     <td className="px-4 py-3"><Badge couleur={STATUT_MAP[o.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[o.statut]?.label}</Badge></td>
                     <td className="px-4 py-3 text-xs" style={{ color: expire ? '#E60000' : 'inherit' }}>{o.dateExpiration}</td>
                     <td className="px-4 py-3">
-                      <button className="text-xs text-brand-green hover:underline font-semibold">Voir</button>
+                      <button className="text-xs text-brand-green hover:underline font-semibold">{t.superadmin.offres.view}</button>
                     </td>
                   </tr>
                 );
@@ -129,42 +137,42 @@ export default function OffresPage() {
                 <h2 className="text-xl font-black text-text-main">{detail.prospect}</h2>
                 <p className="text-sm text-text-muted">{detail.entreprise}</p>
               </div>
-              <button onClick={() => setSelected(null)} className="text-text-muted text-xl">✕</button>
+              <button onClick={() => setSelected(null)} className="text-text-muted text-xl" aria-label={t.superadmin.offres.close}>✕</button>
             </div>
             <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-5 mb-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-text-muted">Plan</span>
+                <span className="text-text-muted">{t.superadmin.offres.detail.plan}</span>
                 <span className="font-bold text-text-main">{detail.plan}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-text-muted">Prix HT</span>
+                <span className="text-text-muted">{t.superadmin.offres.detail.prixHT}</span>
                 <span className="font-bold tabular-nums">{formatMontant(detail.prixHT)} XOF</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-text-muted">Remise</span>
-                <span className="font-bold text-green-600">{detail.remise > 0 ? `-${detail.remise}%` : 'Aucune'}</span>
+                <span className="text-text-muted">{t.superadmin.offres.detail.remise}</span>
+                <span className="font-bold text-green-600">{detail.remise > 0 ? `-${detail.remise}%` : t.superadmin.offres.detail.aucune}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-text-muted">Taxes ({detail.taxes}%)</span>
+                <span className="text-text-muted">{t.superadmin.offres.detail.taxes} ({detail.taxes}%)</span>
                 <span className="font-bold tabular-nums">{formatMontant(Math.round(detail.prixHT * (1-detail.remise/100) * detail.taxes/100))} XOF</span>
               </div>
               <div className="border-t border-border pt-2 flex justify-between text-sm">
-                <span className="font-bold text-text-main">Total TTC</span>
+                <span className="font-bold text-text-main">{t.superadmin.offres.detail.totalTTC}</span>
                 <span className="font-black text-lg text-brand-green tabular-nums">{formatMontant(prixTTC(detail.prixHT, detail.remise, detail.taxes))} XOF</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs mb-4">
               <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3">
-                <p className="text-text-muted">Créée le</p><p className="font-bold">{detail.dateCreation}</p>
+                <p className="text-text-muted">{t.superadmin.offres.detail.creeeLe}</p><p className="font-bold">{detail.dateCreation}</p>
               </div>
               <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3">
-                <p className="text-text-muted">Expire le</p><p className="font-bold">{detail.dateExpiration}</p>
+                <p className="text-text-muted">{t.superadmin.offres.detail.expireLe}</p><p className="font-bold">{detail.dateExpiration}</p>
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {detail.statut === 'BROUILLON' && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">📧 Envoyer</button>}
-              {['ENVOYEE','EN_NEGOCIATION'].includes(detail.statut) && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">✓ Marquer convertie</button>}
-              <button className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">📥 PDF</button>
+              {detail.statut === 'BROUILLON' && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.send}</button>}
+              {['ENVOYEE','EN_NEGOCIATION'].includes(detail.statut) && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.markConverted}</button>}
+              <button className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">{t.superadmin.offres.detail.pdf}</button>
             </div>
           </div>
         </div>

@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { formatMontant, formatRelativeTime } from '@/lib/formatters';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 const PAIEMENTS = [
   { id: 'PAY-001', reference: 'REF-2026-0001', tenant: 'Wave SN', email: 'admin@wavesn.com', montant: 149000, devise: 'XOF', provider: 'CINETPAY', statut: 'REUSSI', plan: 'PROFESSIONAL', periode: 'Juillet 2026', date: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -11,13 +13,18 @@ const PAIEMENTS = [
   { id: 'PAY-005', reference: 'REF-2026-0005', tenant: 'Airtel KE', email: 'admin@airtel.ke', montant: 500000, devise: 'KES', provider: 'STRIPE', statut: 'REMBOURSE', plan: 'ENTERPRISE', periode: 'Juin 2026', date: new Date(Date.now() - 20 * 86400000).toISOString() },
 ];
 
-const STATUT_MAP: Record<string, { label: string; couleur: 'success' | 'info' | 'danger' | 'warning' | 'neutral' }> = {
-  REUSSI: { label: 'Réussi ✓', couleur: 'success' },
-  EN_ATTENTE: { label: 'En attente', couleur: 'warning' },
-  ECHEC: { label: 'Échoué', couleur: 'danger' },
-  REMBOURSE: { label: 'Remboursé', couleur: 'neutral' },
-  ANNULE: { label: 'Annulé', couleur: 'neutral' },
+type CouleurStatut = 'success' | 'info' | 'danger' | 'warning' | 'neutral';
+
+const STATUT_COULEUR: Record<string, CouleurStatut> = {
+  REUSSI: 'success', EN_ATTENTE: 'warning', ECHEC: 'danger',
+  REMBOURSE: 'neutral', ANNULE: 'neutral',
 };
+
+/** Libellé + couleur de statut pour la langue active. */
+const statutMap = (t: Translations): Record<string, { label: string; couleur: CouleurStatut }> =>
+  Object.fromEntries(
+    Object.keys(STATUT_COULEUR).map((k) => [k, { label: t.superadmin.paiements.statuts[k as keyof typeof t.superadmin.paiements.statuts], couleur: STATUT_COULEUR[k] }]),
+  );
 
 const PROVIDER_ICON: Record<string, string> = {
   CINETPAY: '🟠', STRIPE: '🔵', MOBILE_MONEY: '📱',
@@ -25,6 +32,8 @@ const PROVIDER_ICON: Record<string, string> = {
 };
 
 export default function PaiementsPage() {
+  const t = useT();
+  const STATUT_MAP = statutMap(t);
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -37,17 +46,17 @@ export default function PaiementsPage() {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-text-main">Paiements & Facturation</h1>
-        <p className="text-sm text-text-muted">Suivi des transactions et abonnements</p>
+        <h1 className="text-2xl font-black text-text-main">{t.superadmin.paiements.title}</h1>
+        <p className="text-sm text-text-muted">{t.superadmin.paiements.subtitle}</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Encaissé (XOF)', val: formatMontant(totalReussis), c: '#009E00' },
-          { label: 'En attente', val: formatMontant(enAttente), c: '#f59e0b' },
-          { label: 'Échecs', val: PAIEMENTS.filter(p => p.statut === 'ECHEC').length, c: '#E60000' },
-          { label: 'Remboursés', val: PAIEMENTS.filter(p => p.statut === 'REMBOURSE').length, c: '#6b7280' },
+          { label: t.superadmin.paiements.kpi.encaisse, val: formatMontant(totalReussis), c: '#009E00' },
+          { label: t.superadmin.paiements.kpi.enAttente, val: formatMontant(enAttente), c: '#f59e0b' },
+          { label: t.superadmin.paiements.kpi.echecs, val: PAIEMENTS.filter(p => p.statut === 'ECHEC').length, c: '#E60000' },
+          { label: t.superadmin.paiements.kpi.rembourses, val: PAIEMENTS.filter(p => p.statut === 'REMBOURSE').length, c: '#6b7280' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-white/5 rounded-2xl p-4 border border-border">
             <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">{k.label}</p>
@@ -58,10 +67,10 @@ export default function PaiementsPage() {
 
       {/* Filtres */}
       <div className="flex gap-2 flex-wrap mb-4">
-        {['Tous', ...Object.keys(STATUT_MAP)].map(s => (
+        {['Tous', ...Object.keys(STATUT_COULEUR)].map(s => (
           <button key={s} onClick={() => setFiltreStatut(s)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${filtreStatut === s ? 'bg-brand-green text-white border-brand-green' : 'bg-white dark:bg-white/5 text-text-muted border-border hover:border-brand-green'}`}>
-            {s === 'Tous' ? 'Tous' : STATUT_MAP[s]?.label ?? s}
+            {s === 'Tous' ? t.superadmin.paiements.all : STATUT_MAP[s]?.label ?? s}
           </button>
         ))}
       </div>
@@ -72,7 +81,7 @@ export default function PaiementsPage() {
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-border bg-gray-50 dark:bg-white/3">
-                {['Référence', 'Client', 'Montant', 'Provider', 'Plan', 'Période', 'Statut', 'Date', ''].map(h => (
+                {[t.superadmin.paiements.columns.reference, t.superadmin.paiements.columns.client, t.superadmin.paiements.columns.montant, t.superadmin.paiements.columns.provider, t.superadmin.paiements.columns.plan, t.superadmin.paiements.columns.periode, t.superadmin.paiements.columns.statut, t.superadmin.paiements.columns.date, ''].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-bold text-text-muted uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -98,7 +107,7 @@ export default function PaiementsPage() {
                   <td className="px-4 py-3"><Badge couleur={STATUT_MAP[p.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[p.statut]?.label}</Badge></td>
                   <td className="px-4 py-3 text-xs text-text-muted">{formatRelativeTime(p.date)}</td>
                   <td className="px-4 py-3">
-                    <button className="text-xs text-brand-green hover:underline font-semibold">Voir</button>
+                    <button className="text-xs text-brand-green hover:underline font-semibold">{t.superadmin.paiements.view}</button>
                   </td>
                 </tr>
               ))}
@@ -117,7 +126,7 @@ export default function PaiementsPage() {
                 <p className="text-xs font-mono text-brand-green">{detail.reference}</p>
                 <h2 className="text-xl font-black text-text-main">{detail.tenant}</h2>
               </div>
-              <button onClick={() => setSelected(null)} className="text-text-muted text-xl">✕</button>
+              <button onClick={() => setSelected(null)} className="text-text-muted text-xl" aria-label={t.superadmin.paiements.close}>✕</button>
             </div>
             <div className="text-center py-6 mb-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
               <p className="text-4xl font-black tabular-nums text-text-main">{formatMontant(detail.montant)}</p>
@@ -126,10 +135,10 @@ export default function PaiementsPage() {
             </div>
             <div className="space-y-2 text-sm mb-4">
               {[
-                ['Provider', `${PROVIDER_ICON[detail.provider]} ${detail.provider}`],
-                ['Période', detail.periode],
-                ['Date', new Date(detail.date).toLocaleString('fr-FR')],
-                ['Email', detail.email],
+                [t.superadmin.paiements.detail.provider, `${PROVIDER_ICON[detail.provider]} ${detail.provider}`],
+                [t.superadmin.paiements.detail.periode, detail.periode],
+                [t.superadmin.paiements.detail.date, new Date(detail.date).toLocaleString('fr-FR')],
+                [t.superadmin.paiements.detail.email, detail.email],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between py-2 border-b border-border last:border-0">
                   <span className="text-text-muted">{k}</span>
@@ -138,9 +147,9 @@ export default function PaiementsPage() {
               ))}
             </div>
             <div className="flex gap-2">
-              <button className="flex-1 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted hover:bg-gray-50 dark:hover:bg-white/5">📥 Reçu PDF</button>
-              {detail.statut === 'REUSSI' && <button className="px-4 py-2.5 rounded-xl border border-orange-300 text-orange-600 text-sm font-bold">↩ Rembourser</button>}
-              {detail.statut === 'ECHEC' && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">🔄 Relancer</button>}
+              <button className="flex-1 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted hover:bg-gray-50 dark:hover:bg-white/5">{t.superadmin.paiements.detail.recu}</button>
+              {detail.statut === 'REUSSI' && <button className="px-4 py-2.5 rounded-xl border border-orange-300 text-orange-600 text-sm font-bold">{t.superadmin.paiements.detail.rembourser}</button>}
+              {detail.statut === 'ECHEC' && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.paiements.detail.relancer}</button>}
             </div>
           </div>
         </div>

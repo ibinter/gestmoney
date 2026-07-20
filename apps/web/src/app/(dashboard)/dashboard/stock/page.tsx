@@ -23,32 +23,34 @@ import {
 } from '@/hooks/useStock';
 import { formatMontant, formatDateTime } from '@/lib/formatters';
 import { clsx } from 'clsx';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 // ─── Libellés statiques (pas des données) ────────────────────────────────────
 
-const CATEGORIE_BADGE: Record<CategorieProduit, { classe: string; label: string }> = {
-  SIM: { classe: 'gm-cat-sim', label: 'SIM' },
-  TERMINAL: { classe: 'gm-cat-terminal', label: 'Terminal' },
-  ACCESSOIRE: { classe: 'gm-cat-accessoire', label: 'Accessoire' },
-  CONSOMMABLE: { classe: 'gm-cat-consommable', label: 'Consommable' },
-};
+const categorieBadge = (t: Translations): Record<CategorieProduit, { classe: string; label: string }> => ({
+  SIM: { classe: 'gm-cat-sim', label: t.stock.categories.SIM },
+  TERMINAL: { classe: 'gm-cat-terminal', label: t.stock.categories.TERMINAL },
+  ACCESSOIRE: { classe: 'gm-cat-accessoire', label: t.stock.categories.ACCESSOIRE },
+  CONSOMMABLE: { classe: 'gm-cat-consommable', label: t.stock.categories.CONSOMMABLE },
+});
 
-const MOTIFS: Array<{ valeur: MotifMouvement; label: string }> = [
-  { valeur: 'PURCHASE', label: 'Achat / réception' },
-  { valeur: 'SALE', label: 'Vente' },
-  { valeur: 'RETURN', label: 'Retour' },
-  { valeur: 'DAMAGE', label: 'Casse / dommage' },
-  { valeur: 'THEFT', label: 'Vol / perte' },
-  { valeur: 'TRANSFER', label: 'Transfert' },
-  { valeur: 'INVENTORY', label: 'Ajustement inventaire' },
+const motifsListe = (t: Translations): Array<{ valeur: MotifMouvement; label: string }> => [
+  { valeur: 'PURCHASE', label: t.stock.motifs.PURCHASE },
+  { valeur: 'SALE', label: t.stock.motifs.SALE },
+  { valeur: 'RETURN', label: t.stock.motifs.RETURN },
+  { valeur: 'DAMAGE', label: t.stock.motifs.DAMAGE },
+  { valeur: 'THEFT', label: t.stock.motifs.THEFT },
+  { valeur: 'TRANSFER', label: t.stock.motifs.TRANSFER },
+  { valeur: 'INVENTORY', label: t.stock.motifs.INVENTORY },
 ];
 
-const TYPE_MOUVEMENT_LABEL: Record<MouvementStock['type'], string> = {
-  IN: 'Entrée',
-  OUT: 'Sortie',
-  TRANSFER: 'Transfert',
-  ADJUSTMENT: 'Ajustement',
-};
+const typeMouvementLabel = (t: Translations): Record<MouvementStock['type'], string> => ({
+  IN: t.stock.typeMouvement.IN,
+  OUT: t.stock.typeMouvement.OUT,
+  TRANSFER: t.stock.typeMouvement.TRANSFER,
+  ADJUSTMENT: t.stock.typeMouvement.ADJUSTMENT,
+});
 
 type NiveauStock = 'ok' | 'bas' | 'critique';
 
@@ -59,11 +61,11 @@ function niveauStock(quantite: number, seuil: number): NiveauStock {
   return 'ok';
 }
 
-const NIVEAU_PILL: Record<NiveauStock, { classe: string; label: string; couleur: string }> = {
-  ok: { classe: 'gm-pill-ok', label: '● OK', couleur: 'var(--gm-success)' },
-  bas: { classe: 'gm-pill-low', label: '⚠️ Bas', couleur: 'var(--gm-warning)' },
-  critique: { classe: 'gm-pill-critical', label: '🔴 Critique', couleur: 'var(--gm-danger)' },
-};
+const niveauPill = (t: Translations): Record<NiveauStock, { classe: string; label: string; couleur: string }> => ({
+  ok: { classe: 'gm-pill-ok', label: t.stock.niveaux.ok, couleur: 'var(--gm-success)' },
+  bas: { classe: 'gm-pill-low', label: t.stock.niveaux.bas, couleur: 'var(--gm-warning)' },
+  critique: { classe: 'gm-pill-critical', label: t.stock.niveaux.critique, couleur: 'var(--gm-danger)' },
+});
 
 /** Remplissage visuel de la barre : quantité rapportée à 2× le seuil d'alerte. */
 function largeurBarre(quantite: number, seuil: number): number {
@@ -80,6 +82,11 @@ const CELLULE_VIDE: React.CSSProperties = {
 };
 
 export default function StockPage() {
+  const t = useT();
+  const CATEGORIE_BADGE = categorieBadge(t);
+  const MOTIFS = motifsListe(t);
+  const TYPE_MOUVEMENT_LABEL = typeMouvementLabel(t);
+  const NIVEAU_PILL = niveauPill(t);
   const produitsQuery = useProduits({ limit: 200 });
   const inventaireQuery = useInventaire({ limit: 200 });
   const mouvementsQuery = useMouvementsStock({ limit: 50 });
@@ -148,9 +155,9 @@ export default function StockPage() {
     setErreur('');
     setSucces('');
     const qte = Number(quantite);
-    if (!produitId) return setErreur('Produit requis.');
-    if (!agencyId.trim()) return setErreur('Identifiant d’agence requis.');
-    if (!Number.isInteger(qte) || qte < 1) return setErreur('Quantité invalide (entier ≥ 1).');
+    if (!produitId) return setErreur(t.stock.modal.errProduit);
+    if (!agencyId.trim()) return setErreur(t.stock.modal.errAgence);
+    if (!Number.isInteger(qte) || qte < 1) return setErreur(t.stock.modal.errQuantite);
 
     const dto = {
       productId: produitId,
@@ -164,13 +171,13 @@ export default function StockPage() {
     try {
       if (sens === 'in') await entreeStock.mutateAsync(dto);
       else await sortieStock.mutateAsync(dto);
-      setSucces('Mouvement enregistré.');
+      setSucces(t.stock.modal.success);
       setQuantite('');
       setTimeout(() => fermerModal(), 1200);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Erreur lors de l’enregistrement du mouvement.';
+        t.stock.modal.errSave;
       setErreur(String(message));
     }
   }
@@ -182,9 +189,9 @@ export default function StockPage() {
   return (
     <>
       <GmPageHeader
-        fil={['🏠 Accueil', 'Stock & Inventaire']}
-        titre="📦 Stock & Inventaire"
-        sousTitre="SIM, terminaux, accessoires et consommables"
+        fil={[`🏠 ${t.common.home}`, t.stock.breadcrumb]}
+        titre={t.stock.title}
+        sousTitre={t.stock.subtitle}
         actions={
           <>
             <GmButton
@@ -198,7 +205,7 @@ export default function StockPage() {
                 void valorisationQuery.refetch();
               }}
             >
-              🔄 Actualiser
+              {t.stock.refresh}
             </GmButton>
             <GmButton
               variante="outline"
@@ -206,7 +213,7 @@ export default function StockPage() {
               onClick={() => ouvrirModal('out')}
               disabled={produits.length === 0}
             >
-              📤 Sortie stock
+              {t.stock.sortieBtn}
             </GmButton>
             <GmButton
               variante="primary"
@@ -214,7 +221,7 @@ export default function StockPage() {
               onClick={() => ouvrirModal('in')}
               disabled={produits.length === 0}
             >
-              📥 Entrée stock
+              {t.stock.entreeBtn}
             </GmButton>
           </>
         }
@@ -225,8 +232,7 @@ export default function StockPage() {
         <div className="gm-alert-banner">
           <div className="gm-alert-icon">⚠️</div>
           <div className="gm-alert-text">
-            <strong>Données de stock indisponibles.</strong> Le service inventaire n’a pas répondu.
-            Utilisez « Actualiser » pour réessayer.
+            <strong>{t.stock.errorTitle}</strong> {t.stock.errorBody}
           </div>
         </div>
       )}
@@ -237,23 +243,23 @@ export default function StockPage() {
           <div className="gm-stat-value">
             {produitsQuery.isLoading ? '—' : produitsQuery.data?.total ?? 0}
           </div>
-          <div className="gm-stat-label">Produits au catalogue</div>
-          <div className="gm-stat-sub">Références actives</div>
+          <div className="gm-stat-label">{t.stock.stats.produits}</div>
+          <div className="gm-stat-sub">{t.stock.stats.produitsSub}</div>
         </div>
         <div className="gm-stat-card gm-s2">
           <div className="gm-stat-value">
             {inventaireQuery.isLoading ? '—' : totalUnites.toLocaleString('fr-FR')}
           </div>
-          <div className="gm-stat-label">Unités en stock</div>
+          <div className="gm-stat-label">{t.stock.stats.unites}</div>
           <div className="gm-stat-sub">
-            {inventaireQuery.isLoading ? '—' : `${lignes.length} ligne(s) d’inventaire`}
+            {inventaireQuery.isLoading ? '—' : `${lignes.length} ${t.stock.stats.lignesSuffix}`}
           </div>
         </div>
         <div className="gm-stat-card gm-s3">
           <div className="gm-stat-value">{alertesQuery.isLoading ? '—' : alertes.length}</div>
-          <div className="gm-stat-label">Alertes stock bas</div>
+          <div className="gm-stat-label">{t.stock.stats.alertes}</div>
           <div className="gm-stat-sub">
-            {alertesQuery.isLoading ? '—' : `${nbCritiques} critique(s)`}
+            {alertesQuery.isLoading ? '—' : `${nbCritiques} ${t.stock.stats.critiquesSuffix}`}
           </div>
         </div>
         <div className="gm-stat-card gm-s4">
@@ -262,8 +268,8 @@ export default function StockPage() {
               ? '—'
               : formatMontant(valorisationQuery.data?.totalValue ?? 0)}
           </div>
-          <div className="gm-stat-label">Valorisation du stock</div>
-          <div className="gm-stat-sub">Toutes agences confondues</div>
+          <div className="gm-stat-label">{t.stock.stats.valorisation}</div>
+          <div className="gm-stat-sub">{t.stock.stats.valorisationSub}</div>
         </div>
       </div>
 
@@ -273,17 +279,17 @@ export default function StockPage() {
           <div className="gm-alert-icon">⚠️</div>
           <div className="gm-alert-text">
             <strong>
-              {alertes.length} alerte(s) stock bas
-              {nbCritiques > 0 ? ` dont ${nbCritiques} critique(s)` : ''} :
+              {alertes.length} {t.stock.alerts.alertesSuffix}
+              {nbCritiques > 0 ? ` ${t.stock.alerts.dontPrefix} ${nbCritiques} ${t.stock.stats.critiquesSuffix}` : ''} :
             </strong>{' '}
             {alertes
               .slice(0, 3)
               .map(
                 (a) =>
-                  `${a.productName} — agence ${a.agencyId} (${a.currentQuantity}/${a.threshold})`,
+                  `${a.productName} — ${t.stock.alerts.agencePrefix} ${a.agencyId} (${a.currentQuantity}/${a.threshold})`,
               )
               .join(' · ')}
-            {alertes.length > 3 ? ` … +${alertes.length - 3} autre(s)` : ''}
+            {alertes.length > 3 ? ` … +${alertes.length - 3} ${t.stock.alerts.othersSuffix}` : ''}
           </div>
         </div>
       )}
@@ -291,40 +297,40 @@ export default function StockPage() {
       {/* ─── Inventaire ──────────────────────────────────────────────────── */}
       <div className="gm-section-block">
         <div className="gm-section-title">
-          <span>📋 Inventaire produits</span>
+          <span>{t.stock.inventaire.sectionTitle}</span>
         </div>
         <GmTableWrap>
           <table>
             <thead>
               <tr>
-                <th>Produit</th>
-                <th>Catégorie</th>
-                <th>Agence</th>
-                <th>Niveau de stock</th>
-                <th>Seuil alerte</th>
-                <th>Valeur unitaire</th>
-                <th>Valorisation</th>
-                <th>Statut</th>
-                <th>Actions</th>
+                <th>{t.stock.inventaire.colProduit}</th>
+                <th>{t.stock.inventaire.colCategorie}</th>
+                <th>{t.stock.inventaire.colAgence}</th>
+                <th>{t.stock.inventaire.colNiveau}</th>
+                <th>{t.stock.inventaire.colSeuil}</th>
+                <th>{t.stock.inventaire.colValeurUnitaire}</th>
+                <th>{t.stock.inventaire.colValorisation}</th>
+                <th>{t.stock.inventaire.colStatut}</th>
+                <th>{t.stock.inventaire.colActions}</th>
               </tr>
             </thead>
             <tbody>
               {chargementGlobal ? (
                 <tr>
                   <td colSpan={9} style={CELLULE_VIDE}>
-                    Chargement de l’inventaire…
+                    {t.stock.inventaire.loading}
                   </td>
                 </tr>
               ) : inventaireQuery.isError ? (
                 <tr>
                   <td colSpan={9} style={{ ...CELLULE_VIDE, color: 'var(--gm-danger)' }}>
-                    Impossible de charger l’inventaire.
+                    {t.stock.inventaire.error}
                   </td>
                 </tr>
               ) : lignes.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={CELLULE_VIDE}>
-                    Aucun produit en stock
+                    {t.stock.inventaire.empty}
                   </td>
                 </tr>
               ) : (
@@ -338,7 +344,7 @@ export default function StockPage() {
                   return (
                     <tr key={`${ligne.productId}-${ligne.agencyId}`}>
                       <td>
-                        <strong>{produit?.name ?? 'Produit inconnu'}</strong>
+                        <strong>{produit?.name ?? t.stock.inventaire.unknownProduct}</strong>
                         <div style={{ fontSize: 11, color: 'var(--gm-text-2)' }}>
                           {produit?.sku ?? ligne.productId}
                         </div>
@@ -363,17 +369,17 @@ export default function StockPage() {
                             />
                           </div>
                           <span className="gm-stock-val" style={{ color: pill.couleur }}>
-                            {dispo.toLocaleString('fr-FR')} {produit?.unit ?? 'u.'}
+                            {dispo.toLocaleString('fr-FR')} {produit?.unit ?? t.stock.inventaire.unitDefault}
                           </span>
                         </div>
                         {Number(ligne.reservedQuantity ?? 0) > 0 && (
                           <div style={{ fontSize: 11, color: 'var(--gm-text-2)', marginTop: 2 }}>
-                            {ligne.reservedQuantity} réservée(s) · {ligne.quantity} au total
+                            {ligne.reservedQuantity} {t.stock.inventaire.reservedSuffix} · {ligne.quantity} {t.stock.inventaire.totalSuffix}
                           </div>
                         )}
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>
-                        {seuil > 0 ? `${seuil} ${produit?.unit ?? 'u.'}` : '—'}
+                        {seuil > 0 ? `${seuil} ${produit?.unit ?? t.stock.inventaire.unitDefault}` : '—'}
                       </td>
                       <td style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
                         {produit ? formatMontant(produit.unitPrice) : '—'}
@@ -391,7 +397,7 @@ export default function StockPage() {
                             type="button"
                             onClick={() => ouvrirModal('in', ligne)}
                           >
-                            📥 Entrée
+                            {t.stock.inventaire.actionEntree}
                           </button>
                           <button
                             className={clsx('gm-action-btn', niveau === 'critique' && 'gm-danger')}
@@ -399,7 +405,7 @@ export default function StockPage() {
                             onClick={() => ouvrirModal('out', ligne)}
                             disabled={dispo <= 0}
                           >
-                            📤 Sortie
+                            {t.stock.inventaire.actionSortie}
                           </button>
                         </div>
                       </td>
@@ -415,39 +421,39 @@ export default function StockPage() {
       {/* ─── Mouvements de stock ─────────────────────────────────────────── */}
       <div className="gm-section-block">
         <div className="gm-section-title">
-          <span>🔁 Mouvements de stock</span>
+          <span>{t.stock.mouvements.sectionTitle}</span>
         </div>
         <GmTableWrap>
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Produit</th>
-                <th>Agence</th>
-                <th>Type</th>
-                <th>Quantité</th>
-                <th>Motif</th>
-                <th>Référence</th>
-                <th>Notes</th>
+                <th>{t.stock.mouvements.colDate}</th>
+                <th>{t.stock.mouvements.colProduit}</th>
+                <th>{t.stock.mouvements.colAgence}</th>
+                <th>{t.stock.mouvements.colType}</th>
+                <th>{t.stock.mouvements.colQuantite}</th>
+                <th>{t.stock.mouvements.colMotif}</th>
+                <th>{t.stock.mouvements.colReference}</th>
+                <th>{t.stock.mouvements.colNotes}</th>
               </tr>
             </thead>
             <tbody>
               {mouvementsQuery.isLoading ? (
                 <tr>
                   <td colSpan={8} style={CELLULE_VIDE}>
-                    Chargement des mouvements…
+                    {t.stock.mouvements.loading}
                   </td>
                 </tr>
               ) : mouvementsQuery.isError ? (
                 <tr>
                   <td colSpan={8} style={{ ...CELLULE_VIDE, color: 'var(--gm-danger)' }}>
-                    Impossible de charger les mouvements.
+                    {t.stock.mouvements.error}
                   </td>
                 </tr>
               ) : mouvements.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={CELLULE_VIDE}>
-                    Aucun mouvement enregistré
+                    {t.stock.mouvements.empty}
                   </td>
                 </tr>
               ) : (
@@ -497,13 +503,13 @@ export default function StockPage() {
         <div className="gm-modal">
           <div className="gm-modal-head">
             <div className="gm-modal-title">
-              {sens === 'in' ? '📥 Entrée de stock' : '📤 Sortie de stock'}
+              {sens === 'in' ? t.stock.modal.titleIn : t.stock.modal.titleOut}
             </div>
             <button
               className="gm-modal-close"
               type="button"
               onClick={fermerModal}
-              aria-label="Fermer"
+              aria-label={t.stock.modal.close}
             >
               ✕
             </button>
@@ -512,7 +518,7 @@ export default function StockPage() {
             <div className="gm-modal-body">
               <div className="gm-form-group">
                 <label className="gm-form-label" htmlFor="stock-produit">
-                  Produit
+                  {t.stock.modal.produitLabel}
                 </label>
                 <select
                   id="stock-produit"
@@ -530,7 +536,7 @@ export default function StockPage() {
                 </select>
                 {produits.length === 0 && (
                   <div style={{ fontSize: 11, color: 'var(--gm-text-2)', marginTop: 4 }}>
-                    Aucun produit au catalogue.
+                    {t.stock.modal.noProduct}
                   </div>
                 )}
               </div>
@@ -538,7 +544,7 @@ export default function StockPage() {
               <div className="gm-form-row">
                 <div className="gm-form-group">
                   <label className="gm-form-label" htmlFor="stock-agence">
-                    Agence (identifiant)
+                    {t.stock.modal.agenceLabel}
                   </label>
                   <input
                     id="stock-agence"
@@ -551,7 +557,7 @@ export default function StockPage() {
                 </div>
                 <div className="gm-form-group">
                   <label className="gm-form-label" htmlFor="stock-qte">
-                    Quantité
+                    {t.stock.modal.quantiteLabel}
                   </label>
                   <input
                     id="stock-qte"
@@ -569,7 +575,7 @@ export default function StockPage() {
               <div className="gm-form-row">
                 <div className="gm-form-group">
                   <label className="gm-form-label" htmlFor="stock-motif">
-                    Motif
+                    {t.stock.modal.motifLabel}
                   </label>
                   <select
                     id="stock-motif"
@@ -587,7 +593,7 @@ export default function StockPage() {
                 </div>
                 <div className="gm-form-group">
                   <label className="gm-form-label" htmlFor="stock-ref">
-                    Référence
+                    {t.stock.modal.referenceLabel}
                   </label>
                   <input
                     id="stock-ref"
@@ -601,7 +607,7 @@ export default function StockPage() {
 
               <div className="gm-form-group">
                 <label className="gm-form-label" htmlFor="stock-notes">
-                  Notes
+                  {t.stock.modal.notesLabel}
                 </label>
                 <input
                   id="stock-notes"
@@ -625,10 +631,10 @@ export default function StockPage() {
             </div>
             <div className="gm-modal-foot">
               <GmButton type="button" variante="outline" onClick={fermerModal}>
-                Annuler
+                {t.common.cancel}
               </GmButton>
               <GmButton type="submit" variante="primary" disabled={enCours}>
-                {enCours ? 'Enregistrement…' : 'Valider le mouvement'}
+                {enCours ? t.stock.modal.saving : t.stock.modal.submit}
               </GmButton>
             </div>
           </form>

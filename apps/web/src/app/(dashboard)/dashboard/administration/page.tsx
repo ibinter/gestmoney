@@ -24,6 +24,8 @@ import {
   type AdminRole,
   type AdminAuditLog,
 } from '@/hooks/useAdministration';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 // ─── Contrôle d'accès ────────────────────────────────────────────────────────
 // Aligné sur les rôles autorisés côté API (users.controller / roles.controller).
@@ -46,16 +48,19 @@ function classeBadgeRole(nom: string): string {
   return 'gm-badge-agent';
 }
 
-function statutUtilisateur(statut: string): { pill: 'success' | 'pending' | 'failed'; label: string } {
+function statutUtilisateur(
+  statut: string,
+  t: Translations,
+): { pill: 'success' | 'pending' | 'failed'; label: string } {
   switch (statut.toUpperCase()) {
     case 'ACTIVE':
-      return { pill: 'success', label: '● Actif' };
+      return { pill: 'success', label: t.administration.statuts.actif };
     case 'SUSPENDED':
-      return { pill: 'failed', label: '● Suspendu' };
+      return { pill: 'failed', label: t.administration.statuts.suspendu };
     case 'INACTIVE':
-      return { pill: 'failed', label: '● Inactif' };
+      return { pill: 'failed', label: t.administration.statuts.inactif };
     case 'PENDING_VERIFICATION':
-      return { pill: 'pending', label: '● En attente' };
+      return { pill: 'pending', label: t.administration.statuts.enAttente };
     default:
       return { pill: 'pending', label: statut };
   }
@@ -80,29 +85,30 @@ function SectionUtilisateurs({
   isLoading: boolean;
   isError: boolean;
 }) {
+  const t = useT();
   return (
     <div className="gm-section-block" id="utilisateurs">
-      <GmSectionTitle>👥 Utilisateurs</GmSectionTitle>
+      <GmSectionTitle>{t.administration.users.title}</GmSectionTitle>
       <GmTableWrap>
         {isLoading ? (
-          <Etat>Chargement des utilisateurs…</Etat>
+          <Etat>{t.administration.users.loading}</Etat>
         ) : isError ? (
-          <Etat>Impossible de charger les utilisateurs. Vérifiez vos droits ou réessayez.</Etat>
+          <Etat>{t.administration.users.error}</Etat>
         ) : users.length === 0 ? (
-          <Etat>Aucun utilisateur enregistré.</Etat>
+          <Etat>{t.administration.users.empty}</Etat>
         ) : (
           <table>
             <thead>
               <tr>
-                <th>Utilisateur</th>
-                <th>Rôle</th>
-                <th>Dernière connexion</th>
-                <th>Statut</th>
+                <th>{t.administration.users.colUser}</th>
+                <th>{t.administration.users.colRole}</th>
+                <th>{t.administration.users.colLastLogin}</th>
+                <th>{t.administration.users.colStatus}</th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => {
-                const st = statutUtilisateur(u.status);
+                const st = statutUtilisateur(u.status, t);
                 return (
                   <tr key={u.id}>
                     <td>
@@ -133,7 +139,7 @@ function SectionUtilisateurs({
                           {formatRelativeTime(u.lastLoginAt)}
                         </span>
                       ) : (
-                        <span style={{ color: 'var(--gm-text-2)' }}>Jamais connecté</span>
+                        <span style={{ color: 'var(--gm-text-2)' }}>{t.administration.users.neverConnected}</span>
                       )}
                     </td>
                     <td>
@@ -159,15 +165,16 @@ function SectionRoles({
   isLoading: boolean;
   isError: boolean;
 }) {
+  const t = useT();
   return (
     <div className="gm-section-block" id="roles">
-      <GmSectionTitle>🔐 Rôles &amp; permissions</GmSectionTitle>
+      <GmSectionTitle>{t.administration.roles.title}</GmSectionTitle>
       {isLoading ? (
-        <Etat>Chargement des rôles…</Etat>
+        <Etat>{t.administration.roles.loading}</Etat>
       ) : isError ? (
-        <Etat>Impossible de charger les rôles.</Etat>
+        <Etat>{t.administration.roles.error}</Etat>
       ) : roles.length === 0 ? (
-        <Etat>Aucun rôle configuré pour cette organisation.</Etat>
+        <Etat>{t.administration.roles.empty}</Etat>
       ) : (
         <div className="gm-roles-grid">
           {roles.map((role) => (
@@ -179,13 +186,13 @@ function SectionRoles({
                     <span className={`gm-badge ${classeBadgeRole(role.name)}`}>{role.name}</span>
                   </div>
                   <div className="gm-role-count">
-                    {role.nbUtilisateurs} utilisateur{role.nbUtilisateurs > 1 ? 's' : ''}
+                    {role.nbUtilisateurs} {t.administration.roles.usersSuffix}
                   </div>
                 </div>
               </div>
               {role.permissions.length === 0 ? (
                 <div className="gm-perm-item gm-off">
-                  <span className="gm-perm-check">—</span> Aucune permission enregistrée
+                  <span className="gm-perm-check">—</span> {t.administration.roles.noPermission}
                 </div>
               ) : (
                 role.permissions.map((p) => (
@@ -217,36 +224,37 @@ function SectionAudit({
   exportEnCours: boolean;
   erreurExport: string;
 }) {
+  const t = useT();
   return (
     <div className="gm-section-block" id="audit">
       <GmSectionTitle
         action={
           <GmButton variante="outline" petit onClick={onExport} disabled={exportEnCours}>
-            {exportEnCours ? 'Export en cours…' : '📥 Exporter CSV'}
+            {exportEnCours ? t.administration.exporting : t.administration.exportCsv}
           </GmButton>
         }
       >
-        📋 Journal d&apos;audit récent
+        {t.administration.audit.title}
       </GmSectionTitle>
       {erreurExport && (
         <div style={{ fontSize: 12, color: 'var(--gm-danger)', marginBottom: 10 }}>{erreurExport}</div>
       )}
       <GmTableWrap>
         {isLoading ? (
-          <Etat>Chargement du journal d&apos;audit…</Etat>
+          <Etat>{t.administration.audit.loading}</Etat>
         ) : isError ? (
-          <Etat>Impossible de charger le journal d&apos;audit.</Etat>
+          <Etat>{t.administration.audit.error}</Etat>
         ) : logs.length === 0 ? (
-          <Etat>Aucune entrée dans le journal d&apos;audit.</Etat>
+          <Etat>{t.administration.audit.empty}</Etat>
         ) : (
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Action</th>
-                <th>Ressource</th>
-                <th>Utilisateur</th>
-                <th>IP</th>
+                <th>{t.administration.audit.colDate}</th>
+                <th>{t.administration.audit.colAction}</th>
+                <th>{t.administration.audit.colResource}</th>
+                <th>{t.administration.audit.colUser}</th>
+                <th>{t.administration.audit.colIp}</th>
               </tr>
             </thead>
             <tbody>
@@ -259,7 +267,7 @@ function SectionAudit({
                     {l.entityId ? ` · ${l.entityId.slice(0, 8)}…` : ''}
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>
-                    {l.userId ? `${l.userId.slice(0, 8)}…` : 'Système'}
+                    {l.userId ? `${l.userId.slice(0, 8)}…` : t.administration.audit.system}
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{l.ipAddress ?? '—'}</td>
                 </tr>
@@ -275,6 +283,7 @@ function SectionAudit({
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AdministrationPage() {
+  const t = useT();
   const { user } = useAuthStore();
   const role = (user?.role ?? '').toLowerCase();
   const autorise = ROLES_ADMIN.includes(role);
@@ -294,7 +303,7 @@ export default function AdministrationPage() {
     try {
       await telechargerExportAudit('CSV');
     } catch {
-      setErreurExport("L'export du journal d'audit a échoué. Réessayez.");
+      setErreurExport(t.administration.exportError);
     } finally {
       setExportEnCours(false);
     }
@@ -304,15 +313,12 @@ export default function AdministrationPage() {
     return (
       <>
         <GmPageHeader
-          titre="⚙️ Administration système"
-          sousTitre="Accès restreint"
-          fil={['Accueil', 'Administration']}
+          titre={t.administration.title}
+          sousTitre={t.administration.restricted}
+          fil={[t.common.home, t.administration.breadcrumb]}
         />
         <div className="gm-section-block">
-          <Etat>
-            Cette page est réservée aux administrateurs. Contactez un administrateur de votre
-            organisation si vous pensez qu&apos;il s&apos;agit d&apos;une erreur.
-          </Etat>
+          <Etat>{t.administration.restrictedMessage}</Etat>
         </div>
       </>
     );
@@ -330,12 +336,12 @@ export default function AdministrationPage() {
   return (
     <>
       <GmPageHeader
-        titre="⚙️ Administration système"
-        sousTitre="Utilisateurs, rôles et supervision du journal d'audit"
-        fil={['Accueil', 'Administration']}
+        titre={t.administration.title}
+        sousTitre={t.administration.subtitle}
+        fil={[t.common.home, t.administration.breadcrumb]}
         actions={
           <GmButton variante="outline" petit onClick={handleExport} disabled={exportEnCours}>
-            📥 Exporter audit
+            {t.administration.exportAudit}
           </GmButton>
         }
       />
@@ -344,34 +350,40 @@ export default function AdministrationPage() {
       <div className="gm-stats-row">
         <div className="gm-stat-card gm-s1">
           <div className="gm-stat-value">{usersQ.isLoading ? '…' : usersQ.isError ? '—' : totalUsers}</div>
-          <div className="gm-stat-label">Utilisateurs total</div>
+          <div className="gm-stat-label">{t.administration.stats.totalUsers}</div>
           <div className="gm-stat-sub">
-            {usersQ.isError ? 'Données indisponibles' : `${nbActifs} actifs · ${nbSuspendus} inactifs/suspendus`}
+            {usersQ.isError
+              ? t.administration.stats.unavailable
+              : `${nbActifs} ${t.administration.stats.activeSuffix} · ${nbSuspendus} ${t.administration.stats.inactiveSuffix}`}
           </div>
         </div>
         <div className="gm-stat-card gm-s2">
           <div className="gm-stat-value">{rolesQ.isLoading ? '…' : rolesQ.isError ? '—' : (rolesQ.data?.length ?? 0)}</div>
-          <div className="gm-stat-label">Rôles configurés</div>
+          <div className="gm-stat-label">{t.administration.stats.roles}</div>
           <div className="gm-stat-sub">
-            {rolesQ.isError ? 'Données indisponibles' : 'Rôles du tenant'}
+            {rolesQ.isError ? t.administration.stats.unavailable : t.administration.stats.tenantRoles}
           </div>
         </div>
         <div className="gm-stat-card gm-s3">
           <div className="gm-stat-value">
             {statsQ.isLoading ? '…' : statsQ.isError ? '—' : (statsQ.data?.total ?? 0)}
           </div>
-          <div className="gm-stat-label">Actions audit (24h)</div>
+          <div className="gm-stat-label">{t.administration.stats.auditActions}</div>
           <div className="gm-stat-sub">
-            {statsQ.isError ? 'Données indisponibles' : `${statsQ.data?.byAction.length ?? 0} types d'action`}
+            {statsQ.isError
+              ? t.administration.stats.unavailable
+              : `${statsQ.data?.byAction.length ?? 0} ${t.administration.stats.actionTypesSuffix}`}
           </div>
         </div>
         <div className="gm-stat-card gm-s4">
           <div className="gm-stat-value">
             {alertesQ.isLoading ? '…' : alertesQ.isError ? '—' : alertes.length}
           </div>
-          <div className="gm-stat-label">Alertes audit</div>
+          <div className="gm-stat-label">{t.administration.stats.auditAlerts}</div>
           <div className="gm-stat-sub">
-            {alertesQ.isError ? 'Données indisponibles' : 'Activité anormale (1h)'}
+            {alertesQ.isError
+              ? t.administration.stats.unavailable
+              : t.administration.stats.abnormalActivity}
           </div>
         </div>
       </div>
@@ -379,14 +391,14 @@ export default function AdministrationPage() {
       {/* ALERTES */}
       {alertes.length > 0 && (
         <div className="gm-section-block">
-          <GmSectionTitle>🚨 Alertes de sécurité</GmSectionTitle>
+          <GmSectionTitle>{t.administration.alertes.title}</GmSectionTitle>
           {alertes.map((a, i) => (
             <div className="gm-alert-banner" key={`${a.userId ?? 'n'}-${i}`}>
               <div className="gm-alert-icon">⚠️</div>
               <div className="gm-alert-text">
                 <div className="gm-alert-title">{a.type}</div>
                 <div className="gm-alert-desc">
-                  {a.message} — sévérité {a.severity}
+                  {a.message} — {t.administration.alertes.severityPrefix} {a.severity}
                 </div>
               </div>
             </div>

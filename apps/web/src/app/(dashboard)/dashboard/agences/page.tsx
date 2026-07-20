@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/formatters';
 import { exporterCsv } from '@/lib/exportCsv';
 import { useAgences, useCreateAgence, useToggleAgenceStatus } from '@/hooks/useAgences';
 import { Agence } from '@/types';
+import { useT } from '@/lib/i18n';
 
 const FORM_INIT = { nom: '', code: '', ville: '', adresse: '', telephone: '', responsable: '' };
 
@@ -15,6 +16,7 @@ const FORM_INIT = { nom: '', code: '', ville: '', adresse: '', telephone: '', re
 const COULEURS_VILLE = ['#F5B800', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#0EA5E9', '#D97706', '#22C55E'];
 
 export default function AgencesPage() {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [modalOuvert, setModalOuvert] = useState(false);
   const [form, setForm] = useState(FORM_INIT);
@@ -46,16 +48,16 @@ export default function AgencesPage() {
     e.preventDefault();
     setErreur('');
     if (!form.nom || !form.code || !form.ville) {
-      setErreur('Veuillez remplir les champs obligatoires (nom, code, ville).');
+      setErreur(t.agences.modal.requiredFields);
       return;
     }
     try {
       await creerAgence.mutateAsync(form);
-      setSucces(`Agence "${form.nom}" créée avec succès.`);
+      setSucces(`${t.agences.modal.createdPrefix} "${form.nom}" ${t.agences.modal.createdSuffix}`);
       setForm(FORM_INIT);
       setTimeout(() => { setModalOuvert(false); setSucces(''); }, 1500);
     } catch {
-      setErreur('Erreur lors de la création. Réessayez.');
+      setErreur(t.common.createError);
     }
   };
 
@@ -65,32 +67,32 @@ export default function AgencesPage() {
 
   const handleExport = () =>
     exporterCsv(agences, [
-      { titre: 'Nom', valeur: (a) => a.nom },
-      { titre: 'Code', valeur: (a) => a.code },
-      { titre: 'Ville', valeur: (a) => a.ville },
-      { titre: 'Adresse', valeur: (a) => a.adresse },
-      { titre: 'Téléphone', valeur: (a) => a.telephone },
-      { titre: 'Responsable', valeur: (a) => a.responsableNom },
-      { titre: 'Agents', valeur: (a) => a.nbAgents },
-      { titre: 'Agents en ligne', valeur: (a) => a.nbAgentsEnLigne },
-      { titre: 'Statut', valeur: (a) => a.active ? 'Active' : 'Inactive' },
-      { titre: 'Date création', valeur: (a) => formatDate(a.createdAt) },
+      { titre: t.agences.csv.nom, valeur: (a) => a.nom },
+      { titre: t.agences.csv.code, valeur: (a) => a.code },
+      { titre: t.agences.csv.ville, valeur: (a) => a.ville },
+      { titre: t.agences.csv.adresse, valeur: (a) => a.adresse },
+      { titre: t.agences.csv.telephone, valeur: (a) => a.telephone },
+      { titre: t.agences.csv.responsable, valeur: (a) => a.responsableNom },
+      { titre: t.agences.csv.agents, valeur: (a) => a.nbAgents },
+      { titre: t.agences.csv.agentsOnline, valeur: (a) => a.nbAgentsEnLigne },
+      { titre: t.agences.csv.statut, valeur: (a) => a.active ? t.agences.csv.active : t.agences.csv.inactive },
+      { titre: t.agences.csv.dateCreation, valeur: (a) => formatDate(a.createdAt) },
     ], 'agences');
 
   return (
     <>
       <GmPageHeader
-        fil={['Accueil', 'Agences']}
-        titre="🏪 Gestion des Agences"
+        fil={[t.common.home, t.agences.breadcrumb]}
+        titre={t.agences.title}
         sousTitre={
           isLoading
-            ? 'Chargement du réseau…'
-            : `Réseau de ${nbActives} agence${nbActives > 1 ? 's' : ''} active${nbActives > 1 ? 's' : ''} — ${villes.length} ville${villes.length > 1 ? 's' : ''} couverte${villes.length > 1 ? 's' : ''}`
+            ? t.agences.subtitleLoading
+            : `${t.agences.subtitleNetwork} ${nbActives} ${t.agences.subtitleActiveAgencies} — ${villes.length} ${t.agences.subtitleCities}`
         }
         actions={
           <>
-            <GmButton variante="outline" petit onClick={handleExport}>📥 Exporter</GmButton>
-            <GmButton variante="primary" petit onClick={() => setModalOuvert(true)}>+ Nouvelle agence</GmButton>
+            <GmButton variante="outline" petit onClick={handleExport}>📥 {t.common.export}</GmButton>
+            <GmButton variante="primary" petit onClick={() => setModalOuvert(true)}>{t.agences.newAgency}</GmButton>
           </>
         }
       />
@@ -99,23 +101,23 @@ export default function AgencesPage() {
       <div className="gm-stats-row">
         <div className="gm-stat-card gm-total">
           <div className="gm-stat-value">{isLoading ? '—' : nbActives}</div>
-          <div className="gm-stat-label">Agences actives</div>
-          <div className="gm-stat-sub">sur {allAgences.length} au total</div>
+          <div className="gm-stat-label">{t.agences.stats.activeAgencies}</div>
+          <div className="gm-stat-sub">{t.agences.stats.ofTotalPrefix} {allAgences.length} {t.agences.stats.ofTotalSuffix}</div>
         </div>
         <div className="gm-stat-card gm-success">
           <div className="gm-stat-value">{isLoading ? '—' : totalAgents}</div>
-          <div className="gm-stat-label">Agents au total</div>
-          <div className="gm-stat-sub">{totalEnLigne} en ligne maintenant</div>
+          <div className="gm-stat-label">{t.agences.stats.totalAgents}</div>
+          <div className="gm-stat-sub">{totalEnLigne} {t.agences.stats.onlineNow}</div>
         </div>
         <div className="gm-stat-card gm-amount">
           <div className="gm-stat-value">{isLoading ? '—' : villes.length}</div>
-          <div className="gm-stat-label">Villes couvertes</div>
-          <div className="gm-stat-sub">{parVille[0] ? `Top : ${parVille[0].ville}` : '—'}</div>
+          <div className="gm-stat-label">{t.agences.stats.citiesCovered}</div>
+          <div className="gm-stat-sub">{parVille[0] ? `${t.agences.stats.topPrefix} ${parVille[0].ville}` : '—'}</div>
         </div>
         <div className="gm-stat-card gm-pending">
           <div className="gm-stat-value">{isLoading ? '—' : allAgences.length - nbActives}</div>
-          <div className="gm-stat-label">Agences inactives</div>
-          <div className="gm-stat-sub">à réactiver ou clôturer</div>
+          <div className="gm-stat-label">{t.agences.stats.inactiveAgencies}</div>
+          <div className="gm-stat-sub">{t.agences.stats.inactiveSub}</div>
         </div>
       </div>
 
@@ -125,23 +127,23 @@ export default function AgencesPage() {
           <span className="gm-si">🔍</span>
           <input
             type="text"
-            placeholder="Rechercher une agence (nom, ville, code)…"
+            placeholder={t.agences.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <span className="gm-pag-info">
-          {isLoading ? 'Chargement…' : `${agences.length} agence(s) trouvée(s)`}
+          {isLoading ? t.common.loading : `${agences.length} ${t.agences.foundSuffix}`}
         </span>
       </div>
 
       <div className="gm-content-grid">
         {/* CARTES AGENCES */}
         <div className="gm-agences-grid">
-          {isLoading && <div className="gm-agence-card"><div className="gm-agence-city">Chargement des agences…</div></div>}
+          {isLoading && <div className="gm-agence-card"><div className="gm-agence-city">{t.agences.loadingAgencies}</div></div>}
 
           {!isLoading && agences.length === 0 && (
-            <div className="gm-agence-card"><div className="gm-agence-city">Aucune agence trouvée</div></div>
+            <div className="gm-agence-card"><div className="gm-agence-city">{t.agences.emptyAgencies}</div></div>
           )}
 
           {!isLoading && agences.map((a) => (
@@ -154,39 +156,39 @@ export default function AgencesPage() {
                   </div>
                 </div>
                 <span className={`gm-status-pill ${a.active ? 'gm-pill-active' : 'gm-pill-danger'}`}>
-                  {a.active ? '● Active' : '● Inactive'}
+                  {a.active ? t.agences.pillActive : t.agences.pillInactive}
                 </span>
               </div>
 
               <div className="gm-agence-metrics">
                 <div className="gm-agence-metric">
                   <div className="gm-agence-metric-value">{a.nbAgents}</div>
-                  <div className="gm-agence-metric-label">Agents</div>
+                  <div className="gm-agence-metric-label">{t.agences.metrics.agents}</div>
                 </div>
                 <div className="gm-agence-metric">
                   <div className="gm-agence-metric-value" style={{ color: 'var(--gm-success)' }}>{a.nbAgentsEnLigne}</div>
-                  <div className="gm-agence-metric-label">En ligne</div>
+                  <div className="gm-agence-metric-label">{t.agences.metrics.online}</div>
                 </div>
                 <div className="gm-agence-metric">
                   <div className="gm-agence-metric-value" style={{ fontSize: 13 }}>{a.code || '—'}</div>
-                  <div className="gm-agence-metric-label">Code agence</div>
+                  <div className="gm-agence-metric-label">{t.agences.metrics.code}</div>
                 </div>
                 <div className="gm-agence-metric">
                   <div className="gm-agence-metric-value" style={{ fontSize: 13 }}>
                     {a.createdAt ? formatDate(a.createdAt) : '—'}
                   </div>
-                  <div className="gm-agence-metric-label">Ouverture</div>
+                  <div className="gm-agence-metric-label">{t.agences.metrics.opening}</div>
                 </div>
               </div>
 
               <div className="gm-agence-metric" style={{ marginBottom: 14 }}>
                 <div className="gm-agence-metric-label">
-                  📞 {a.telephone || '—'} · Resp. {a.responsableNom || '—'}
+                  📞 {a.telephone || '—'} · {t.agences.metrics.respPrefix} {a.responsableNom || '—'}
                 </div>
               </div>
 
               <div className="gm-agence-actions">
-                <button type="button" className="gm-agence-btn gm-primary">👁️ Voir détails</button>
+                <button type="button" className="gm-agence-btn gm-primary">{t.agences.actions.viewDetails}</button>
                 <button
                   type="button"
                   className="gm-agence-btn"
@@ -194,7 +196,7 @@ export default function AgencesPage() {
                   disabled={toggleStatut.isPending}
                   style={a.active ? { color: 'var(--gm-danger)' } : { color: 'var(--gm-success)' }}
                 >
-                  {a.active ? '⏸️ Désactiver' : '▶️ Activer'}
+                  {a.active ? t.agences.actions.deactivate : t.agences.actions.activate}
                 </button>
               </div>
             </div>
@@ -204,14 +206,14 @@ export default function AgencesPage() {
         {/* RÉPARTITION PAR VILLE — villes réelles uniquement */}
         <div className="gm-map-card">
           <div className="gm-map-title">
-            🗺️ Répartition du réseau
+            {t.agences.map.title}
             <span style={{ fontSize: 11, color: 'var(--gm-text-2)', fontWeight: 400 }}>
-              {isLoading ? '—' : `${allAgences.length} point${allAgences.length > 1 ? 's' : ''}`}
+              {isLoading ? '—' : `${allAgences.length} ${t.agences.map.pointsSuffix}`}
             </span>
           </div>
 
-          {isLoading && <div className="gm-agence-city">Chargement…</div>}
-          {!isLoading && parVille.length === 0 && <div className="gm-agence-city">Aucune ville renseignée</div>}
+          {isLoading && <div className="gm-agence-city">{t.common.loading}</div>}
+          {!isLoading && parVille.length === 0 && <div className="gm-agence-city">{t.agences.map.noCity}</div>}
 
           {!isLoading && parVille.map(({ ville, liste }, i) => (
             <div key={ville} style={{ marginBottom: 14 }}>
@@ -221,7 +223,7 @@ export default function AgencesPage() {
                 </svg>
                 {ville}
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gm-text-2)', fontWeight: 400 }}>
-                  {liste.length} agence{liste.length > 1 ? 's' : ''}
+                  {liste.length} {t.agences.map.agencesSuffix}
                 </span>
               </div>
               {liste.map((a) => (
@@ -257,28 +259,28 @@ export default function AgencesPage() {
         </div>
       </div>
 
-      <Modal ouvert={modalOuvert} onFermer={() => { setModalOuvert(false); setForm(FORM_INIT); setErreur(''); setSucces(''); }} titre="Nouvelle agence" taille="md">
+      <Modal ouvert={modalOuvert} onFermer={() => { setModalOuvert(false); setForm(FORM_INIT); setErreur(''); setSucces(''); }} titre={t.agences.modal.title} taille="md">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Nom de l'agence *" placeholder="Agence Centre-ville" value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} required />
-            <Input label="Code *" placeholder="AG-XXX-001" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} required />
+            <Input label={t.agences.modal.nomLabel} placeholder={t.agences.modal.nomPlaceholder} value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} required />
+            <Input label={t.agences.modal.codeLabel} placeholder={t.agences.modal.codePlaceholder} value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Ville *" placeholder="Abidjan" value={form.ville} onChange={(e) => setForm((f) => ({ ...f, ville: e.target.value }))} required />
-            <Input label="Téléphone" type="tel" placeholder="0701000000" value={form.telephone} onChange={(e) => setForm((f) => ({ ...f, telephone: e.target.value }))} />
+            <Input label={t.agences.modal.villeLabel} placeholder={t.agences.modal.villePlaceholder} value={form.ville} onChange={(e) => setForm((f) => ({ ...f, ville: e.target.value }))} required />
+            <Input label={t.agences.modal.telephoneLabel} type="tel" placeholder={t.agences.modal.telephonePlaceholder} value={form.telephone} onChange={(e) => setForm((f) => ({ ...f, telephone: e.target.value }))} />
           </div>
-          <Input label="Adresse" placeholder="Rue, Quartier" value={form.adresse} onChange={(e) => setForm((f) => ({ ...f, adresse: e.target.value }))} />
-          <Input label="Responsable" placeholder="Nom du responsable" value={form.responsable} onChange={(e) => setForm((f) => ({ ...f, responsable: e.target.value }))} />
+          <Input label={t.agences.modal.adresseLabel} placeholder={t.agences.modal.adressePlaceholder} value={form.adresse} onChange={(e) => setForm((f) => ({ ...f, adresse: e.target.value }))} />
+          <Input label={t.agences.modal.responsableLabel} placeholder={t.agences.modal.responsablePlaceholder} value={form.responsable} onChange={(e) => setForm((f) => ({ ...f, responsable: e.target.value }))} />
 
           {erreur && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">{erreur}</div>}
           {succes && <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">{succes}</div>}
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" variante="primary" fullWidth loading={creerAgence.isPending}>
-              Créer l&apos;agence
+              {t.agences.modal.submit}
             </Button>
             <Button type="button" variante="ghost" onClick={() => { setModalOuvert(false); setForm(FORM_INIT); setErreur(''); }}>
-              Annuler
+              {t.common.cancel}
             </Button>
           </div>
         </form>

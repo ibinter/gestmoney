@@ -12,15 +12,27 @@ import { formatMontant, formatDateTime } from '@/lib/formatters';
 import { useEcritures, useCaisseStats, useAddEcriture } from '@/hooks/useCaisse';
 import { EcritureCaisse } from '@/types';
 import { clsx } from 'clsx';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
-const CAT_LABELS: Record<string, string> = {
-  depot: 'Depot', retrait: 'Retrait', cash_in: 'Cash In', cash_out: 'Cash Out',
-  reappro: 'Reapprovisionnement', commission: 'Commission', approvisionnement: 'Approvisionnement', frais: 'Frais',
-};
+const CAT_ORDRE = ['depot', 'retrait', 'cash_in', 'cash_out', 'reappro', 'commission', 'approvisionnement', 'frais'] as const;
+
+const catLabels = (t: Translations): Record<string, string> => ({
+  depot: t.caisse.categories.depot,
+  retrait: t.caisse.categories.retrait,
+  cash_in: t.caisse.categories.cash_in,
+  cash_out: t.caisse.categories.cash_out,
+  reappro: t.caisse.categories.reappro,
+  commission: t.caisse.categories.commission,
+  approvisionnement: t.caisse.categories.approvisionnement,
+  frais: t.caisse.categories.frais,
+});
 
 const FORM_ECRITURE_INIT = { type: 'entree' as 'entree' | 'sortie', libelle: '', montant: '', categorie: 'depot' };
 
 export default function CaissePage() {
+  const t = useT();
+  const CAT_LABELS = catLabels(t);
   const [modalAjout, setModalAjout] = useState(false);
   const [formEcriture, setFormEcriture] = useState(FORM_ECRITURE_INIT);
   const [erreurEcriture, setErreurEcriture] = useState('');
@@ -35,7 +47,7 @@ export default function CaissePage() {
     setErreurEcriture('');
     const montant = Number(formEcriture.montant);
     if (!formEcriture.libelle || !montant || montant <= 0) {
-      setErreurEcriture('Libellé et montant valide sont obligatoires.');
+      setErreurEcriture(t.caisse.modal.requiredError);
       return;
     }
     try {
@@ -45,11 +57,11 @@ export default function CaissePage() {
         montant,
         categorie: formEcriture.categorie,
       });
-      setSuccesEcriture('Écriture enregistrée avec succès.');
+      setSuccesEcriture(t.caisse.modal.success);
       setFormEcriture(FORM_ECRITURE_INIT);
       setTimeout(() => { setModalAjout(false); setSuccesEcriture(''); }, 1500);
     } catch {
-      setErreurEcriture('Erreur lors de l\'enregistrement.');
+      setErreurEcriture(t.caisse.modal.saveError);
     }
   };
 
@@ -61,38 +73,38 @@ export default function CaissePage() {
   const colonnes: Colonne<EcritureCaisse>[] = [
     {
       key: 'date',
-      titre: 'Date / Heure',
+      titre: t.caisse.columns.date,
       rendu: (v) => <span className="text-xs text-gray-500">{formatDateTime(String(v))}</span>,
     },
     {
       key: 'reference',
-      titre: 'Reference',
+      titre: t.caisse.columns.reference,
       rendu: (v) => <span className="font-mono text-xs text-gray-600">{String(v)}</span>,
     },
     {
       key: 'libelle',
-      titre: 'Libelle',
+      titre: t.caisse.columns.libelle,
       rendu: (v) => <span className="text-sm">{String(v)}</span>,
     },
     {
       key: 'categorie',
-      titre: 'Categorie',
+      titre: t.caisse.columns.categorie,
       rendu: (v) => <Badge couleur="info">{CAT_LABELS[String(v)] ?? String(v)}</Badge>,
     },
-    { key: 'agentNom', titre: 'Agent' },
+    { key: 'agentNom', titre: t.caisse.columns.agent },
     {
       key: 'type',
-      titre: 'Sens',
+      titre: t.caisse.columns.sens,
       rendu: (v) => (
         <div className={clsx('flex items-center gap-1 font-medium text-sm', v === 'entree' ? 'text-success' : 'text-danger')}>
           {v === 'entree' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          {v === 'entree' ? 'Entree' : 'Sortie'}
+          {v === 'entree' ? t.caisse.sens.entree : t.caisse.sens.sortie}
         </div>
       ),
     },
     {
       key: 'montant',
-      titre: 'Montant',
+      titre: t.caisse.columns.montant,
       align: 'right',
       triable: true,
       rendu: (v, ligne) => (
@@ -103,7 +115,7 @@ export default function CaissePage() {
     },
     {
       key: 'soldeApres',
-      titre: 'Solde apres',
+      titre: t.caisse.columns.soldeApres,
       align: 'right',
       rendu: (v) => <span className="text-sm font-semibold text-text-main">{formatMontant(Number(v))}</span>,
     },
@@ -113,26 +125,26 @@ export default function CaissePage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Caisse</h1>
-          <p className="text-sm text-gray-500">Journal de caisse et mouvements du jour</p>
+          <h1 className="text-2xl font-bold text-text-main">{t.caisse.title}</h1>
+          <p className="text-sm text-gray-500">{t.caisse.subtitle}</p>
         </div>
         <div className="flex gap-2">
-          <Button variante="ghost" taille="sm" icone={<Download size={15} />}>Exporter</Button>
-          <Button variante="ghost" taille="sm" icone={<RefreshCw size={15} />} onClick={() => refetch()}>Actualiser</Button>
+          <Button variante="ghost" taille="sm" icone={<Download size={15} />}>{t.common.export}</Button>
+          <Button variante="ghost" taille="sm" icone={<RefreshCw size={15} />} onClick={() => refetch()}>{t.common.refresh}</Button>
           <Button variante="primary" taille="sm" icone={<Plus size={15} />} onClick={() => setModalAjout(true)}>
-            Ecriture manuelle
+            {t.caisse.manualEntry}
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard titre="Solde actuel" valeur={formatMontant(soldeActuel)} icone="💵" couleur="success" />
-        <StatCard titre="Entrees du jour" valeur={formatMontant(entrees)} icone={<TrendingUp size={18} />} couleur="success" />
-        <StatCard titre="Sorties du jour" valeur={formatMontant(sorties)} icone={<TrendingDown size={18} />} couleur="danger" />
+        <StatCard titre={t.caisse.stats.soldeActuel} valeur={formatMontant(soldeActuel)} icone="💵" couleur="success" />
+        <StatCard titre={t.caisse.stats.entreesJour} valeur={formatMontant(entrees)} icone={<TrendingUp size={18} />} couleur="success" />
+        <StatCard titre={t.caisse.stats.sortiesJour} valeur={formatMontant(sorties)} icone={<TrendingDown size={18} />} couleur="danger" />
         <StatCard
-          titre="Ecart"
+          titre={t.caisse.stats.ecart}
           valeur={formatMontant(Math.abs(ecart))}
-          sousTexte={ecart === 0 ? 'Caisse equilibree' : ecart > 0 ? 'Excedent' : 'Deficit'}
+          sousTexte={ecart === 0 ? t.caisse.stats.equilibree : ecart > 0 ? t.caisse.stats.excedent : t.caisse.stats.deficit}
           icone="⚖️"
           couleur={ecart === 0 ? 'success' : 'warning'}
         />
@@ -141,19 +153,19 @@ export default function CaissePage() {
       {/* Barre solde visuelle */}
       <div className="bg-white rounded-card shadow-card p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-sm text-text-main">Flux du jour</h3>
-          <span className="text-xs text-gray-400">{ecritures.length} ecritures</span>
+          <h3 className="font-semibold text-sm text-text-main">{t.caisse.flux.title}</h3>
+          <span className="text-xs text-gray-400">{ecritures.length} {t.caisse.flux.ecrituresSuffix}</span>
         </div>
         <div className="flex gap-3">
           <div className="flex-1">
-            <p className="text-xs text-gray-500 mb-1">Entrees</p>
+            <p className="text-xs text-gray-500 mb-1">{t.caisse.flux.entrees}</p>
             <div className="h-3 bg-green-100 rounded-full overflow-hidden">
               <div className="h-full bg-success rounded-full" style={{ width: `${entrees + sorties > 0 ? Math.min((entrees / (entrees + sorties)) * 100, 100) : 0}%` }} />
             </div>
             <p className="text-xs font-semibold text-success mt-1">{formatMontant(entrees)}</p>
           </div>
           <div className="flex-1">
-            <p className="text-xs text-gray-500 mb-1">Sorties</p>
+            <p className="text-xs text-gray-500 mb-1">{t.caisse.flux.sorties}</p>
             <div className="h-3 bg-red-100 rounded-full overflow-hidden">
               <div className="h-full bg-danger rounded-full" style={{ width: `${entrees + sorties > 0 ? Math.min((sorties / (entrees + sorties)) * 100, 100) : 0}%` }} />
             </div>
@@ -164,28 +176,28 @@ export default function CaissePage() {
 
       <Card padding="none">
         <CardHeader className="px-4 pt-4">
-          <CardTitle>Journal de caisse — Aujourd&apos;hui</CardTitle>
+          <CardTitle>{t.caisse.journalTitle}</CardTitle>
         </CardHeader>
-        <Table colonnes={colonnes} donnees={ecritures} messageVide={isLoading ? 'Chargement...' : 'Aucune ecriture'} />
+        <Table colonnes={colonnes} donnees={ecritures} messageVide={isLoading ? t.common.loading : t.caisse.empty} />
       </Card>
 
-      <Modal ouvert={modalAjout} onFermer={() => { setModalAjout(false); setFormEcriture(FORM_ECRITURE_INIT); setErreurEcriture(''); setSuccesEcriture(''); }} titre="Ecriture manuelle" taille="sm">
+      <Modal ouvert={modalAjout} onFermer={() => { setModalAjout(false); setFormEcriture(FORM_ECRITURE_INIT); setErreurEcriture(''); setSuccesEcriture(''); }} titre={t.caisse.manualEntry} taille="sm">
         <form className="space-y-4" onSubmit={handleSubmitEcriture}>
           <Select
-            label="Type *"
+            label={t.caisse.modal.typeLabel}
             value={formEcriture.type}
             onChange={(e) => setFormEcriture((f) => ({ ...f, type: e.target.value as 'entree' | 'sortie' }))}
-            options={[{ value: 'entree', label: 'Entrée' }, { value: 'sortie', label: 'Sortie' }]}
+            options={[{ value: 'entree', label: t.caisse.sens.entree }, { value: 'sortie', label: t.caisse.sens.sortie }]}
           />
           <Input
-            label="Libellé *"
-            placeholder="Description de l'écriture"
+            label={t.caisse.modal.libelleLabel}
+            placeholder={t.caisse.modal.libellePlaceholder}
             value={formEcriture.libelle}
             onChange={(e) => setFormEcriture((f) => ({ ...f, libelle: e.target.value }))}
             required
           />
           <Input
-            label="Montant (FCFA) *"
+            label={t.caisse.modal.montantLabel}
             type="number"
             placeholder="0"
             value={formEcriture.montant}
@@ -193,18 +205,18 @@ export default function CaissePage() {
             required
           />
           <Select
-            label="Catégorie"
+            label={t.caisse.modal.categorieLabel}
             value={formEcriture.categorie}
             onChange={(e) => setFormEcriture((f) => ({ ...f, categorie: e.target.value }))}
-            options={Object.entries(CAT_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+            options={CAT_ORDRE.map((v) => ({ value: v, label: CAT_LABELS[v]! }))}
           />
 
           {erreurEcriture && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">{erreurEcriture}</div>}
           {succesEcriture && <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">{succesEcriture}</div>}
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" variante="primary" fullWidth loading={ajouterEcriture.isPending}>Enregistrer</Button>
-            <Button type="button" variante="ghost" onClick={() => { setModalAjout(false); setFormEcriture(FORM_ECRITURE_INIT); setErreurEcriture(''); }}>Annuler</Button>
+            <Button type="submit" variante="primary" fullWidth loading={ajouterEcriture.isPending}>{t.common.save}</Button>
+            <Button type="button" variante="ghost" onClick={() => { setModalAjout(false); setFormEcriture(FORM_ECRITURE_INIT); setErreurEcriture(''); }}>{t.common.cancel}</Button>
           </div>
         </form>
       </Modal>

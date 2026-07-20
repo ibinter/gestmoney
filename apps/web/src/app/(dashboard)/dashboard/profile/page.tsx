@@ -11,17 +11,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { formatDate, formatDateTime, formatRelativeTime } from '@/lib/formatters';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
-
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Administrateur', SUPER_ADMIN: 'Super Administrateur',
-  admin: 'Administrateur', ADMIN: 'Administrateur',
-  NETWORK_ADMIN: 'Admin Réseau',
-  superviseur: 'Superviseur', SUPERVISEUR: 'Superviseur', AGENCY_MANAGER: 'Responsable Agence',
-  agent: 'Agent', AGENT: 'Agent',
-  ACCOUNTANT: 'Comptable', AUDITOR: 'Auditeur',
-  caissier: 'Caissier', CAISSIER: 'Caissier',
-  VIEWER: 'Observateur',
-};
+import { useT } from '@/lib/i18n';
 
 const ROLE_COLORS: Record<string, 'success' | 'warning' | 'info' | 'neutral'> = {
   super_admin: 'warning', SUPER_ADMIN: 'warning',
@@ -113,27 +103,28 @@ function useUserStats(userId: string | undefined) {
 
 function ModalModifier({ onClose, prenom, nom, email }: { onClose: () => void; prenom: string; nom: string; email: string }) {
   const [form, setForm] = useState({ prenom, nom, email, telephone: '' });
+  const t = useT();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-text-main">Modifier le profil</h2>
-          <button onClick={onClose} aria-label="Fermer" className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-gray-100">
+          <h2 className="text-lg font-bold text-text-main">{t.profile.modalTitle}</h2>
+          <button onClick={onClose} aria-label={t.profile.close} className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-gray-100">
             <X size={20} />
           </button>
         </div>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Prénom" value={form.prenom} onChange={(e) => setForm((f) => ({ ...f, prenom: e.target.value }))} />
-            <Input label="Nom" value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} />
+            <Input label={t.profile.firstName} value={form.prenom} onChange={(e) => setForm((f) => ({ ...f, prenom: e.target.value }))} />
+            <Input label={t.profile.lastName} value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} />
           </div>
-          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-          <Input label="Téléphone" value={form.telephone} onChange={(e) => setForm((f) => ({ ...f, telephone: e.target.value }))} />
+          <Input label={t.profile.email} type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+          <Input label={t.profile.phone} value={form.telephone} onChange={(e) => setForm((f) => ({ ...f, telephone: e.target.value }))} />
         </div>
         <div className="flex gap-3 mt-6">
-          <Button variante="primary" fullWidth onClick={onClose}>Enregistrer</Button>
-          <Button variante="ghost" fullWidth onClick={onClose}>Annuler</Button>
+          <Button variante="primary" fullWidth onClick={onClose}>{t.profile.save}</Button>
+          <Button variante="ghost" fullWidth onClick={onClose}>{t.profile.cancel}</Button>
         </div>
       </div>
     </div>
@@ -143,8 +134,10 @@ function ModalModifier({ onClose, prenom, nom, email }: { onClose: () => void; p
 export default function ProfilePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const { user } = useAuthStore();
+  const t = useT();
+  const roleLabels = t.profile.roles as Record<string, string>;
 
-  const prenom = user?.prenom ?? 'Utilisateur';
+  const prenom = user?.prenom ?? t.profile.defaultUser;
   const nom = user?.nom ?? '';
   const email = user?.email ?? '';
   const role = user?.role ?? 'admin';
@@ -162,11 +155,11 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Mon profil</h1>
-          <p className="text-sm text-text-muted mt-1">Consultez et gérez vos informations personnelles</p>
+          <h1 className="text-2xl font-bold text-text-main">{t.profile.title}</h1>
+          <p className="text-sm text-text-muted mt-1">{t.profile.subtitle}</p>
         </div>
         <Button variante="primary" icone={<Edit3 size={16} />} onClick={() => setModalOpen(true)}>
-          Modifier le profil
+          {t.profile.edit}
         </Button>
       </div>
 
@@ -182,17 +175,17 @@ export default function ProfilePage() {
               <div className="pb-1">
                 <h2 className="text-xl font-bold text-text-main">{prenom} {nom}</h2>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <Badge couleur={ROLE_COLORS[role] ?? 'neutral'}>{ROLE_LABELS[role] ?? role}</Badge>
-                  {user?.actif && <Badge couleur="success" point>Actif</Badge>}
+                  <Badge couleur={ROLE_COLORS[role] ?? 'neutral'}>{roleLabels[role] ?? role}</Badge>
+                  {user?.actif && <Badge couleur="success" point>{t.profile.active}</Badge>}
                 </div>
               </div>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
             {[
-              { icon: <Mail size={15} />, label: email || 'Non renseigné' },
-              { icon: <Phone size={15} />, label: 'Non renseigné' },
-              { icon: <Calendar size={15} />, label: `Membre depuis le ${formatDate(createdAt)}` },
+              { icon: <Mail size={15} />, label: email || t.profile.notProvided },
+              { icon: <Phone size={15} />, label: t.profile.notProvided },
+              { icon: <Calendar size={15} />, label: t.profile.memberSince.replace('{date}', formatDate(createdAt)) },
             ].map(({ icon, label }, i) => (
               <div key={i} className="flex items-center gap-2 text-sm text-text-muted">
                 <span className="shrink-0">{icon}</span>
@@ -221,19 +214,19 @@ export default function ProfilePage() {
         ) : (
           [
             {
-              label: 'Transactions créées',
+              label: t.profile.statTransactions,
               value: (userStats?.nbTransactions ?? 0).toLocaleString('fr-FR'),
               icon: '💳',
-              desc: 'Total depuis le début',
+              desc: t.profile.statTransactionsDesc,
             },
             {
-              label: 'Sessions',
+              label: t.profile.statSessions,
               value: (userStats?.nbSessions ?? 0).toLocaleString('fr-FR'),
               icon: '🔐',
-              desc: 'Connexions au total',
+              desc: t.profile.statSessionsDesc,
             },
             {
-              label: 'Dernière connexion',
+              label: t.profile.statLastLogin,
               value: formatRelativeTime(derniereConnexion.toISOString()),
               icon: '🕐',
               desc: formatDateTime(derniereConnexion.toISOString()),
@@ -256,20 +249,20 @@ export default function ProfilePage() {
       {/* Historique des activités */}
       <Card padding="md">
         <CardHeader>
-          <CardTitle>Historique des activités récentes</CardTitle>
+          <CardTitle>{t.profile.activityTitle}</CardTitle>
           <div className="flex items-center gap-2 text-sm text-text-muted">
             <Activity size={14} />
-            <span>{auditLogs.length} dernières actions</span>
+            <span>{t.profile.lastActions.replace('{n}', String(auditLogs.length))}</span>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left text-text-muted font-medium pb-3 pr-4">Action</th>
-                <th className="text-left text-text-muted font-medium pb-3 pr-4">Détail</th>
+                <th className="text-left text-text-muted font-medium pb-3 pr-4">{t.profile.colAction}</th>
+                <th className="text-left text-text-muted font-medium pb-3 pr-4">{t.profile.colDetail}</th>
                 <th className="text-left text-text-muted font-medium pb-3 whitespace-nowrap">
-                  <Clock size={13} className="inline mr-1" />Date
+                  <Clock size={13} className="inline mr-1" />{t.profile.colDate}
                 </th>
               </tr>
             </thead>
@@ -285,7 +278,7 @@ export default function ProfilePage() {
               ) : auditLogs.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-10 text-center text-text-muted text-sm">
-                    Aucune activité enregistrée
+                    {t.profile.noActivity}
                   </td>
                 </tr>
               ) : (

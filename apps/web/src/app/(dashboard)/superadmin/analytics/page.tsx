@@ -1,5 +1,7 @@
 'use client';
 import React, { useState } from 'react';
+import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 
 const PERIODES = ['7j', '30j', '90j', '12m'];
 
@@ -14,36 +16,36 @@ const TRAFFIC_DATA = {
   '12m': generateSeries(12, 1500, 600),
 };
 
-const TOP_PAGES = [
-  { page: '/', label: 'Landing page', vues: 4_821, duree: '1m 45s', rebond: '62%' },
-  { page: '/login', label: 'Connexion', vues: 2_340, duree: '0m 55s', rebond: '35%' },
-  { page: '/dashboard', label: 'Tableau de bord', vues: 1_982, duree: '4m 12s', rebond: '15%' },
-  { page: '/#tarifs', label: 'Section Tarifs', vues: 1_456, duree: '1m 20s', rebond: '48%' },
-  { page: '/legal/cgu', label: 'CGU', vues: 342, duree: '2m 30s', rebond: '72%' },
+const topPages = (t: Translations) => [
+  { page: '/', label: t.superadmin.analytics.pages.landing, vues: 4_821, duree: '1m 45s', rebond: '62%' },
+  { page: '/login', label: t.superadmin.analytics.pages.login, vues: 2_340, duree: '0m 55s', rebond: '35%' },
+  { page: '/dashboard', label: t.superadmin.analytics.pages.dashboard, vues: 1_982, duree: '4m 12s', rebond: '15%' },
+  { page: '/#tarifs', label: t.superadmin.analytics.pages.tarifs, vues: 1_456, duree: '1m 20s', rebond: '48%' },
+  { page: '/legal/cgu', label: t.superadmin.analytics.pages.cgu, vues: 342, duree: '2m 30s', rebond: '72%' },
 ];
 
-const TOP_EVENTS = [
-  { event: 'cta_click', label: 'Clic CTA Essai gratuit', count: 892, taux: '18.5%' },
-  { event: 'demo_request', label: 'Demande de démo', count: 143, taux: '3.0%' },
-  { event: 'login_success', label: 'Connexion réussie', count: 2_210, taux: '—' },
-  { event: 'pwa_install_prompt', label: 'Invitation PWA affichée', count: 521, taux: '10.8%' },
-  { event: 'sara_open', label: 'Ouverture SARA', count: 768, taux: '15.9%' },
+const topEvents = (t: Translations) => [
+  { event: 'cta_click', label: t.superadmin.analytics.events.ctaClick, count: 892, taux: '18.5%' },
+  { event: 'demo_request', label: t.superadmin.analytics.events.demoRequest, count: 143, taux: '3.0%' },
+  { event: 'login_success', label: t.superadmin.analytics.events.loginSuccess, count: 2_210, taux: '—' },
+  { event: 'pwa_install_prompt', label: t.superadmin.analytics.events.pwaPrompt, count: 521, taux: '10.8%' },
+  { event: 'sara_open', label: t.superadmin.analytics.events.saraOpen, count: 768, taux: '15.9%' },
 ];
 
-const SOURCES = [
-  { source: 'Organique', sessions: 2_134, pct: 44 },
-  { source: 'Direct', sessions: 1_243, pct: 26 },
-  { source: 'Réseaux sociaux', sessions: 768, pct: 16 },
-  { source: 'Partenaires', sessions: 482, pct: 10 },
-  { source: 'Emails', sessions: 192, pct: 4 },
+const sourcesList = (t: Translations) => [
+  { source: t.superadmin.analytics.sources.organique, sessions: 2_134, pct: 44 },
+  { source: t.superadmin.analytics.sources.direct, sessions: 1_243, pct: 26 },
+  { source: t.superadmin.analytics.sources.social, sessions: 768, pct: 16 },
+  { source: t.superadmin.analytics.sources.partenaires, sessions: 482, pct: 10 },
+  { source: t.superadmin.analytics.sources.emails, sessions: 192, pct: 4 },
 ];
 
-const PAYS_TOP = [
-  { pays: 'Côte d\'Ivoire', flag: '🇨🇮', sessions: 1_821 },
-  { pays: 'Sénégal', flag: '🇸🇳', sessions: 934 },
-  { pays: 'Ghana', flag: '🇬🇭', sessions: 712 },
-  { pays: 'Mali', flag: '🇲🇱', sessions: 489 },
-  { pays: 'Bénin', flag: '🇧🇯', sessions: 367 },
+const paysTop = (t: Translations) => [
+  { pays: t.superadmin.analytics.pays.ci, flag: '🇨🇮', sessions: 1_821 },
+  { pays: t.superadmin.analytics.pays.sn, flag: '🇸🇳', sessions: 934 },
+  { pays: t.superadmin.analytics.pays.gh, flag: '🇬🇭', sessions: 712 },
+  { pays: t.superadmin.analytics.pays.ml, flag: '🇲🇱', sessions: 489 },
+  { pays: t.superadmin.analytics.pays.bj, flag: '🇧🇯', sessions: 367 },
 ];
 
 function MiniSparkline({ data, couleur = '#009E00' }: { data: number[]; couleur?: string }) {
@@ -75,6 +77,11 @@ function MiniSparkline({ data, couleur = '#009E00' }: { data: number[]; couleur?
 }
 
 export default function AnalyticsPage() {
+  const t = useT();
+  const TOP_PAGES = topPages(t);
+  const TOP_EVENTS = topEvents(t);
+  const SOURCES = sourcesList(t);
+  const PAYS_TOP = paysTop(t);
   const [periode, setPeriode] = useState<keyof typeof TRAFFIC_DATA>('30j');
 
   const trafficData = TRAFFIC_DATA[periode];
@@ -85,8 +92,8 @@ export default function AnalyticsPage() {
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-text-main">Analytics Plateforme</h1>
-          <p className="text-sm text-text-muted">Trafic, engagement et conversions</p>
+          <h1 className="text-2xl font-black text-text-main">{t.superadmin.analytics.title}</h1>
+          <p className="text-sm text-text-muted">{t.superadmin.analytics.subtitle}</p>
         </div>
         <div className="flex gap-2">
           {PERIODES.map(p => (
@@ -101,15 +108,15 @@ export default function AnalyticsPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Sessions', val: totalSessions.toLocaleString(), delta: '+12%', c: '#009E00' },
-          { label: 'Moy. / jour', val: moyJour.toLocaleString(), delta: '+8%', c: '#0ea5e9' },
-          { label: 'Taux de rebond', val: '54%', delta: '-3%', c: '#f59e0b', inversed: true },
-          { label: 'Conversions', val: '143', delta: '+22%', c: '#FFD000' },
+          { label: t.superadmin.analytics.kpi.sessions, val: totalSessions.toLocaleString(), delta: '+12%', c: '#009E00' },
+          { label: t.superadmin.analytics.kpi.moyJour, val: moyJour.toLocaleString(), delta: '+8%', c: '#0ea5e9' },
+          { label: t.superadmin.analytics.kpi.rebond, val: '54%', delta: '-3%', c: '#f59e0b', inversed: true },
+          { label: t.superadmin.analytics.kpi.conversions, val: '143', delta: '+22%', c: '#FFD000' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-white/5 rounded-2xl p-4 border border-border">
             <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">{k.label}</p>
             <p className="text-2xl font-black mt-1 tabular-nums" style={{ color: k.c }}>{k.val}</p>
-            <p className={`text-xs font-bold mt-1 ${k.delta.startsWith('+') !== k.inversed ? 'text-green-600' : 'text-red-500'}`}>{k.delta} vs période précédente</p>
+            <p className={`text-xs font-bold mt-1 ${k.delta.startsWith('+') !== k.inversed ? 'text-green-600' : 'text-red-500'}`}>{k.delta} {t.superadmin.analytics.vsPrevious}</p>
           </div>
         ))}
       </div>
@@ -117,8 +124,8 @@ export default function AnalyticsPage() {
       {/* Graphe trafic */}
       <div className="bg-white dark:bg-white/5 rounded-2xl border border-border p-5 mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-bold text-text-main">Trafic — Sessions</h2>
-          <p className="text-sm text-text-muted">Derniers {periode}</p>
+          <h2 className="text-base font-bold text-text-main">{t.superadmin.analytics.trafficTitle}</h2>
+          <p className="text-sm text-text-muted">{t.superadmin.analytics.lastN} {periode}</p>
         </div>
         <MiniSparkline data={trafficData} />
       </div>
@@ -126,7 +133,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         {/* Top pages */}
         <div className="bg-white dark:bg-white/5 rounded-2xl border border-border p-5">
-          <h2 className="text-base font-bold text-text-main mb-4">Pages les plus visitées</h2>
+          <h2 className="text-base font-bold text-text-main mb-4">{t.superadmin.analytics.topPagesTitle}</h2>
           <div className="space-y-3">
             {TOP_PAGES.map((p, i) => (
               <div key={p.page} className="flex items-center gap-3">
@@ -146,7 +153,7 @@ export default function AnalyticsPage() {
 
         {/* Top événements */}
         <div className="bg-white dark:bg-white/5 rounded-2xl border border-border p-5">
-          <h2 className="text-base font-bold text-text-main mb-4">Événements clés</h2>
+          <h2 className="text-base font-bold text-text-main mb-4">{t.superadmin.analytics.topEventsTitle}</h2>
           <div className="space-y-3">
             {TOP_EVENTS.map(e => (
               <div key={e.event} className="flex items-center gap-3">
@@ -167,7 +174,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Sources */}
         <div className="bg-white dark:bg-white/5 rounded-2xl border border-border p-5">
-          <h2 className="text-base font-bold text-text-main mb-4">Sources de trafic</h2>
+          <h2 className="text-base font-bold text-text-main mb-4">{t.superadmin.analytics.sourcesTitle}</h2>
           <div className="space-y-3">
             {SOURCES.map(s => (
               <div key={s.source}>
@@ -185,7 +192,7 @@ export default function AnalyticsPage() {
 
         {/* Top pays */}
         <div className="bg-white dark:bg-white/5 rounded-2xl border border-border p-5">
-          <h2 className="text-base font-bold text-text-main mb-4">Top pays</h2>
+          <h2 className="text-base font-bold text-text-main mb-4">{t.superadmin.analytics.countriesTitle}</h2>
           <div className="space-y-3">
             {PAYS_TOP.map((p, i) => (
               <div key={p.pays} className="flex items-center gap-3">

@@ -7,6 +7,7 @@ import { exporterXlsx } from '@/lib/exportPdf';
 import { exportToPdf, ColumnType } from '@/lib/pdf';
 import { clsx } from 'clsx';
 import { useT } from '@/lib/i18n';
+import type { Translations } from '@/lib/i18n/fr';
 import {
   GmPageHeader,
   GmButton,
@@ -14,23 +15,20 @@ import {
   GmTableWrap,
 } from '@/components/gm';
 
-const PERIODES = [
-  { value: 'janvier_2024',    label: 'Janvier 2024'    },
-  { value: 'decembre_2023',   label: 'Décembre 2023'   },
-  { value: 'trimestre_4_2023',label: 'T4 2023'         },
+const periodes = (t: Translations) => [
+  { value: 'janvier_2024',     label: t.rapports.periods.janvier_2024      },
+  { value: 'decembre_2023',    label: t.rapports.periods.decembre_2023     },
+  { value: 'trimestre_4_2023', label: t.rapports.periods.trimestre_4_2023  },
 ];
 
-const TYPES_RAPPORT = [
-  { value: 'journalier',   label: 'Rapport journalier'   },
-  { value: 'hebdomadaire', label: 'Rapport hebdomadaire' },
-  { value: 'mensuel',      label: 'Rapport mensuel'      },
+const typesRapport = (t: Translations) => [
+  { value: 'journalier',   label: t.rapports.typesRapport.journalier   },
+  { value: 'hebdomadaire', label: t.rapports.typesRapport.hebdomadaire },
+  { value: 'mensuel',      label: t.rapports.typesRapport.mensuel      },
 ];
 
-const LIBELLES_TYPE: Record<RapportHistorique['type'], string> = {
-  journalier: 'Journalier',
-  hebdomadaire: 'Hebdomadaire',
-  mensuel: 'Mensuel',
-};
+const libellesType = (t: Translations): Record<RapportHistorique['type'], string> =>
+  t.rapports.typeLabels;
 
 /** Circonférence du donut (r = 45). */
 const DONUT_R = 45;
@@ -41,6 +39,9 @@ export default function RapportsPage() {
   const { data, isLoading } = useRapports(periode);
   const genererRapport = useGenererRapport();
   const t = useT();
+  const PERIODES = periodes(t);
+  const TYPES_RAPPORT = typesRapport(t);
+  const LIBELLES_TYPE = libellesType(t);
 
   const [succesGen, setSuccesGen] = useState('');
   const [rapport_courant, setRapportCourant] = useState<RapportHistorique | null>(null);
@@ -52,10 +53,10 @@ export default function RapportsPage() {
   const [filtreType, setFiltreType] = useState('tous');
 
   const COLONNES_OPERATEURS = [
-    { titre: 'Rapport',         valeur: () => rapport_courant?.titre ?? '' },
-    { titre: 'Opérateur',      valeur: (op: Record<string, unknown>) => String(op.label ?? '') },
-    { titre: 'Montant (FCFA)', valeur: (op: Record<string, unknown>) => Number(op.montant ?? 0), align: 'right' as const },
-    { titre: '% du total',     valeur: (op: Record<string, unknown>) => Number(op.pct ?? 0),     align: 'right' as const },
+    { titre: t.rapports.exports.report,      valeur: () => rapport_courant?.titre ?? '' },
+    { titre: t.rapports.exports.operator,    valeur: (op: Record<string, unknown>) => String(op.label ?? '') },
+    { titre: t.rapports.exports.amountFcfa,  valeur: (op: Record<string, unknown>) => Number(op.montant ?? 0), align: 'right' as const },
+    { titre: t.rapports.exports.pctOfTotal,  valeur: (op: Record<string, unknown>) => Number(op.pct ?? 0),     align: 'right' as const },
   ];
 
   const handleTelecharger = (rapport: RapportHistorique) => {
@@ -63,10 +64,10 @@ export default function RapportsPage() {
     exporterCsv(
       parOperateur.map((op) => ({ ...op, periode: rapport.titre })),
       [
-        { titre: 'Rapport',         valeur: () => rapport.titre },
-        { titre: 'Opérateur',       valeur: (op) => op.label },
-        { titre: 'Montant (FCFA)',  valeur: (op) => op.montant },
-        { titre: '% du total',      valeur: (op) => op.pct },
+        { titre: t.rapports.exports.report,     valeur: () => rapport.titre },
+        { titre: t.rapports.exports.operator,   valeur: (op) => op.label },
+        { titre: t.rapports.exports.amountFcfa, valeur: (op) => op.montant },
+        { titre: t.rapports.exports.pctOfTotal, valeur: (op) => op.pct },
       ],
       rapport.titre.toLowerCase().replace(/\s+/g, '_')
     );
@@ -80,21 +81,21 @@ export default function RapportsPage() {
       return;
     }
     const kpis = [
-      { label: "Chiffre d'affaires", valeur: formatMontant(ca) },
-      { label: 'Transactions',       valeur: nbTransactions.toLocaleString('fr-FR') },
-      { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
-      { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
+      { label: t.rapports.kpi.revenue,    valeur: formatMontant(ca) },
+      { label: t.rapports.kpi.transactions, valeur: nbTransactions.toLocaleString('fr-FR') },
+      { label: t.rapports.kpi.newClients, valeur: nouveauxClients.toString() },
+      { label: t.rapports.kpi.avgTicket,  valeur: formatMontant(ticketMoyen) },
     ];
     exportToPdf({
       title: rapport.titre,
       columns: [
-        { key: 'label',   label: 'Opérateur',      type: ColumnType.NAME },
-        { key: 'montant', label: 'Montant (FCFA)',  type: ColumnType.AMOUNT, align: 'right' },
-        { key: 'pct',     label: '% du total',     type: ColumnType.AMOUNT, align: 'right' },
+        { key: 'label',   label: t.rapports.exports.operator,   type: ColumnType.NAME },
+        { key: 'montant', label: t.rapports.exports.amountFcfa, type: ColumnType.AMOUNT, align: 'right' },
+        { key: 'pct',     label: t.rapports.exports.pctOfTotal, type: ColumnType.AMOUNT, align: 'right' },
       ],
       rows: parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
       options: {
-        subtitle: 'Rapport mensuel',
+        subtitle: t.rapports.exports.monthlyReport,
         period: rapport.titre,
         filename: rapport.titre.toLowerCase().replace(/\s+/g, '_'),
         kpis: kpis.map((k) => ({ label: k.label, value: k.valeur })),
@@ -107,27 +108,27 @@ export default function RapportsPage() {
     exporterXlsx(
       parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
       COLONNES_OPERATEURS,
-      { titre: rapport.titre, sousTitre: 'Rapport mensuel', periode: rapport.titre, nomFichier: rapport.titre.toLowerCase().replace(/\s+/g,'_') }
+      { titre: rapport.titre, sousTitre: t.rapports.exports.monthlyReport, periode: rapport.titre, nomFichier: rapport.titre.toLowerCase().replace(/\s+/g,'_') }
     );
   };
 
   const handleExportPdfGlobal = () => {
     const kpis = [
-      { label: "Chiffre d'affaires", valeur: formatMontant(ca) },
-      { label: 'Transactions',       valeur: nbTransactions.toLocaleString('fr-FR') },
-      { label: 'Nouveaux clients',   valeur: nouveauxClients.toString() },
-      { label: 'Ticket moyen',       valeur: formatMontant(ticketMoyen) },
+      { label: t.rapports.kpi.revenue,      valeur: formatMontant(ca) },
+      { label: t.rapports.kpi.transactions, valeur: nbTransactions.toLocaleString('fr-FR') },
+      { label: t.rapports.kpi.newClients,   valeur: nouveauxClients.toString() },
+      { label: t.rapports.kpi.avgTicket,    valeur: formatMontant(ticketMoyen) },
     ];
     exportToPdf({
-      title: `Rapport ${PERIODES.find(p => p.value === periode)?.label ?? periode}`,
+      title: `${t.rapports.exports.report} ${PERIODES.find(p => p.value === periode)?.label ?? periode}`,
       columns: [
-        { key: 'label',   label: 'Opérateur',     type: ColumnType.NAME },
-        { key: 'montant', label: 'Montant (FCFA)', type: ColumnType.AMOUNT, align: 'right' },
-        { key: 'pct',     label: '% du total',    type: ColumnType.AMOUNT, align: 'right' },
+        { key: 'label',   label: t.rapports.exports.operator,   type: ColumnType.NAME },
+        { key: 'montant', label: t.rapports.exports.amountFcfa, type: ColumnType.AMOUNT, align: 'right' },
+        { key: 'pct',     label: t.rapports.exports.pctOfTotal, type: ColumnType.AMOUNT, align: 'right' },
       ],
       rows: parOperateur.map((op) => ({ ...op }) as Record<string, unknown>),
       options: {
-        subtitle: 'Business Intelligence',
+        subtitle: t.rapports.exports.bi,
         period: PERIODES.find(p => p.value === periode)?.label,
         kpis: kpis.map((k) => ({ label: k.label, value: k.valeur })),
       },
@@ -137,7 +138,7 @@ export default function RapportsPage() {
   const handleGenerer = async () => {
     await genererRapport.mutateAsync({ periode, type: typeGen });
     setModaleOuverte(false);
-    setSuccesGen('Rapport en cours de génération. Disponible dans quelques instants.');
+    setSuccesGen(t.rapports.generation.queued);
     setTimeout(() => setSuccesGen(''), 4000);
   };
 
@@ -217,14 +218,14 @@ export default function RapportsPage() {
       <GmPageHeader
         titre={t.rapports.title}
         sousTitre={t.rapports.subtitle}
-        fil={['Accueil', 'Rapports & BI']}
+        fil={[t.common.home, t.rapports.breadcrumb]}
         actions={
           <>
             <select
               className="gm-filter-select"
               value={periode}
               onChange={(e) => setPeriode(e.target.value)}
-              aria-label="Période"
+              aria-label={t.rapports.periodAria}
             >
               {PERIODES.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
@@ -245,23 +246,25 @@ export default function RapportsPage() {
         <div className="gm-stat-card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <div className="gm-stat-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>📊</div>
           <div>
-            <div className="gm-stat-label">Rapports disponibles</div>
+            <div className="gm-stat-label">{t.rapports.stats.available}</div>
             <div className="gm-stat-value">{nbDisponibles}</div>
-            <div className="gm-stat-sub">{historique.length} au total sur la période</div>
+            <div className="gm-stat-sub">{historique.length} {t.rapports.stats.totalOnPeriod}</div>
           </div>
         </div>
         <div className="gm-stat-card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <div className="gm-stat-icon" style={{ background: 'rgba(245,184,0,0.15)' }}>⏳</div>
           <div>
-            <div className="gm-stat-label">En génération</div>
+            <div className="gm-stat-label">{t.rapports.stats.generating}</div>
             <div className="gm-stat-value">{nbEnCours}</div>
-            <div className="gm-stat-sub">{nbEnCours > 0 ? 'Traitement en cours' : 'Aucun traitement en cours'}</div>
+            <div className="gm-stat-sub">
+              {nbEnCours > 0 ? t.rapports.stats.processing : t.rapports.stats.noProcessing}
+            </div>
           </div>
         </div>
         <div className="gm-stat-card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <div className="gm-stat-icon" style={{ background: 'rgba(34,197,94,0.1)' }}>✅</div>
           <div>
-            <div className="gm-stat-label">Dernier rapport</div>
+            <div className="gm-stat-label">{t.rapports.stats.lastReport}</div>
             <div className="gm-stat-value" style={{ fontSize: 18 }}>
               {dernier ? formatDate(dernier.date) : '—'}
             </div>
@@ -273,7 +276,7 @@ export default function RapportsPage() {
       {/* ─── KPIs de la période ─── */}
       <div className="gm-kpi-grid">
         <div className="gm-kpi-card">
-          <div className="gm-kpi-label">Chiffre d&apos;affaires</div>
+          <div className="gm-kpi-label">{t.rapports.kpi.revenue}</div>
           <div className="gm-kpi-value">{formatMontant(ca)}</div>
           {typeof data?.variationCa === 'number' && (
             <div className={clsx('gm-kpi-trend', data.variationCa >= 0 ? 'gm-trend-up' : 'gm-trend-down')}>
@@ -282,7 +285,7 @@ export default function RapportsPage() {
           )}
         </div>
         <div className="gm-kpi-card">
-          <div className="gm-kpi-label">Transactions</div>
+          <div className="gm-kpi-label">{t.rapports.kpi.transactions}</div>
           <div className="gm-kpi-value">{nbTransactions.toLocaleString('fr-FR')}</div>
           {typeof data?.variationTx === 'number' && (
             <div className={clsx('gm-kpi-trend', data.variationTx >= 0 ? 'gm-trend-up' : 'gm-trend-down')}>
@@ -291,7 +294,7 @@ export default function RapportsPage() {
           )}
         </div>
         <div className="gm-kpi-card">
-          <div className="gm-kpi-label">Nouveaux clients</div>
+          <div className="gm-kpi-label">{t.rapports.kpi.newClients}</div>
           <div className="gm-kpi-value">{nouveauxClients.toLocaleString('fr-FR')}</div>
           {typeof data?.variationClients === 'number' && (
             <div className={clsx('gm-kpi-trend', data.variationClients >= 0 ? 'gm-trend-up' : 'gm-trend-down')}>
@@ -300,9 +303,9 @@ export default function RapportsPage() {
           )}
         </div>
         <div className="gm-kpi-card">
-          <div className="gm-kpi-label">Ticket moyen</div>
+          <div className="gm-kpi-label">{t.rapports.kpi.avgTicket}</div>
           <div className="gm-kpi-value">{formatMontant(ticketMoyen)}</div>
-          <div className="gm-kpi-trend gm-trend-neutral">Sur la période</div>
+          <div className="gm-kpi-trend gm-trend-neutral">{t.rapports.kpi.onPeriod}</div>
         </div>
       </div>
 
@@ -311,7 +314,7 @@ export default function RapportsPage() {
         <div className="gm-alert-banner" style={{ marginBottom: 20 }}>
           <div className="gm-alert-icon">⏳</div>
           <div className="gm-alert-content">
-            <div className="gm-alert-title">Génération lancée</div>
+            <div className="gm-alert-title">{t.rapports.generation.bannerTitle}</div>
             <div className="gm-alert-desc">{succesGen}</div>
           </div>
         </div>
@@ -341,15 +344,17 @@ export default function RapportsPage() {
           </span>
         }
       >
-        Aperçu rapide
+        {t.rapports.overview.title}
       </GmSectionTitle>
       <div className="gm-charts-grid">
 
         {/* Donut — répartition par opérateur */}
         <div className="gm-chart-card">
-          <div className="gm-chart-title">Répartition par opérateur</div>
+          <div className="gm-chart-title">{t.rapports.overview.byOperator}</div>
           <div className="gm-chart-sub">
-            {totalOperateurs > 0 ? `${formatMontant(totalOperateurs)} au total` : '—'}
+            {totalOperateurs > 0
+              ? `${formatMontant(totalOperateurs)} ${t.rapports.overview.totalSuffix}`
+              : '—'}
           </div>
           {segments.length === 0 ? (
             <div style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>—</div>
@@ -375,7 +380,7 @@ export default function RapportsPage() {
                 {nbTransactions.toLocaleString('fr-FR')}
               </text>
               <text x="70" y="80" textAnchor="middle" fontSize="7" fill="var(--gm-text-2)">
-                transactions
+                {t.rapports.overview.transactions}
               </text>
               {segments.slice(0, 5).map((s, i) => (
                 <g key={s.key}>
@@ -391,8 +396,8 @@ export default function RapportsPage() {
 
         {/* Barres — top agents */}
         <div className="gm-chart-card">
-          <div className="gm-chart-title">Top agents</div>
-          <div className="gm-chart-sub">Volume traité sur la période</div>
+          <div className="gm-chart-title">{t.rapports.overview.topAgents}</div>
+          <div className="gm-chart-sub">{t.rapports.overview.topAgentsSub}</div>
           {topAgents.length === 0 ? (
             <div style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>—</div>
           ) : (
@@ -410,7 +415,7 @@ export default function RapportsPage() {
                     />
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--gm-text-2)', marginTop: 2 }}>
-                    {agent.agence} — {agent.nbTx} tx
+                    {agent.agence} — {agent.nbTx} {t.rapports.overview.txSuffix}
                   </div>
                 </div>
               ))}
@@ -420,8 +425,8 @@ export default function RapportsPage() {
 
         {/* Progression vers l'objectif */}
         <div className="gm-chart-card">
-          <div className="gm-chart-title">Progression vers l&apos;objectif</div>
-          <div className="gm-chart-sub">Objectif : {formatMontant(objectif)}</div>
+          <div className="gm-chart-title">{t.rapports.overview.progressTitle}</div>
+          <div className="gm-chart-sub">{t.rapports.overview.objectivePrefix} {formatMontant(objectif)}</div>
           <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.5px', marginBottom: 10 }}>
             {progression}%
           </div>
@@ -443,39 +448,39 @@ export default function RapportsPage() {
             <input
               type="text"
               className="gm-search-input"
-              placeholder="🔍 Rechercher un rapport…"
+              placeholder={t.rapports.table.searchPlaceholder}
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
               style={{ width: 220 }}
             />
-            <select value={filtreType} onChange={(e) => setFiltreType(e.target.value)} aria-label="Type de rapport">
-              <option value="tous">Tous les types</option>
-              <option value="journalier">Journalier</option>
-              <option value="hebdomadaire">Hebdomadaire</option>
-              <option value="mensuel">Mensuel</option>
+            <select value={filtreType} onChange={(e) => setFiltreType(e.target.value)} aria-label={t.rapports.table.typeFilterAria}>
+              <option value="tous">{t.rapports.table.allTypes}</option>
+              <option value="journalier">{t.rapports.typeLabels.journalier}</option>
+              <option value="hebdomadaire">{t.rapports.typeLabels.hebdomadaire}</option>
+              <option value="mensuel">{t.rapports.typeLabels.mensuel}</option>
             </select>
           </div>
           <span className="gm-sort-note">
-            {historiqueFiltre.length} rapport{historiqueFiltre.length > 1 ? 's' : ''}
+            {historiqueFiltre.length} {t.rapports.table.countSuffix}
           </span>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
-                <th>Nom du rapport</th>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Taille</th>
-                <th>Statut</th>
-                <th>Actions</th>
+                <th>{t.rapports.table.colName}</th>
+                <th>{t.common.date}</th>
+                <th>{t.common.type}</th>
+                <th>{t.rapports.table.colSize}</th>
+                <th>{t.common.statut}</th>
+                <th>{t.common.actions}</th>
               </tr>
             </thead>
             <tbody>
               {historiqueFiltre.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', color: 'var(--gm-text-2)' }}>
-                    Aucun rapport
+                    {t.rapports.table.empty}
                   </td>
                 </tr>
               ) : (
@@ -496,7 +501,9 @@ export default function RapportsPage() {
                           r.statut === 'disponible' ? 'gm-pill-success' : 'gm-pill-pending',
                         )}
                       >
-                        {r.statut === 'disponible' ? 'Disponible' : 'En cours'}
+                        {r.statut === 'disponible'
+                          ? t.rapports.table.statusAvailable
+                          : t.rapports.table.statusInProgress}
                       </span>
                     </td>
                     <td>
@@ -534,13 +541,13 @@ export default function RapportsPage() {
         <div className="gm-modal">
           <div className="gm-modal-head">
             <div className="gm-modal-title">📊 {t.rapports.generate}</div>
-            <button className="gm-modal-close" onClick={() => setModaleOuverte(false)} aria-label="Fermer">
+            <button className="gm-modal-close" onClick={() => setModaleOuverte(false)} aria-label={t.rapports.generation.closeAria}>
               ✕
             </button>
           </div>
           <div className="gm-modal-body">
             <div className="gm-form-group">
-              <label htmlFor="gen-type">Type de rapport</label>
+              <label htmlFor="gen-type">{t.rapports.generation.typeLabel}</label>
               <select id="gen-type" value={typeGen} onChange={(e) => setTypeGen(e.target.value)}>
                 {TYPES_RAPPORT.map((ty) => (
                   <option key={ty.value} value={ty.value}>{ty.label}</option>
@@ -548,7 +555,7 @@ export default function RapportsPage() {
               </select>
             </div>
             <div className="gm-form-group">
-              <label htmlFor="gen-periode">Période</label>
+              <label htmlFor="gen-periode">{t.rapports.generation.periodLabel}</label>
               <select id="gen-periode" value={periode} onChange={(e) => setPeriode(e.target.value)}>
                 {PERIODES.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
@@ -558,10 +565,10 @@ export default function RapportsPage() {
           </div>
           <div className="gm-modal-foot">
             <GmButton variante="outline" onClick={() => setModaleOuverte(false)}>
-              Annuler
+              {t.common.cancel}
             </GmButton>
             <GmButton variante="primary" onClick={handleGenerer} disabled={genererRapport.isPending}>
-              {genererRapport.isPending ? 'Génération…' : `📊 ${t.rapports.generate}`}
+              {genererRapport.isPending ? t.rapports.generation.inProgress : `📊 ${t.rapports.generate}`}
             </GmButton>
           </div>
         </div>
