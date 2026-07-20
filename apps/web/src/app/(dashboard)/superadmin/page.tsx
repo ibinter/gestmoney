@@ -11,6 +11,15 @@ import { formatMontant, formatRelativeTime } from '@/lib/formatters';
 import api from '@/lib/api';
 
 // ─── Données mock SuperAdmin (fallback si API absente) ─────────────────────
+/** Nombre, ou « — » si la donnée n'existe pas. Ne fabrique jamais de zéro
+ *  trompeur : un 0 affiché se lit comme une mesure, pas comme une absence. */
+const n = (v: number | null | undefined): string =>
+  v === null || v === undefined ? '—' : v.toLocaleString('fr-FR');
+
+/** Montant, ou « — » si la donnée n'existe pas. */
+const m = (v: number | null | undefined): string =>
+  v === null || v === undefined ? '—' : formatMontant(v);
+
 const MOCK_STATS = {
   tenants: { total: 12, actifs: 9, essai: 2, expires: 1 },
   utilisateurs: { total: 147, actifs: 98, suspendus: 3 },
@@ -145,14 +154,19 @@ export default function SuperAdminPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard titre="Tenants actifs"       valeur={s.tenants.actifs}           soustitre={`${s.tenants.total} au total`}                  icone={<Building2 size={18} />}  couleur="#009E00" />
-          <KpiCard titre="Essais en cours"      valeur={s.tenants.essai}            soustitre={`${s.tenants.expires} expiré(s)`}               icone={<Clock size={18} />}      couleur="#FFD000" />
-          <KpiCard titre="Utilisateurs actifs"  valeur={s.utilisateurs.actifs}      soustitre={`${s.utilisateurs.total} inscrits`}             icone={<Users size={18} />}      couleur="#3B82F6" />
-          <KpiCard titre="Tx aujourd'hui"       valeur={s.transactions.aujourd_hui.toLocaleString('fr-FR')} soustitre={formatMontant(s.transactions.montant_aujourd_hui)} icone={<Activity size={18} />}   couleur="#8B5CF6" />
-          <KpiCard titre="MRR"                  valeur={formatMontant(s.revenus.mrr)} soustitre={`ARR : ${formatMontant(s.revenus.arr)}`}       icone={<TrendingUp size={18} />} couleur="#10B981" />
-          <KpiCard titre="En attente paiement"  valeur={formatMontant(s.revenus.en_attente)} soustitre="À relancer"                            icone={<AlertTriangle size={18} />} couleur="#F59E0B" />
-          <KpiCard titre="Tickets ouverts"      valeur={s.tickets.ouverts}          soustitre={`${s.tickets.en_cours} en cours`}               icone={<AlertTriangle size={18} />} couleur="#EF4444" />
-          <KpiCard titre="Latence API"          valeur={`${s.sante.api_latency_ms} ms`} soustitre={`${s.sante.erreurs_24h} erreur(s) / 24h`}  icone={<Server size={18} />}     couleur="#6B7280" />
+          {/* Chaque bloc peut être absent : l'API renvoie `null` quand aucune
+              source réelle ne l'alimente (MRR, tickets, supervision). On
+              affiche « — » plutôt que d'inventer un chiffre, et surtout la
+              page ne doit jamais tomber sur une donnée manquante — c'est ce
+              qui la rendait entièrement blanche. */}
+          <KpiCard titre="Tenants actifs"       valeur={n(s.tenants?.actifs)}       soustitre={`${n(s.tenants?.total)} au total`}              icone={<Building2 size={18} />}  couleur="#009E00" />
+          <KpiCard titre="Essais en cours"      valeur={n(s.tenants?.essai)}        soustitre={`${n(s.tenants?.expires)} expiré(s)`}           icone={<Clock size={18} />}      couleur="#FFD000" />
+          <KpiCard titre="Utilisateurs actifs"  valeur={n(s.utilisateurs?.actifs)}  soustitre={`${n(s.utilisateurs?.total)} inscrits`}         icone={<Users size={18} />}      couleur="#3B82F6" />
+          <KpiCard titre="Tx aujourd'hui"       valeur={n(s.transactions?.aujourd_hui)} soustitre={m(s.transactions?.montant_aujourd_hui)}    icone={<Activity size={18} />}   couleur="#8B5CF6" />
+          <KpiCard titre="MRR"                  valeur={m(s.revenus?.mrr)}          soustitre={`ARR : ${m(s.revenus?.arr)}`}                   icone={<TrendingUp size={18} />} couleur="#10B981" />
+          <KpiCard titre="En attente paiement"  valeur={m(s.revenus?.en_attente)}   soustitre="À relancer"                                    icone={<AlertTriangle size={18} />} couleur="#F59E0B" />
+          <KpiCard titre="Tickets ouverts"      valeur={n(s.tickets?.ouverts)}      soustitre={s.tickets ? `${n(s.tickets.en_cours)} en cours` : 'Module non branché'} icone={<AlertTriangle size={18} />} couleur="#EF4444" />
+          <KpiCard titre="Latence API"          valeur={s.sante ? `${n(s.sante.api_latency_ms)} ms` : '—'} soustitre={s.sante ? `${n(s.sante.erreurs_24h)} erreur(s) / 24h` : 'Supervision non branchée'} icone={<Server size={18} />} couleur="#6B7280" />
         </div>
       )}
 

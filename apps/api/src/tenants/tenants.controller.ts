@@ -60,9 +60,9 @@ export class TenantsController {
   // qui était le cas, et faisait basculer la console SuperAdmin sur des
   // statistiques fictives sans le signaler.
   @Get('stats')
-  @ApiOperation({ summary: 'Statistiques du tenant courant' })
-  getCurrentTenantStats(@CurrentUser('tenantId') tenantId: string) {
-    return this.tenantsService.getStats(tenantId);
+  @ApiOperation({ summary: 'Statistiques globales de la plateforme (console SuperAdmin)' })
+  getStatsGlobales() {
+    return this.tenantsService.getStatsGlobales();
   }
 
   @Get(':id')
