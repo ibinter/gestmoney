@@ -263,7 +263,7 @@ export class IntegrationsService {
 
   async syncBalance(agentId: string, operator: OperatorCode, tenantId: string): Promise<OperatorBalance> {
     const floatAccount = await this.prisma.floatAccount.findFirst({
-      where: { agentId, operateur: operator as any, tenantId },
+      where: { agentId, network: { operatorCode: operator }, tenantId },
     });
 
     if (!floatAccount) {
@@ -283,7 +283,7 @@ export class IntegrationsService {
       // Mettre à jour le float en DB
       await this.prisma.floatAccount.update({
         where: { id: floatAccount.id },
-        data: { solde: balance.balance, updatedAt: new Date() },
+        data: { balance: balance.balance, updatedAt: new Date() },
       });
 
       await this.logApiCall({
@@ -318,17 +318,17 @@ export class IntegrationsService {
   async syncAllBalances(tenantId: string): Promise<Record<string, any>> {
     const floatAccounts = await this.prisma.floatAccount.findMany({
       where: { tenantId },
-      include: { agent: true },
+      include: { agent: true, network: true },
     });
 
     const results: Record<string, any> = {};
 
     for (const account of floatAccounts) {
-      const key = `${account.agentId}:${account.operateur}`;
+      const key = `${account.agentId}:${account.network.operatorCode}`;
       try {
         const balance = await this.syncBalance(
           account.agentId,
-          account.operateur as OperatorCode,
+          account.network.operatorCode as OperatorCode,
           tenantId,
         );
         results[key] = { success: true, balance };

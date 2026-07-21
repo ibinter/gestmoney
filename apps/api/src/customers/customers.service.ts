@@ -198,6 +198,8 @@ export class CustomersService {
 
   async addLoyaltyPoints(customerId: string, tenantId: string, montant: number): Promise<void> {
     try {
+      // 1 point de fidélité gagné par tranche de 1000 (FCFA) sur le montant de la transaction
+      const pointsGagnes = Math.floor(montant / 1000);
       if (pointsGagnes > 0) {
         await this.prisma.customer.update({
           where: { id: customerId },

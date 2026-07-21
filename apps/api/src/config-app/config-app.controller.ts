@@ -75,7 +75,7 @@ export class ConfigAppController {
 
   @Post('exchange-rates/refresh')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.NETWORK_ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rafraîchir les taux de change depuis API externe (admin)' })
   async refreshExchangeRates() {
@@ -107,7 +107,7 @@ export class ConfigAppController {
 
   @Patch('tenant')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Configurer le tenant — pays, devise principale, langue (admin)' })
   async updateTenantConfig(
     @CurrentUser() user: JwtPayload,
@@ -151,7 +151,7 @@ export class ConfigAppController {
 
   @Post('limits')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Définir limites personnalisées par pays/opérateur (admin)' })
   async setLimits(
     @CurrentUser() user: JwtPayload,

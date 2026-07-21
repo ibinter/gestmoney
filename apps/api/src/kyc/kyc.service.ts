@@ -117,8 +117,8 @@ export class KycService {
     }
 
     // Vérifier l'expiration
-    if (kyc.status === KycStatus.VERIFIED && kyc.verifiedAt) {
-      const expiresAt = new Date(kyc.verifiedAt.getTime() + KYC_EXPIRY_MS);
+    if (kyc.status === KycStatus.VERIFIED && kyc.reviewedAt) {
+      const expiresAt = new Date(kyc.reviewedAt.getTime() + KYC_EXPIRY_MS);
       if (expiresAt < new Date()) {
         await this.prisma.kycVerification.update({
           where: { id: kyc.id },

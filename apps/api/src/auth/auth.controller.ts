@@ -60,7 +60,10 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(loginDto, tenantId || loginDto.tenantId);
-    if (result.accessToken) {
+    // `login()` renvoie une union : soit le cas 2FA ({ requiresTwoFactor, userId }),
+    // soit le cas nominal ({ user, accessToken, refreshToken }). On restreint le
+    // type avant d'accéder aux jetons.
+    if ('accessToken' in result && result.accessToken) {
       const isProd = process.env.NODE_ENV === 'production';
       res.cookie('gestmoney_token', result.accessToken, {
         httpOnly: true,

@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { authenticator } from 'otplib';
+import { verifySync } from 'otplib';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -15,11 +15,9 @@ jest.mock('bcrypt');
 // d'abord require() le vrai module et échouerait au parsing de cet ESM. La
 // fabrique fournit directement la surface utilisée par le service.
 jest.mock('otplib', () => ({
-  authenticator: {
-    verify: jest.fn(),
-    generateSecret: jest.fn(() => 'MOCK_SECRET'),
-    keyuri: jest.fn(() => 'otpauth://mock'),
-  },
+  verifySync: jest.fn(() => ({ valid: true })),
+  generateSecret: jest.fn(() => 'MOCK_SECRET'),
+  generateURI: jest.fn(() => 'otpauth://mock'),
 }));
 
 const mockUser = {
@@ -124,7 +122,7 @@ describe('AuthService', () => {
 
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
-      expect(result.user.email).toBe(mockUser.email);
+      expect((result as any).user.email).toBe(mockUser.email);
     });
 
     it('devrait lever UnauthorizedException pour un mot de passe incorrect', async () => {
@@ -278,7 +276,7 @@ describe('AuthService', () => {
         twoFactorSecret: 'SECRET',
         twoFactorEnabled: false,
       });
-      (authenticator.verify as jest.Mock).mockReturnValue(true);
+      (verifySync as jest.Mock).mockReturnValue({ valid: true });
       mockPrisma.user.update.mockResolvedValue({});
       mockPrisma.auditLog.create.mockResolvedValue({});
 
@@ -292,7 +290,7 @@ describe('AuthService', () => {
         ...mockUser,
         twoFactorSecret: 'SECRET',
       });
-      (authenticator.verify as jest.Mock).mockReturnValue(false);
+      (verifySync as jest.Mock).mockReturnValue({ valid: false });
 
       await expect(
         service.verify2FA('user-uuid-1', 'tenant-1', dto),

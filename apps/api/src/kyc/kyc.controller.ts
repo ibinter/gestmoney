@@ -54,7 +54,7 @@ export class KycController {
 
   @Get('pending')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Liste des demandes KYC en attente de vérification (admin)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -68,7 +68,7 @@ export class KycController {
 
   @Patch('approve/:userId')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Approuver un KYC (admin) — débloque les limites supérieures' })
   @ApiParam({ name: 'userId', description: 'ID de l\'utilisateur à approuver' })
   approve(
@@ -80,7 +80,7 @@ export class KycController {
 
   @Patch('reject/:userId')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Rejeter un KYC avec motif (admin)' })
   @ApiParam({ name: 'userId', description: 'ID de l\'utilisateur dont le KYC est rejeté' })
   reject(

@@ -10,7 +10,10 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { authenticator } from 'otplib';
+// otplib v13 : API fonctionnelle (l'ancien objet `authenticator` de la v12
+// n'existe plus). generateSecret/generateURI/verifySync remplacent
+// authenticator.generateSecret/keyuri/verify.
+import { generateSecret, generateURI, verifySync } from 'otplib';
 import * as QRCode from 'qrcode';
 import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dto/login.dto';
@@ -85,10 +88,10 @@ export class AuthService {
       if (!twoFactorCode) {
         return { requiresTwoFactor: true, userId: user.id };
       }
-      const isValidCode = authenticator.verify({
+      const isValidCode = verifySync({
         token: twoFactorCode,
         secret: user.twoFactorSecret || '',
-      });
+      }).valid;
       if (!isValidCode) {
         throw new UnauthorizedException('Code 2FA invalide');
       }
@@ -366,8 +369,12 @@ export class AuthService {
       throw new BadRequestException('L\'authentification 2FA est déjà activée');
     }
 
-    const secret = authenticator.generateSecret();
-    const otpAuthUrl = authenticator.keyuri(user.email, 'GESTMONEY', secret);
+    const secret = generateSecret();
+    const otpAuthUrl = generateURI({
+      issuer: 'GESTMONEY',
+      label: user.email,
+      secret,
+    });
     const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
 
     await this.prisma.user.update({
@@ -387,7 +394,7 @@ export class AuthService {
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
     if (!user.twoFactorSecret) throw new BadRequestException('2FA non initialisé');
 
-    const isValid = authenticator.verify({ token: dto.code, secret: user.twoFactorSecret });
+    const isValid = verifySync({ token: dto.code, secret: user.twoFactorSecret }).valid;
     if (!isValid) throw new UnauthorizedException('Code 2FA invalide');
 
     await this.prisma.user.update({

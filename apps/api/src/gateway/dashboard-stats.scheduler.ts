@@ -22,7 +22,7 @@ export class DashboardStatsScheduler {
     try {
       // Récupérer tous les tenants actifs
       const tenants = await this.prisma.tenant.findMany({
-        where: { isActive: true },
+        where: { status: 'ACTIVE' },
         select: { id: true },
       });
 
@@ -69,7 +69,7 @@ export class DashboardStatsScheduler {
         this.prisma.floatAccount.findMany({
           where: { tenantId },
           select: {
-            operatorCode: true,
+            network: { select: { operatorCode: true } },
             balance: true,
             currency: true,
           },
@@ -79,7 +79,7 @@ export class DashboardStatsScheduler {
         this.prisma.agent.count({
           where: {
             tenantId,
-            isActive: true,
+            status: 'ACTIVE',
             lastActivityAt: {
               gte: new Date(Date.now() - 5 * 60 * 1000),
             },
@@ -111,7 +111,7 @@ export class DashboardStatsScheduler {
         float: {
           totalBalance: floatTotal,
           byOperator: floatEntries.map((f) => ({
-            operator: f.operatorCode,
+            operator: f.network.operatorCode,
             balance: f.balance?.toNumber?.() ?? Number(f.balance) ?? 0,
             currency: f.currency,
           })),
