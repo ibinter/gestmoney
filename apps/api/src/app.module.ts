@@ -29,6 +29,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { AiModule } from "./ai/ai.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { LicencesModule } from "./licences/licences.module";
+import { CashierModule } from "./cashier/cashier.module";
 import { CrmModule } from "./superadmin/crm/crm.module";
 import { OpsModule } from "./superadmin/ops/ops.module";
 import { LicenceGuard } from "./licences/licence.guard";
@@ -79,6 +80,7 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     AiModule,
     PaymentsModule,
     LicencesModule,
+    CashierModule,
     CrmModule,
     OpsModule,
   ],

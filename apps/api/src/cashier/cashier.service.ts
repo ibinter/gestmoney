@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CaisseAlreadyOpenException,
@@ -7,7 +11,6 @@ import {
 import { normaliserPagination } from '../common/utils/pagination';
 
 export interface OpenCaisseDto {
-  agentId: string;
   soldInitial: number;
   notes?: string;
 }
@@ -23,245 +26,263 @@ export interface CaisseEntryDto {
   type: 'ENTREE' | 'SORTIE';
 }
 
-export interface VaultOperationDto {
-  montant: number;
-  motif?: string;
-}
-
+/**
+ * Service caisse — recâblé sur le schéma Prisma RÉEL.
+ *
+ * Modèles réels :
+ *   - Cashier      : caisse PERSISTANTE par utilisateur (userId @unique),
+ *                    rattachée à une agence, avec isOpen / opening/closingBalance.
+ *   - CashMovement : mouvement (type FloatMovementType CREDIT/DEBIT, amount,
+ *                    balanceBefore/After, description, reference, performedById).
+ *
+ * L'ancienne implémentation visait des modèles inexistants (`caisseSession`,
+ * `caisseMovement`, `vaultMovement`) et des champs FR : elle ne compilait pas
+ * et n'était même pas branchée (module absent d'app.module). Le solde courant
+ * est le `balanceAfter` du dernier mouvement (à défaut l'openingBalance).
+ *
+ * Périmètre volontairement scopé à la caisse de l'utilisateur courant (la page
+ * /dashboard/caisse) : pas d'agrégat tenant inventé.
+ */
 @Injectable()
 export class CashierService {
   private readonly logger = new Logger(CashierService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async getOpenSession(agentId: string, tenantId: string) {
-    return this.prisma.caisseSession.findFirst({
-      where: { agentId, tenantId, statut: 'OUVERTE' },
-    });
+  private num(v: any): number {
+    return v == null ? 0 : Number(v);
   }
 
-  // ─── Balance ──────────────────────────────────────────────────────────────────
+  private async caisseDe(userId: string, tenantId: string) {
+    return this.prisma.cashier.findFirst({ where: { userId, tenantId } });
+  }
 
-  async getBalance(agentId: string, tenantId: string) {
-    const session = await this.getOpenSession(agentId, tenantId);
-    if (!session) return { statut: 'FERMEE', solde: 0 };
-
-    const movements = await this.prisma.caisseMovement.aggregate({
-      where: { sessionId: session.id, tenantId },
-      _sum: { montantEntree: true, montantSortie: true },
+  private async soldeCourant(cashier: {
+    id: string;
+    openingBalance: any;
+  }): Promise<number> {
+    const dernier = await this.prisma.cashMovement.findFirst({
+      where: { cashierId: cashier.id },
+      orderBy: { createdAt: 'desc' },
     });
+    return dernier ? this.num(dernier.balanceAfter) : this.num(cashier.openingBalance);
+  }
 
-    const solde =
-      session.soldeInitial +
-      (movements._sum.montantEntree ?? 0) -
-      (movements._sum.montantSortie ?? 0);
+  // ─── Solde / stats ─────────────────────────────────────────────────────────────
+
+  async getBalance(userId: string, tenantId: string) {
+    const cashier = await this.caisseDe(userId, tenantId);
+    if (!cashier || !cashier.isOpen) return { statut: 'FERMEE', soldeActuel: 0 };
 
     return {
       statut: 'OUVERTE',
-      sessionId: session.id,
-      soldeInitial: session.soldeInitial,
-      totalEntrees: movements._sum.montantEntree ?? 0,
-      totalSorties: movements._sum.montantSortie ?? 0,
-      soldeActuel: solde,
-      ouvertureAt: session.createdAt,
+      cashierId: cashier.id,
+      soldeInitial: this.num(cashier.openingBalance),
+      soldeActuel: await this.soldeCourant(cashier),
+      ouvertureAt: cashier.openedAt,
     };
   }
 
-  // ─── Ouverture / Clôture ─────────────────────────────────────────────────────
+  async getStats(userId: string, tenantId: string) {
+    const cashier = await this.caisseDe(userId, tenantId);
+    const soldeOuverture = cashier ? this.num(cashier.openingBalance) : 0;
+    const soldeActuel = cashier ? await this.soldeCourant(cashier) : 0;
 
-  async open(dto: OpenCaisseDto, tenantId: string, userId: string) {
-    const existing = await this.getOpenSession(dto.agentId, tenantId);
-    if (existing) throw new CaisseAlreadyOpenException();
+    if (!cashier) {
+      return {
+        statut: 'FERMEE',
+        soldeActuel: 0,
+        soldeOuverture: 0,
+        entreesJour: 0,
+        sortiesJour: 0,
+        nbEntrees: 0,
+        nbSorties: 0,
+      };
+    }
 
-    const session = await this.prisma.$transaction(async (tx) => {
-      const s = await tx.caisseSession.create({
-        data: {
-          tenantId,
-          agentId: dto.agentId,
-          ouvertPar: userId,
-          soldeInitial: dto.soldInitial,
-          statut: 'OUVERTE',
-          notes: dto.notes,
-        },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          userId,
-          action: 'CAISSE_OPENED',
-          entityType: 'CaisseSession',
-          entityId: s.id,
-          details: { soldeInitial: dto.soldInitial, agentId: dto.agentId },
-        },
-      });
-
-      return s;
+    const now = new Date();
+    const debutJour = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const parType = await this.prisma.cashMovement.groupBy({
+      by: ['type'],
+      where: { cashierId: cashier.id, tenantId, createdAt: { gte: debutJour } },
+      _sum: { amount: true },
+      _count: { _all: true },
     });
 
-    this.logger.log(`Caisse ouverte: Agent ${dto.agentId}, Solde initial: ${dto.soldInitial} FCFA`);
-    return session;
+    const credit = parType.find((g: any) => g.type === 'CREDIT');
+    const debit = parType.find((g: any) => g.type === 'DEBIT');
+
+    return {
+      statut: cashier.isOpen ? 'OUVERTE' : 'FERMEE',
+      soldeActuel,
+      soldeOuverture,
+      entreesJour: this.num(credit?._sum.amount),
+      sortiesJour: this.num(debit?._sum.amount),
+      nbEntrees: credit?._count._all ?? 0,
+      nbSorties: debit?._count._all ?? 0,
+    };
   }
 
-  async close(agentId: string, dto: CloseCaisseDto, tenantId: string, userId: string) {
-    const session = await this.getOpenSession(agentId, tenantId);
-    if (!session) throw new CaisseNotOpenException();
+  // ─── Écritures ─────────────────────────────────────────────────────────────────
 
-    const balance = await this.getBalance(agentId, tenantId);
-    const ecart = dto.soldeFinal - (balance.soldeActuel ?? 0);
-
-    const closed = await this.prisma.$transaction(async (tx) => {
-      const s = await tx.caisseSession.update({
-        where: { id: session.id },
-        data: {
-          statut: 'FERMEE',
-          soldeFinal: dto.soldeFinal,
-          ecart,
-          closedAt: new Date(),
-          fermetPar: userId,
-          notes: dto.notes,
-        },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          userId,
-          action: 'CAISSE_CLOSED',
-          entityType: 'CaisseSession',
-          entityId: s.id,
-          details: { soldeFinal: dto.soldeFinal, ecart },
-        },
-      });
-
-      return s;
-    });
-
-    this.logger.log(
-      `Caisse fermée: Session ${session.id}, Écart: ${ecart} FCFA`,
-    );
-    return { ...closed, soldeCalcule: balance.soldeActuel, ecart };
+  private mapEcriture(m: any) {
+    return {
+      id: m.id,
+      type: m.type === 'CREDIT' ? 'credit' : 'debit',
+      amount: this.num(m.amount),
+      balanceAfter: this.num(m.balanceAfter),
+      description: m.description,
+      reference: m.reference,
+      createdAt: m.createdAt,
+    };
   }
 
-  // ─── Mouvements manuels ──────────────────────────────────────────────────────
+  async getEcritures(
+    userId: string,
+    tenantId: string,
+    page?: number,
+    limit?: number,
+  ) {
+    const cashier = await this.caisseDe(userId, tenantId);
+    if (!cashier) return { data: [], total: 0, page: 1, limit: limit ?? 20 };
 
-  async addEntry(agentId: string, dto: CaisseEntryDto, tenantId: string, userId: string) {
-    const session = await this.getOpenSession(agentId, tenantId);
-    if (!session) throw new CaisseNotOpenException();
-
-    return this.prisma.caisseMovement.create({
-      data: {
-        tenantId,
-        sessionId: session.id,
-        agentId,
-        type: dto.type,
-        motif: dto.motif,
-        montantEntree: dto.type === 'ENTREE' ? dto.montant : 0,
-        montantSortie: dto.type === 'SORTIE' ? dto.montant : 0,
-        createdBy: userId,
-      },
-    });
-  }
-
-  async getMovements(agentId: string, tenantId: string, sessionId?: string) {
-    const session = sessionId
-      ? await this.prisma.caisseSession.findFirst({ where: { id: sessionId, tenantId } })
-      : await this.getOpenSession(agentId, tenantId);
-
-    if (!session) return [];
-
-    return this.prisma.caisseMovement.findMany({
-      where: { sessionId: session.id, tenantId },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
-  async getHistory(agentId: string, tenantId: string, page?: number, limit?: number) {
     const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
-    const [data, total] = await Promise.all([
-      this.prisma.caisseSession.findMany({
-        where: { agentId, tenantId, statut: 'FERMEE' },
+    const [rows, total] = await Promise.all([
+      this.prisma.cashMovement.findMany({
+        where: { cashierId: cashier.id, tenantId },
         skip,
         take: l,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.caisseSession.count({ where: { agentId, tenantId, statut: 'FERMEE' } }),
+      this.prisma.cashMovement.count({
+        where: { cashierId: cashier.id, tenantId },
+      }),
     ]);
 
-    return { data, total, page: p, limit: l };
+    return { data: rows.map((m) => this.mapEcriture(m)), total, page: p, limit: l };
   }
 
-  // ─── Coffre ───────────────────────────────────────────────────────────────────
+  async addEcriture(
+    dto: CaisseEntryDto,
+    tenantId: string,
+    userId: string,
+  ) {
+    const cashier = await this.caisseDe(userId, tenantId);
+    if (!cashier || !cashier.isOpen) throw new CaisseNotOpenException();
 
-  async vaultDeposit(dto: VaultOperationDto, agentId: string, tenantId: string, userId: string) {
-    const session = await this.getOpenSession(agentId, tenantId);
-    if (!session) throw new CaisseNotOpenException();
+    const before = await this.soldeCourant(cashier);
+    const isCredit = dto.type === 'ENTREE';
+    const after = isCredit ? before + dto.montant : before - dto.montant;
 
-    return this.prisma.$transaction(async (tx) => {
-      // Sortie de caisse vers coffre
-      await tx.caisseMovement.create({
-        data: {
-          tenantId,
-          sessionId: session.id,
-          agentId,
-          type: 'SORTIE',
-          motif: dto.motif ?? 'Dépôt coffre',
-          montantEntree: 0,
-          montantSortie: dto.montant,
-          createdBy: userId,
-        },
-      });
-
-      // Entrée dans le coffre
-      return tx.vaultMovement.create({
-        data: {
-          tenantId,
-          agentId,
-          type: 'DEPOT',
-          montant: dto.montant,
-          motif: dto.motif,
-          createdBy: userId,
-        },
-      });
+    const mouvement = await this.prisma.cashMovement.create({
+      data: {
+        tenantId,
+        cashierId: cashier.id,
+        type: isCredit ? 'CREDIT' : 'DEBIT',
+        amount: dto.montant,
+        balanceBefore: before,
+        balanceAfter: after,
+        description: dto.motif,
+        reference: `CAISSE-${Date.now()}`,
+        performedById: userId,
+      },
     });
+
+    return this.mapEcriture(mouvement);
   }
 
-  async vaultWithdraw(dto: VaultOperationDto, agentId: string, tenantId: string, userId: string) {
-    const session = await this.getOpenSession(agentId, tenantId);
-    if (!session) throw new CaisseNotOpenException();
+  // ─── Ouverture / clôture ─────────────────────────────────────────────────────
 
-    return this.prisma.$transaction(async (tx) => {
-      // Vérifier solde coffre
-      const vaultBalance = await tx.vaultMovement.aggregate({
-        where: { agentId, tenantId },
-        _sum: { montant: true },
+  async open(dto: OpenCaisseDto, tenantId: string, userId: string) {
+    const existante = await this.caisseDe(userId, tenantId);
+    if (existante?.isOpen) throw new CaisseAlreadyOpenException();
+
+    let cashier;
+    if (!existante) {
+      // Créer la caisse : l'agence vient de l'agent rattaché à cet utilisateur.
+      const agent = await this.prisma.agent.findFirst({
+        where: { userId, tenantId },
       });
-      // (simplifié - en prod: coffre séparé avec DEPOT/RETRAIT)
-
-      // Entrée caisse depuis coffre
-      await tx.caisseMovement.create({
+      if (!agent) {
+        throw new BadRequestException(
+          "Aucune caisse ne peut être ouverte : cet utilisateur n'est rattaché à aucun agent/agence.",
+        );
+      }
+      cashier = await this.prisma.cashier.create({
         data: {
           tenantId,
-          sessionId: session.id,
-          agentId,
-          type: 'ENTREE',
-          motif: dto.motif ?? 'Retrait coffre',
-          montantEntree: dto.montant,
-          montantSortie: 0,
-          createdBy: userId,
+          agencyId: agent.agencyId,
+          userId,
+          code: `CAISSE-${agent.agentCode ?? userId.slice(-6)}`,
+          isOpen: true,
+          openedAt: new Date(),
+          openingBalance: dto.soldInitial,
         },
       });
-
-      return tx.vaultMovement.create({
+    } else {
+      cashier = await this.prisma.cashier.update({
+        where: { id: existante.id },
         data: {
-          tenantId,
-          agentId,
-          type: 'RETRAIT',
-          montant: -dto.montant,
-          motif: dto.motif,
-          createdBy: userId,
+          isOpen: true,
+          openedAt: new Date(),
+          openingBalance: dto.soldInitial,
+          closedAt: null,
+          closingBalance: null,
         },
       });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: 'CREATE',
+        resource: 'Cashier',
+        resourceId: cashier.id,
+        newValues: { soldeInitial: dto.soldInitial },
+      },
     });
+
+    this.logger.log(
+      `Caisse ouverte: user ${userId}, solde initial ${dto.soldInitial} FCFA`,
+    );
+    return cashier;
+  }
+
+  async close(tenantId: string, userId: string, dto: CloseCaisseDto) {
+    const cashier = await this.caisseDe(userId, tenantId);
+    if (!cashier || !cashier.isOpen) throw new CaisseNotOpenException();
+
+    const soldeCalcule = await this.soldeCourant(cashier);
+    const ecart = dto.soldeFinal - soldeCalcule;
+
+    const closed = await this.prisma.cashier.update({
+      where: { id: cashier.id },
+      data: {
+        isOpen: false,
+        closedAt: new Date(),
+        closingBalance: dto.soldeFinal,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: 'UPDATE',
+        resource: 'Cashier',
+        resourceId: cashier.id,
+        newValues: { soldeFinal: dto.soldeFinal, ecart },
+      },
+    });
+
+    this.logger.log(`Caisse fermée: ${cashier.id}, écart ${ecart} FCFA`);
+    return { ...closed, soldeCalcule, ecart };
+  }
+
+  async getHistory(userId: string, tenantId: string, page?: number, limit?: number) {
+    // Le modèle Cashier n'historise pas les sessions ; on renvoie l'historique
+    // des mouvements de la caisse comme journal.
+    return this.getEcritures(userId, tenantId, page, limit);
   }
 }

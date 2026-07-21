@@ -5,35 +5,36 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiProperty,
+  ApiPropertyOptional,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
-  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import {
   CashierService,
   CaisseEntryDto,
   CloseCaisseDto,
   OpenCaisseDto,
-  VaultOperationDto,
 } from './cashier.service';
 
 class OpenCaisseRequest implements OpenCaisseDto {
-  @ApiProperty() @IsUUID() agentId: string;
   @ApiProperty() @IsNumber() @Min(0) soldInitial: number;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) notes?: string;
 }
@@ -43,128 +44,89 @@ class CloseCaisseRequest implements CloseCaisseDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) notes?: string;
 }
 
-class CaisseEntryRequest implements CaisseEntryDto {
+class EcritureRequest implements CaisseEntryDto {
   @ApiProperty() @IsNumber() @IsPositive() montant: number;
   @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(500) motif: string;
-  @ApiProperty({ enum: ['ENTREE', 'SORTIE'] }) type: 'ENTREE' | 'SORTIE';
+  @ApiProperty({ enum: ['ENTREE', 'SORTIE'] })
+  @IsIn(['ENTREE', 'SORTIE'])
+  type: 'ENTREE' | 'SORTIE';
 }
 
-class VaultOperationRequest implements VaultOperationDto {
-  @ApiProperty() @IsNumber() @IsPositive() montant: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) motif?: string;
-}
-
+/**
+ * Caisse de l'utilisateur courant. Routes alignées sur ce que consomme le
+ * frontend (`/caisse/ecritures`, `/caisse/stats`) — cf. apps/web useCaisse.ts.
+ */
 @ApiTags('Caisse')
 @ApiBearerAuth()
-@Controller('cashier')
+@UseGuards(JwtAuthGuard)
+@Controller('caisse')
 export class CashierController {
   constructor(private readonly cashierService: CashierService) {}
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Statistiques de la caisse (solde, entrées/sorties du jour)' })
+  getStats(@Req() req: any) {
+    return this.cashierService.getStats(req.user.id, req.user.tenantId);
+  }
+
   @Get('balance')
-  @ApiOperation({ summary: 'Solde caisse actuel' })
-  @ApiQuery({ name: 'agentId', required: true })
-  @ApiResponse({ status: 200, description: 'Solde et état de la caisse' })
-  getBalance(@Query('agentId') agentId: string, @Req() req: any) {
-    return this.cashierService.getBalance(agentId, req.user.tenantId);
+  @ApiOperation({ summary: 'Solde et état de la caisse' })
+  getBalance(@Req() req: any) {
+    return this.cashierService.getBalance(req.user.id, req.user.tenantId);
+  }
+
+  @Get('ecritures')
+  @ApiOperation({ summary: 'Journal des écritures de caisse' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  getEcritures(
+    @Req() req: any,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.cashierService.getEcritures(
+      req.user.id,
+      req.user.tenantId,
+      page ? +page : undefined,
+      limit ? +limit : undefined,
+    );
+  }
+
+  @Post('ecritures')
+  @ApiOperation({ summary: 'Ajouter une écriture (entrée ou sortie) manuelle' })
+  @ApiResponse({ status: 201, description: 'Écriture enregistrée' })
+  @ApiResponse({ status: 400, description: 'Caisse non ouverte' })
+  addEcriture(@Body() dto: EcritureRequest, @Req() req: any) {
+    return this.cashierService.addEcriture(dto, req.user.tenantId, req.user.id);
   }
 
   @Post('open')
   @ApiOperation({ summary: 'Ouverture de caisse' })
-  @ApiResponse({ status: 201, description: 'Session caisse ouverte' })
-  @ApiResponse({ status: 400, description: 'Caisse déjà ouverte' })
+  @ApiResponse({ status: 400, description: 'Caisse déjà ouverte / aucun agent rattaché' })
   open(@Body() dto: OpenCaisseRequest, @Req() req: any) {
     return this.cashierService.open(dto, req.user.tenantId, req.user.id);
   }
 
   @Post('close')
-  @ApiOperation({ summary: 'Clôture de caisse avec calcul d\'écart' })
-  @ApiQuery({ name: 'agentId', required: true })
-  @ApiResponse({ status: 201, description: 'Caisse clôturée avec écart calculé' })
-  close(
-    @Query('agentId') agentId: string,
-    @Body() dto: CloseCaisseRequest,
-    @Req() req: any,
-  ) {
-    return this.cashierService.close(agentId, dto, req.user.tenantId, req.user.id);
-  }
-
-  @Post('entry')
-  @ApiOperation({ summary: 'Entrée manuelle en caisse' })
-  @ApiQuery({ name: 'agentId', required: true })
-  entry(
-    @Query('agentId') agentId: string,
-    @Body() dto: CaisseEntryRequest,
-    @Req() req: any,
-  ) {
-    return this.cashierService.addEntry(
-      agentId,
-      { ...dto, type: 'ENTREE' },
-      req.user.tenantId,
-      req.user.id,
-    );
-  }
-
-  @Post('exit')
-  @ApiOperation({ summary: 'Sortie manuelle de caisse' })
-  @ApiQuery({ name: 'agentId', required: true })
-  exit(
-    @Query('agentId') agentId: string,
-    @Body() dto: CaisseEntryRequest,
-    @Req() req: any,
-  ) {
-    return this.cashierService.addEntry(
-      agentId,
-      { ...dto, type: 'SORTIE' },
-      req.user.tenantId,
-      req.user.id,
-    );
-  }
-
-  @Get('movements')
-  @ApiOperation({ summary: 'Mouvements de la session en cours' })
-  @ApiQuery({ name: 'agentId', required: true })
-  @ApiQuery({ name: 'sessionId', required: false })
-  getMovements(
-    @Query('agentId') agentId: string,
-    @Query('sessionId') sessionId: string | undefined,
-    @Req() req: any,
-  ) {
-    return this.cashierService.getMovements(agentId, req.user.tenantId, sessionId);
+  @ApiOperation({ summary: "Clôture de caisse avec calcul d'écart" })
+  close(@Body() dto: CloseCaisseRequest, @Req() req: any) {
+    return this.cashierService.close(req.user.tenantId, req.user.id, dto);
   }
 
   @Get('history')
-  @ApiOperation({ summary: 'Historique des clôtures de caisse' })
-  @ApiQuery({ name: 'agentId', required: true })
+  @ApiOperation({ summary: 'Historique des mouvements de caisse' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   getHistory(
-    @Query('agentId') agentId: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
     @Req() req: any,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.cashierService.getHistory(agentId, req.user.tenantId, +page, +limit);
-  }
-
-  @Post('vault/deposit')
-  @ApiOperation({ summary: 'Dépôt en coffre (sortie caisse → coffre)' })
-  @ApiQuery({ name: 'agentId', required: true })
-  vaultDeposit(
-    @Query('agentId') agentId: string,
-    @Body() dto: VaultOperationRequest,
-    @Req() req: any,
-  ) {
-    return this.cashierService.vaultDeposit(dto, agentId, req.user.tenantId, req.user.id);
-  }
-
-  @Post('vault/withdraw')
-  @ApiOperation({ summary: 'Retrait coffre (coffre → caisse)' })
-  @ApiQuery({ name: 'agentId', required: true })
-  vaultWithdraw(
-    @Query('agentId') agentId: string,
-    @Body() dto: VaultOperationRequest,
-    @Req() req: any,
-  ) {
-    return this.cashierService.vaultWithdraw(dto, agentId, req.user.tenantId, req.user.id);
+    return this.cashierService.getHistory(
+      req.user.id,
+      req.user.tenantId,
+      page ? +page : undefined,
+      limit ? +limit : undefined,
+    );
   }
 }
