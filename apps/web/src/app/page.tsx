@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { SaraBubble } from '@/components/landing/SaraBubble';
+import { WhatsAppBubble } from '@/components/landing/WhatsAppBubble';
 import { Logo } from '@/components/ui/Logo';
 
 // ─── Données ───────────────────────────────────────────────────
@@ -977,8 +978,10 @@ export default function LandingPage() {
         }
       `}</style>
 
-      {/* Bulle SARA — chat commercial public */}
+      {/* Bulle SARA — chat commercial public (bas droite) */}
       <SaraBubble />
+      {/* Bulle WhatsApp — contact humain (bas gauche, si numéro configuré) */}
+      <WhatsAppBubble />
     </div>
   );
 }
