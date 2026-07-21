@@ -22,6 +22,12 @@ async function bootstrap() {
   const port = configService.get<number>("API_PORT", 3001);
   const corsOrigins = configService.get<string>("CORS_ORIGINS", "http://localhost:3000");
 
+  // Derriere le reverse-proxy nginx : faire confiance au premier hop pour que
+  // `req.ip` reflete la VRAIE IP client (X-Forwarded-For) et non celle du proxy.
+  // Indispensable pour que le rate-limiting (ThrottlerGuard) porte par client
+  // et non globalement sur l'IP du proxy (ce qui bloquerait tout le monde).
+  app.getHttpAdapter().getInstance().set("trust proxy", 1);
+
   // Securite
   app.use(helmet());
 

@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
@@ -85,6 +85,13 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
   controllers: [AppController],
   providers: [
     AppService,
+    // ── Rate-limiting à l'échelle de TOUTE l'application ────────────────────
+    // Le `ThrottlerModule` est configuré plus haut, mais sans ce guard global
+    // le module reste inerte (les décorateurs `@Throttle`, ex. 5/min sur le
+    // login, n'ont AUCUN effet). Enregistré en premier pour rejeter au plus tôt,
+    // avant même la vérification de licence. La clé de comptage est `req.ip`,
+    // rendu fiable derrière nginx par `trust proxy` (cf. main.ts).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // ── Application de la licence, à l'échelle de TOUTE l'application ────────
     // Enregistrée en global (« sécurisé par défaut ») : tout module ajouté
     // demain est couvert sans intervention. Les routes qui doivent rester
