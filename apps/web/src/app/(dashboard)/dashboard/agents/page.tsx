@@ -34,6 +34,7 @@ export default function AgentsPage() {
   const LIMIT = 15;
   const [tri, setTri] = useState<{ cle: CleTri; sens: 'asc' | 'desc' } | null>(null);
   const [modalNouvelAgent, setModalNouvelAgent] = useState(false);
+  const [agentVu, setAgentVu] = useState<Agent | null>(null);
   const [form, setForm] = useState(FORM_INIT);
   const [erreur, setErreur] = useState('');
   const [succes, setSucces] = useState('');
@@ -311,7 +312,7 @@ export default function AgentsPage() {
                   <td style={{ fontSize: 12, color: 'var(--gm-text-2)' }}>{formatDate(a.createdAt)}</td>
                   <td>
                     <div className="gm-action-btns">
-                      <button type="button" className="gm-action-btn">{t.agents.table.viewAction}</button>
+                      <button type="button" className="gm-action-btn" onClick={() => setAgentVu(a)}>{t.agents.table.viewAction}</button>
                       <button
                         type="button"
                         className={`gm-action-btn${a.actif ? ' gm-danger' : ''}`}
@@ -434,6 +435,50 @@ export default function AgentsPage() {
             </div>
           </form>
         </div>
+      </div>
+
+      {/* Modale DÉTAIL agent (lecture seule) */}
+      <div
+        className={`gm-modal-overlay${agentVu ? ' gm-open' : ''}`}
+        onClick={(e) => { if (e.target === e.currentTarget) setAgentVu(null); }}
+      >
+        {agentVu && (
+          <div className="gm-modal">
+            <div className="gm-modal-head">
+              <div className="gm-modal-title">{agentVu.prenom} {agentVu.nom}</div>
+              <button type="button" className="gm-modal-close" onClick={() => setAgentVu(null)} aria-label={t.common.close}>✕</button>
+            </div>
+            <div className="gm-modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                {[
+                  { label: 'Email', valeur: agentVu.email || '—' },
+                  { label: t.common.phone, valeur: agentVu.telephone || '—' },
+                  { label: t.common.agency, valeur: agentVu.agenceNom || '—' },
+                  { label: t.agents.table.colTxToday, valeur: String(agentVu.nbTransactionsAujourdhui ?? 0) },
+                  { label: t.agents.table.colVolumeToday, valeur: formatMontant(agentVu.montantTransactionsAujourdhui) },
+                  { label: t.common.commission, valeur: formatMontant(agentVu.commission) },
+                  { label: t.common.registration, valeur: formatDate(agentVu.createdAt) },
+                ].map((c) => (
+                  <div key={c.label}>
+                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--gm-text-2)', marginBottom: 3 }}>{c.label}</div>
+                    <div style={{ fontSize: 14, color: 'var(--gm-text-1)', fontWeight: 600 }}>{c.valeur}</div>
+                  </div>
+                ))}
+                <div>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--gm-text-2)', marginBottom: 3 }}>{t.agents.table.colPresence}</div>
+                  <span className={`gm-status-pill ${agentVu.enLigne ? 'gm-pill-online' : 'gm-pill-offline'}`}>● {agentVu.enLigne ? t.common.online : t.common.offline}</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--gm-text-2)', marginBottom: 3 }}>{t.common.statut}</div>
+                  <span className={`gm-status-pill ${agentVu.actif ? 'gm-pill-online' : 'gm-pill-suspended'}`}>{agentVu.actif ? t.common.active : t.common.suspended}</span>
+                </div>
+              </div>
+            </div>
+            <div className="gm-modal-foot">
+              <GmButton type="button" variante="outline" onClick={() => setAgentVu(null)}>{t.common.close}</GmButton>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
