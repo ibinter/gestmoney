@@ -4,51 +4,55 @@ import { Badge } from '@/components/ui/Badge';
 import { formatMontant } from '@/lib/formatters';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
-
-const OFFRES = [
-  { id: 'OFF-001', prospect: 'Fatoumata Diallo', entreprise: 'Wave SN', email: 'fdiallo@wave.com', plan: 'PROFESSIONAL', prixHT: 1788000, remise: 10, taxes: 18, statut: 'ENVOYEE', validiteJours: 30, dateCreation: '2026-07-10', dateExpiration: '2026-08-09' },
-  { id: 'OFF-002', prospect: 'Mamadou Koné', entreprise: 'Orange CI', email: 'mkone@orange.ci', plan: 'ENTERPRISE', prixHT: 5000000, remise: 15, taxes: 18, statut: 'EN_NEGOCIATION', validiteJours: 30, dateCreation: '2026-07-12', dateExpiration: '2026-08-11' },
-  { id: 'OFF-003', prospect: 'Kwame Asante', entreprise: 'MTN GH', email: 'kasante@mtn.gh', plan: 'STARTER', prixHT: 588000, remise: 0, taxes: 15, statut: 'BROUILLON', validiteJours: 15, dateCreation: '2026-07-13', dateExpiration: '2026-07-28' },
-  { id: 'OFF-004', prospect: 'Ama Mensah', entreprise: 'Airtel KE', email: 'amensah@airtel.ke', plan: 'ENTERPRISE', prixHT: 4800000, remise: 20, taxes: 16, statut: 'CONVERTIE', validiteJours: 30, dateCreation: '2026-06-15', dateExpiration: '2026-07-15' },
-  { id: 'OFF-005', prospect: 'Ibrahim Touré', entreprise: 'Moov BJ', email: 'itoure@moov.bj', plan: 'PROFESSIONAL', prixHT: 1788000, remise: 5, taxes: 18, statut: 'EXPIREE', validiteJours: 30, dateCreation: '2026-05-01', dateExpiration: '2026-05-31' },
-];
+import { useOffres, useOffreStats } from '@/hooks/useCrm';
 
 type CouleurStatut = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
 
+// Couleurs pour l'ensemble des statuts réels du modèle Prisma (OffreStatut).
 const STATUT_COULEUR: Record<string, CouleurStatut> = {
-  BROUILLON: 'neutral', ENVOYEE: 'info', EN_NEGOCIATION: 'warning',
-  CONVERTIE: 'success', REFUSEE: 'danger', EXPIREE: 'neutral',
+  BROUILLON: 'neutral',
+  ENVOYEE: 'info',
+  CONSULTEE: 'warning',
+  ACCEPTEE: 'success',
+  CONVERTIE: 'success',
+  REFUSEE: 'danger',
+  EXPIREE: 'neutral',
 };
 
-/** Libellé + couleur de statut pour la langue active. */
-const statutMap = (t: Translations): Record<string, { label: string; couleur: CouleurStatut }> =>
-  Object.fromEntries(
-    Object.keys(STATUT_COULEUR).map((k) => [k, { label: t.superadmin.offres.statuts[k as keyof typeof t.superadmin.offres.statuts], couleur: STATUT_COULEUR[k] }]),
-  );
+function humanize(k: string): string {
+  const s = k.replace(/_/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-const PLAN_PRIX: Record<string, number> = {
-  STARTER: 49000,
-  PROFESSIONAL: 149000,
-  ENTERPRISE: 0,
-};
+function labelStatut(t: Translations, k: string): string {
+  const dict = t.superadmin.offres.statuts as Record<string, string>;
+  return dict[k] ?? humanize(k);
+}
 
-function prixTTC(ht: number, remise: number, taxes: number) {
-  const apresRemise = ht * (1 - remise / 100);
-  return Math.round(apresRemise * (1 + taxes / 100));
+const ALL_STATUTS = ['Tous', ...Object.keys(STATUT_COULEUR)];
+
+function datePart(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function nomProspect(o: { prospect: { nom: string; prenom: string | null } | null; entreprise: string }): string {
+  if (o.prospect) return `${o.prospect.prenom ?? ''} ${o.prospect.nom}`.trim();
+  return o.entreprise;
 }
 
 export default function OffresPage() {
   const t = useT();
-  const STATUT_MAP = statutMap(t);
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [selected, setSelected] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const filtered = OFFRES.filter(o => filtreStatut === 'Tous' || o.statut === filtreStatut);
-  const detail = OFFRES.find(o => o.id === selected);
+  const params: Record<string, string> = { limit: '100' };
+  if (filtreStatut !== 'Tous') params.statut = filtreStatut;
 
-  const mrr = OFFRES.filter(o => o.statut === 'CONVERTIE').reduce((s, o) => s + o.prixHT * (1 - o.remise / 100), 0);
-  const pipeline = OFFRES.filter(o => ['ENVOYEE','EN_NEGOCIATION'].includes(o.statut)).reduce((s, o) => s + o.prixHT * (1 - o.remise / 100), 0);
+  const { data: offres = [], isLoading, isError } = useOffres(params);
+  const { data: stats } = useOffreStats();
+
+  const detail = offres.find((o) => o.id === selected);
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -62,13 +66,13 @@ export default function OffresPage() {
         </button>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs — issus de l'endpoint /stats (base réelle) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: t.superadmin.offres.kpi.pipeline, val: formatMontant(pipeline) + ' XOF', c: '#0ea5e9' },
-          { label: t.superadmin.offres.kpi.converties, val: OFFRES.filter(o => o.statut === 'CONVERTIE').length, c: '#009E00' },
-          { label: t.superadmin.offres.kpi.enCours, val: OFFRES.filter(o => ['ENVOYEE','EN_NEGOCIATION'].includes(o.statut)).length, c: '#f59e0b' },
-          { label: t.superadmin.offres.kpi.tauxConv, val: Math.round(OFFRES.filter(o=>o.statut==='CONVERTIE').length / OFFRES.filter(o=>o.statut!=='BROUILLON').length * 100) + '%', c: '#FFD000' },
+          { label: t.superadmin.offres.kpi.pipeline, val: stats ? formatMontant(stats.pipeline) + ' XOF' : '—', c: '#0ea5e9' },
+          { label: t.superadmin.offres.kpi.converties, val: stats?.converties ?? '—', c: '#009E00' },
+          { label: t.superadmin.offres.kpi.enCours, val: stats?.enCours ?? '—', c: '#f59e0b' },
+          { label: t.superadmin.offres.kpi.tauxConv, val: stats ? stats.tauxConversion + '%' : '—', c: '#FFD000' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-white/5 rounded-2xl p-4 border border-border">
             <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">{k.label}</p>
@@ -79,10 +83,10 @@ export default function OffresPage() {
 
       {/* Filtres */}
       <div className="flex gap-2 flex-wrap mb-4">
-        {['Tous', ...Object.keys(STATUT_COULEUR)].map(s => (
+        {ALL_STATUTS.map(s => (
           <button key={s} onClick={() => setFiltreStatut(s)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${filtreStatut === s ? 'bg-brand-green text-white border-brand-green' : 'bg-white dark:bg-white/5 text-text-muted border-border hover:border-brand-green'}`}>
-            {s === 'Tous' ? t.superadmin.offres.all : STATUT_MAP[s]?.label ?? s}
+            {s === 'Tous' ? t.superadmin.offres.all : labelStatut(t, s)}
           </button>
         ))}
       </div>
@@ -93,34 +97,42 @@ export default function OffresPage() {
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-border bg-gray-50 dark:bg-white/3">
-                {[t.superadmin.offres.columns.reference, t.superadmin.offres.columns.prospect, t.superadmin.offres.columns.plan, t.superadmin.offres.columns.ht, t.superadmin.offres.columns.remise, t.superadmin.offres.columns.ttc, t.superadmin.offres.columns.statut, t.superadmin.offres.columns.expiration, ''].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-text-muted uppercase tracking-wide">{h}</th>
+                {[t.superadmin.offres.columns.reference, t.superadmin.offres.columns.prospect, t.superadmin.offres.columns.plan, t.superadmin.offres.columns.ht, t.superadmin.offres.columns.remise, t.superadmin.offres.columns.ttc, t.superadmin.offres.columns.statut, t.superadmin.offres.columns.expiration, ''].map((h, idx) => (
+                  <th key={idx} className="text-left px-4 py-3 text-xs font-bold text-text-muted uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map(o => {
-                const ttc = prixTTC(o.prixHT, o.remise, o.taxes);
-                const expire = new Date(o.dateExpiration) < new Date() && o.statut !== 'CONVERTIE';
+              {isLoading && (
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-text-muted text-sm">{t.common?.loading ?? '…'}</td></tr>
+              )}
+              {isError && !isLoading && (
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-red-500 text-sm">{t.common?.error ?? 'Erreur de chargement'}</td></tr>
+              )}
+              {!isLoading && !isError && offres.map(o => {
+                const expire = new Date(o.dateExpiration) < new Date() && o.statut !== 'CONVERTIE' && o.statut !== 'ACCEPTEE';
                 return (
                   <tr key={o.id} className="border-b border-border last:border-0 hover:bg-gray-50 dark:hover:bg-white/3 cursor-pointer" onClick={() => setSelected(o.id)}>
-                    <td className="px-4 py-3 font-mono text-xs font-bold text-brand-green">{o.id}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-bold text-brand-green">{o.reference}</td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-text-main">{o.prospect}</p>
+                      <p className="font-semibold text-text-main">{nomProspect(o)}</p>
                       <p className="text-xs text-text-muted">{o.entreprise}</p>
                     </td>
-                    <td className="px-4 py-3"><span className="text-xs font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded-lg">{o.plan}</span></td>
+                    <td className="px-4 py-3"><span className="text-xs font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded-lg">{o.formule ?? '—'}</span></td>
                     <td className="px-4 py-3 tabular-nums text-text-muted text-xs">{formatMontant(o.prixHT)}</td>
                     <td className="px-4 py-3 text-xs font-bold text-green-600">{o.remise > 0 ? `-${o.remise}%` : '—'}</td>
-                    <td className="px-4 py-3 tabular-nums font-bold text-text-main">{formatMontant(ttc)}</td>
-                    <td className="px-4 py-3"><Badge couleur={STATUT_MAP[o.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[o.statut]?.label}</Badge></td>
-                    <td className="px-4 py-3 text-xs" style={{ color: expire ? '#E60000' : 'inherit' }}>{o.dateExpiration}</td>
+                    <td className="px-4 py-3 tabular-nums font-bold text-text-main">{formatMontant(o.prixTTC)}</td>
+                    <td className="px-4 py-3"><Badge couleur={STATUT_COULEUR[o.statut] ?? 'neutral'}>{labelStatut(t, o.statut)}</Badge></td>
+                    <td className="px-4 py-3 text-xs" style={{ color: expire ? '#E60000' : 'inherit' }}>{datePart(o.dateExpiration)}</td>
                     <td className="px-4 py-3">
                       <button className="text-xs text-brand-green hover:underline font-semibold">{t.superadmin.offres.view}</button>
                     </td>
                   </tr>
                 );
               })}
+              {!isLoading && !isError && offres.length === 0 && (
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-text-muted text-sm">Aucune offre</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -133,8 +145,8 @@ export default function OffresPage() {
           <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-5">
               <div>
-                <p className="text-xs font-mono text-brand-green font-bold">{detail.id}</p>
-                <h2 className="text-xl font-black text-text-main">{detail.prospect}</h2>
+                <p className="text-xs font-mono text-brand-green font-bold">{detail.reference}</p>
+                <h2 className="text-xl font-black text-text-main">{nomProspect(detail)}</h2>
                 <p className="text-sm text-text-muted">{detail.entreprise}</p>
               </div>
               <button onClick={() => setSelected(null)} className="text-text-muted text-xl" aria-label={t.superadmin.offres.close}>✕</button>
@@ -142,11 +154,11 @@ export default function OffresPage() {
             <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-5 mb-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-text-muted">{t.superadmin.offres.detail.plan}</span>
-                <span className="font-bold text-text-main">{detail.plan}</span>
+                <span className="font-bold text-text-main">{detail.formule ?? '—'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-text-muted">{t.superadmin.offres.detail.prixHT}</span>
-                <span className="font-bold tabular-nums">{formatMontant(detail.prixHT)} XOF</span>
+                <span className="font-bold tabular-nums">{formatMontant(detail.prixHT)} {detail.devise}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-text-muted">{t.superadmin.offres.detail.remise}</span>
@@ -154,24 +166,24 @@ export default function OffresPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-text-muted">{t.superadmin.offres.detail.taxes} ({detail.taxes}%)</span>
-                <span className="font-bold tabular-nums">{formatMontant(Math.round(detail.prixHT * (1-detail.remise/100) * detail.taxes/100))} XOF</span>
+                <span className="font-bold tabular-nums">{formatMontant(Math.round(detail.prixHT * (1 - detail.remise / 100) * detail.taxes / 100))} {detail.devise}</span>
               </div>
               <div className="border-t border-border pt-2 flex justify-between text-sm">
                 <span className="font-bold text-text-main">{t.superadmin.offres.detail.totalTTC}</span>
-                <span className="font-black text-lg text-brand-green tabular-nums">{formatMontant(prixTTC(detail.prixHT, detail.remise, detail.taxes))} XOF</span>
+                <span className="font-black text-lg text-brand-green tabular-nums">{formatMontant(detail.prixTTC)} {detail.devise}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs mb-4">
               <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3">
-                <p className="text-text-muted">{t.superadmin.offres.detail.creeeLe}</p><p className="font-bold">{detail.dateCreation}</p>
+                <p className="text-text-muted">{t.superadmin.offres.detail.creeeLe}</p><p className="font-bold">{datePart(detail.createdAt)}</p>
               </div>
               <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3">
-                <p className="text-text-muted">{t.superadmin.offres.detail.expireLe}</p><p className="font-bold">{detail.dateExpiration}</p>
+                <p className="text-text-muted">{t.superadmin.offres.detail.expireLe}</p><p className="font-bold">{datePart(detail.dateExpiration)}</p>
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
               {detail.statut === 'BROUILLON' && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.send}</button>}
-              {['ENVOYEE','EN_NEGOCIATION'].includes(detail.statut) && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.markConverted}</button>}
+              {['ENVOYEE', 'CONSULTEE'].includes(detail.statut) && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.markConverted}</button>}
               <button className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">{t.superadmin.offres.detail.pdf}</button>
             </div>
           </div>

@@ -3,47 +3,63 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
+import { useDemonstrations, useDemoStats } from '@/hooks/useCrm';
 
-const DEMOS = [
-  { id: '1', prospect: 'Mamadou Koné', entreprise: 'Orange CI', email: 'mkone@orange.ci', date: '2026-07-20', heure: '10:00', fuseau: 'Africa/Abidjan', mode: 'VISIO', statut: 'PLANIFIEE', lien: 'https://meet.google.com/abc-def-ghi', animateur: 'Jean Dupont', notes: '' },
-  { id: '2', prospect: 'Fatoumata Diallo', entreprise: 'Wave SN', email: 'fdiallo@wave.com', date: '2026-07-18', heure: '14:30', fuseau: 'Africa/Dakar', mode: 'VISIO', statut: 'REALISEE', lien: '', animateur: 'Marie Martin', notes: 'Client très intéressé par le module commissions. Relance offre prévue.' },
-  { id: '3', prospect: 'Ibrahim Touré', entreprise: 'Moov BJ', email: 'itoure@moov.bj', date: '2026-07-22', heure: '09:00', fuseau: 'Africa/Porto-Novo', mode: 'PRESENTIEL', statut: 'PLANIFIEE', lien: '', animateur: 'Jean Dupont', notes: 'Déplacement prévu à Cotonou.' },
-  { id: '4', prospect: 'Ama Mensah', entreprise: 'Airtel KE', email: 'amensah@airtel.ke', date: '2026-07-10', heure: '11:00', fuseau: 'Africa/Nairobi', mode: 'TELEPHONE', statut: 'REALISEE', lien: '', animateur: 'Marie Martin', notes: 'Contrat signé suite à la démo.' },
-  { id: '5', prospect: 'Aminata Bah', entreprise: 'FinCash ML', email: 'abah@fincash.ml', date: '2026-07-05', heure: '15:00', fuseau: 'Africa/Bamako', mode: 'VISIO', statut: 'ANNULEE', lien: '', animateur: 'Jean Dupont', notes: 'Client a annulé 1h avant.' },
-];
+type CouleurStatut = 'info' | 'warning' | 'success' | 'danger' | 'neutral';
 
-type CouleurStatut = 'info' | 'success' | 'danger' | 'neutral';
-
+// Couleurs pour l'ensemble des statuts réels du modèle Prisma (DemoStatut).
 const STATUT_COULEUR: Record<string, CouleurStatut> = {
-  PLANIFIEE: 'info', REALISEE: 'success', ANNULEE: 'danger',
+  PLANIFIEE: 'info',
+  CONFIRMEE: 'info',
+  REALISEE: 'success',
+  ANNULEE: 'danger',
+  REPORTEE: 'warning',
+  NO_SHOW: 'danger',
 };
 
-/** Libellé + couleur de statut pour la langue active. */
-const statutMap = (t: Translations): Record<string, { label: string; couleur: CouleurStatut }> =>
-  Object.fromEntries(
-    Object.keys(STATUT_COULEUR).map((k) => [k, { label: t.superadmin.demos.statuts[k as keyof typeof t.superadmin.demos.statuts], couleur: STATUT_COULEUR[k] }]),
-  );
+function humanize(k: string): string {
+  const s = k.replace(/_/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-const modeMap = (t: Translations): Record<string, string> => t.superadmin.demos.modes;
+function labelStatut(t: Translations, k: string): string {
+  const dict = t.superadmin.demos.statuts as Record<string, string>;
+  return dict[k] ?? humanize(k);
+}
+
+function labelMode(t: Translations, k: string): string {
+  const dict = t.superadmin.demos.modes as Record<string, string>;
+  return dict[k] ?? humanize(k);
+}
+
+const ALL_STATUTS = ['Tous', ...Object.keys(STATUT_COULEUR)];
+
+function nomProspect(d: { prospect: { nom: string; prenom: string | null } | null; entreprise: string }): string {
+  if (d.prospect) return `${d.prospect.prenom ?? ''} ${d.prospect.nom}`.trim();
+  return d.entreprise;
+}
+
+function datePart(iso: string): string {
+  return iso.slice(0, 10);
+}
+function heurePart(iso: string): string {
+  const dt = new Date(iso);
+  return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function DemonstrationsPage() {
   const t = useT();
-  const STATUT_MAP = statutMap(t);
-  const MODE_MAP = modeMap(t);
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [selected, setSelected] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const filtered = DEMOS.filter(d => filtreStatut === 'Tous' || d.statut === filtreStatut);
-  const detail = DEMOS.find(d => d.id === selected);
+  const params: Record<string, string> = { limit: '100' };
+  if (filtreStatut !== 'Tous') params.statut = filtreStatut;
 
-  const stats = {
-    total: DEMOS.length,
-    planifiees: DEMOS.filter(d => d.statut === 'PLANIFIEE').length,
-    realisees: DEMOS.filter(d => d.statut === 'REALISEE').length,
-    annulees: DEMOS.filter(d => d.statut === 'ANNULEE').length,
-    tauxRealisation: Math.round(DEMOS.filter(d => d.statut === 'REALISEE').length / DEMOS.filter(d => d.statut !== 'PLANIFIEE').length * 100) || 0,
-  };
+  const { data: demos = [], isLoading, isError } = useDemonstrations(params);
+  const { data: stats } = useDemoStats();
+
+  const detail = demos.find((d) => d.id === selected);
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -57,14 +73,14 @@ export default function DemonstrationsPage() {
         </button>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs — issus de l'endpoint /stats (base réelle) */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {[
-          { label: t.superadmin.demos.kpi.total, val: stats.total, c: '#6366f1' },
-          { label: t.superadmin.demos.kpi.planifiees, val: stats.planifiees, c: '#0ea5e9' },
-          { label: t.superadmin.demos.kpi.realisees, val: stats.realisees, c: '#009E00' },
-          { label: t.superadmin.demos.kpi.annulees, val: stats.annulees, c: '#E60000' },
-          { label: t.superadmin.demos.kpi.tauxReal, val: stats.tauxRealisation + '%', c: '#FFD000' },
+          { label: t.superadmin.demos.kpi.total, val: stats?.total ?? '—', c: '#6366f1' },
+          { label: t.superadmin.demos.kpi.planifiees, val: stats?.planifiees ?? '—', c: '#0ea5e9' },
+          { label: t.superadmin.demos.kpi.realisees, val: stats?.realisees ?? '—', c: '#009E00' },
+          { label: t.superadmin.demos.kpi.annulees, val: stats?.annulees ?? '—', c: '#E60000' },
+          { label: t.superadmin.demos.kpi.tauxReal, val: stats ? stats.tauxRealisation + '%' : '—', c: '#FFD000' },
         ].map(k => (
           <div key={k.label} className="bg-white dark:bg-white/5 rounded-2xl p-4 border border-border">
             <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">{k.label}</p>
@@ -75,50 +91,55 @@ export default function DemonstrationsPage() {
 
       {/* Filtres statut */}
       <div className="flex gap-2 flex-wrap mb-4">
-        {['Tous', 'PLANIFIEE', 'REALISEE', 'ANNULEE'].map(s => (
+        {ALL_STATUTS.map(s => (
           <button key={s} onClick={() => setFiltreStatut(s)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${filtreStatut === s ? 'bg-brand-green text-white border-brand-green' : 'bg-white dark:bg-white/5 text-text-muted border-border hover:border-brand-green'}`}>
-            {s === 'Tous' ? t.superadmin.demos.all : STATUT_MAP[s]?.label ?? s}
+            {s === 'Tous' ? t.superadmin.demos.all : labelStatut(t, s)}
           </button>
         ))}
       </div>
 
+      {/* États chargement / erreur / vide */}
+      {isLoading && <div className="py-16 text-center text-text-muted text-sm">{t.common?.loading ?? '…'}</div>}
+      {isError && !isLoading && <div className="py-16 text-center text-red-500 text-sm">{t.common?.error ?? 'Erreur de chargement'}</div>}
+      {!isLoading && !isError && demos.length === 0 && (
+        <div className="py-16 text-center text-text-muted text-sm">Aucune démonstration</div>
+      )}
+
       {/* Cartes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map(d => (
-          <div key={d.id} onClick={() => setSelected(d.id)}
-            className="bg-white dark:bg-white/5 rounded-2xl border border-border p-5 cursor-pointer hover:border-brand-green transition-colors">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <p className="font-bold text-text-main">{d.prospect}</p>
-                <p className="text-xs text-text-muted">{d.entreprise}</p>
+      {!isLoading && !isError && demos.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {demos.map(d => (
+            <div key={d.id} onClick={() => setSelected(d.id)}
+              className="bg-white dark:bg-white/5 rounded-2xl border border-border p-5 cursor-pointer hover:border-brand-green transition-colors">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <p className="font-bold text-text-main">{nomProspect(d)}</p>
+                  <p className="text-xs text-text-muted">{d.entreprise}</p>
+                </div>
+                <Badge couleur={STATUT_COULEUR[d.statut] ?? 'neutral'}>{labelStatut(t, d.statut)}</Badge>
               </div>
-              <Badge couleur={STATUT_MAP[d.statut]?.couleur ?? 'neutral'}>{STATUT_MAP[d.statut]?.label}</Badge>
-            </div>
-            <div className="space-y-1.5 text-sm">
-              <div className="flex items-center gap-2 text-text-muted">
-                <span>📅</span><span>{d.date} {t.superadmin.demos.at} {d.heure}</span>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex items-center gap-2 text-text-muted">
+                  <span>📅</span><span>{datePart(d.date)} {t.superadmin.demos.at} {heurePart(d.date)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-text-muted">
+                  <span>{labelMode(t, d.mode)}</span>
+                </div>
+                {d.notes && (
+                  <p className="text-xs text-text-muted mt-2 border-t border-border pt-2 line-clamp-2">{d.notes}</p>
+                )}
               </div>
-              <div className="flex items-center gap-2 text-text-muted">
-                <span>{MODE_MAP[d.mode]?.split(' ')[0]}</span>
-                <span>{MODE_MAP[d.mode]?.split(' ').slice(1).join(' ')}</span>
-              </div>
-              <div className="flex items-center gap-2 text-text-muted">
-                <span>👤</span><span>{d.animateur}</span>
-              </div>
-              {d.notes && (
-                <p className="text-xs text-text-muted mt-2 border-t border-border pt-2 line-clamp-2">{d.notes}</p>
+              {d.statut === 'PLANIFIEE' && d.lienVisio && (
+                <a href={d.lienVisio} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                  className="mt-3 flex items-center gap-1.5 text-xs font-bold text-brand-green hover:underline">
+                  {t.superadmin.demos.join}
+                </a>
               )}
             </div>
-            {d.statut === 'PLANIFIEE' && d.lien && (
-              <a href={d.lien} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                className="mt-3 flex items-center gap-1.5 text-xs font-bold text-brand-green hover:underline">
-                {t.superadmin.demos.join}
-              </a>
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal détail */}
       {detail && (
@@ -127,19 +148,19 @@ export default function DemonstrationsPage() {
           <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h2 className="text-xl font-black text-text-main">{detail.prospect}</h2>
+                <h2 className="text-xl font-black text-text-main">{nomProspect(detail)}</h2>
                 <p className="text-sm text-text-muted">{detail.entreprise}</p>
               </div>
               <button onClick={() => setSelected(null)} className="text-text-muted hover:text-text-main text-xl" aria-label={t.superadmin.demos.close}>✕</button>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
               {[
-                [t.superadmin.demos.detail.date, `${detail.date} ${detail.heure}`],
-                [t.superadmin.demos.detail.mode, MODE_MAP[detail.mode]],
+                [t.superadmin.demos.detail.date, `${datePart(detail.date)} ${heurePart(detail.date)}`],
+                [t.superadmin.demos.detail.mode, labelMode(t, detail.mode)],
                 [t.superadmin.demos.detail.fuseau, detail.fuseau],
-                [t.superadmin.demos.detail.animateur, detail.animateur],
-                [t.superadmin.demos.detail.statut, STATUT_MAP[detail.statut]?.label],
-                [t.superadmin.demos.detail.email, detail.email],
+                [t.superadmin.demos.detail.animateur, detail.agentId ?? '—'],
+                [t.superadmin.demos.detail.statut, labelStatut(t, detail.statut)],
+                [t.superadmin.demos.detail.email, detail.prospect?.email ?? '—'],
               ].map(([k, v]) => (
                 <div key={k} className="bg-gray-50 dark:bg-white/5 rounded-xl p-3">
                   <p className="text-xs text-text-muted font-semibold">{k}</p>
