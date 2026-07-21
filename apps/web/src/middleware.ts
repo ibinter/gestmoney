@@ -23,6 +23,7 @@ const PUBLIC_PREFIXES = [
   '/api/auth/',          // login, register, refresh
   '/api/auth-logout',    // route Next.js de déconnexion
   '/api/demo-access',    // route Next.js accès démo (publique)
+  '/api/ai/',            // SARA — chat public de la page de vente (sans session)
   '/api/config/',        // pays, devises
   '/favicon',
   '/manifest',
