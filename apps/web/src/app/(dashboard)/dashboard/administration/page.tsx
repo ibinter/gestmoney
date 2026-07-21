@@ -11,6 +11,7 @@
 // ============================================================
 import React, { useState } from 'react';
 import { GmPageHeader, GmButton, GmSectionTitle, GmTableWrap, GmStatusPill } from '@/components/gm';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { useAuthStore } from '@/store/authStore';
 import { formatDateTime, formatRelativeTime } from '@/lib/formatters';
 import {
@@ -340,9 +341,23 @@ export default function AdministrationPage() {
         sousTitre={t.administration.subtitle}
         fil={[t.common.home, t.administration.breadcrumb]}
         actions={
-          <GmButton variante="outline" petit onClick={handleExport} disabled={exportEnCours}>
-            {t.administration.exportAudit}
-          </GmButton>
+          <>
+            <GmExportMenu
+              titre="Administration"
+              donnees={users}
+              colonnes={[
+                { titre: t.administration.users.colUser, valeur: (u) => `${u.firstName} ${u.lastName}`.trim() || u.email },
+                { titre: 'Email', valeur: (u) => u.email },
+                { titre: t.administration.users.colRole, valeur: (u) => u.roles.join(', ') || '—' },
+                { titre: t.administration.users.colLastLogin, valeur: (u) => (u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : t.administration.users.neverConnected) },
+                { titre: t.administration.users.colStatus, valeur: (u) => statutUtilisateur(u.status, t).label },
+              ]}
+              nomFichier="administration"
+            />
+            <GmButton variante="outline" petit onClick={handleExport} disabled={exportEnCours}>
+              {t.administration.exportAudit}
+            </GmButton>
+          </>
         }
       />
 

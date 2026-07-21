@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Plus, Download } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -10,8 +10,8 @@ import {
   GmStatusPill,
   GmTableWrap,
 } from '@/components/gm';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { formatMontant, formatDate } from '@/lib/formatters';
-import { exporterCsv } from '@/lib/exportCsv';
 import { useClients, useCreateClient } from '@/hooks/useClients';
 import { Client } from '@/types';
 import { useT } from '@/lib/i18n';
@@ -110,21 +110,6 @@ export default function ClientsPage() {
   const nbKycPending = allClients.filter((c) => c.kycStatut === 'en_attente').length;
   const totalVolume = allClients.reduce((s, c) => s + c.montantTotal, 0);
 
-  const exporter = () => exporterCsv(clients, [
-    { titre: t.common.firstName, valeur: (c: Client) => c.prenom },
-    { titre: t.common.lastName, valeur: (c: Client) => c.nom },
-    { titre: t.common.phone, valeur: (c: Client) => c.telephone },
-    { titre: t.common.email, valeur: (c: Client) => c.email ?? '' },
-    { titre: t.common.city, valeur: (c: Client) => c.ville ?? '' },
-    { titre: t.clients.table.colKyc, valeur: (c: Client) => c.kycStatut },
-    { titre: t.common.statut, valeur: (c: Client) => c.statut },
-    { titre: t.common.operator, valeur: (c: Client) => c.operateur },
-    { titre: `${t.clients.table.colWallet} (FCFA)`, valeur: (c: Client) => c.soldeWallet },
-    { titre: t.clients.table.colTransactions, valeur: (c: Client) => c.nbTransactions },
-    { titre: `${t.common.volume} (FCFA)`, valeur: (c: Client) => c.montantTotal },
-    { titre: t.common.registration, valeur: (c: Client) => formatDate(c.createdAt) },
-  ], 'clients');
-
   return (
     <>
       <GmPageHeader
@@ -136,9 +121,25 @@ export default function ClientsPage() {
         }
         actions={
           <>
-            <GmButton variante="outline" petit onClick={exporter}>
-              <Download size={14} /> {t.common.export}
-            </GmButton>
+            <GmExportMenu
+              titre={t.clients.title}
+              donnees={clients}
+              colonnes={[
+                { titre: t.common.firstName, valeur: (c: Client) => c.prenom },
+                { titre: t.common.lastName, valeur: (c: Client) => c.nom },
+                { titre: t.common.phone, valeur: (c: Client) => c.telephone },
+                { titre: t.common.email, valeur: (c: Client) => c.email ?? '' },
+                { titre: t.common.city, valeur: (c: Client) => c.ville ?? '' },
+                { titre: t.clients.table.colKyc, valeur: (c: Client) => c.kycStatut },
+                { titre: t.common.statut, valeur: (c: Client) => c.statut },
+                { titre: t.common.operator, valeur: (c: Client) => c.operateur },
+                { titre: `${t.clients.table.colWallet} (FCFA)`, valeur: (c: Client) => c.soldeWallet },
+                { titre: t.clients.table.colTransactions, valeur: (c: Client) => c.nbTransactions },
+                { titre: `${t.common.volume} (FCFA)`, valeur: (c: Client) => c.montantTotal },
+                { titre: t.common.registration, valeur: (c: Client) => formatDate(c.createdAt) },
+              ]}
+              nomFichier="clients"
+            />
             <GmButton variante="primary" petit onClick={() => setModalOuvert(true)}>
               <Plus size={14} /> {t.clients.newClient}
             </GmButton>

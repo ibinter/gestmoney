@@ -6,6 +6,7 @@
 // ============================================================
 import React, { useState } from 'react';
 import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import {
   useFloatSoldes,
   useFloatMouvements,
@@ -111,9 +112,26 @@ export default function FloatPage() {
             : t.float.liveLevels
         }
         actions={
-          <GmButton variante="primary" petit onClick={() => ouvrirModal()}>
-            {t.float.newRefill}
-          </GmButton>
+          <>
+            <GmExportMenu
+              titre={t.float.movements.title}
+              donnees={mouvements}
+              colonnes={[
+                { titre: t.float.movements.colHour, valeur: (m: MouvementFloat) => heure(m.date, t.dateLocale) },
+                { titre: t.float.movements.colOperator, valeur: (m: MouvementFloat) => OPERATEURS[m.operateur]?.label ?? m.operateur },
+                { titre: t.float.movements.colType, valeur: (m: MouvementFloat) => (m.type === 'entree' ? t.float.movements.in : t.float.movements.out) },
+                { titre: t.float.movements.colDescription, valeur: (m: MouvementFloat) => m.description || '—' },
+                { titre: t.float.movements.colAmount, valeur: (m: MouvementFloat) => m.montant, align: 'right' },
+                { titre: t.float.movements.colAgent, valeur: (m: MouvementFloat) => m.agentId || '—' },
+                { titre: t.float.movements.colBalanceAfter, valeur: (m: MouvementFloat) => m.soldeApres, align: 'right' },
+              ]}
+              nomFichier="float"
+              label={t.common.export}
+            />
+            <GmButton variante="primary" petit onClick={() => ouvrirModal()}>
+              {t.float.newRefill}
+            </GmButton>
+          </>
         }
       />
 

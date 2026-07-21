@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Download, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input, Select } from '@/components/ui/Input';
 import { formatMontant, formatDateTime } from '@/lib/formatters';
 import { useEcritures, useCaisseStats, useAddEcriture } from '@/hooks/useCaisse';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { EcritureCaisse } from '@/types';
 import { clsx } from 'clsx';
 import { useT } from '@/lib/i18n';
@@ -128,8 +129,23 @@ export default function CaissePage() {
           <h1 className="text-2xl font-bold text-text-main">{t.caisse.title}</h1>
           <p className="text-sm text-gray-500">{t.caisse.subtitle}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variante="ghost" taille="sm" icone={<Download size={15} />}>{t.common.export}</Button>
+        <div className="flex gap-2 items-center">
+          <GmExportMenu
+            titre={t.caisse.title}
+            donnees={ecritures}
+            colonnes={[
+              { titre: t.caisse.columns.date, valeur: (r) => formatDateTime(String(r.date)) },
+              { titre: t.caisse.columns.reference, valeur: (r) => r.reference },
+              { titre: t.caisse.columns.libelle, valeur: (r) => r.libelle },
+              { titre: t.caisse.columns.categorie, valeur: (r) => CAT_LABELS[String(r.categorie)] ?? String(r.categorie) },
+              { titre: t.caisse.columns.agent, valeur: (r) => r.agentNom ?? '' },
+              { titre: t.caisse.columns.sens, valeur: (r) => (r.type === 'entree' ? t.caisse.sens.entree : t.caisse.sens.sortie) },
+              { titre: t.caisse.columns.montant, valeur: (r) => r.montant, align: 'right' },
+              { titre: t.caisse.columns.soldeApres, valeur: (r) => r.soldeApres, align: 'right' },
+            ]}
+            nomFichier="caisse"
+            label={t.common.export}
+          />
           <Button variante="ghost" taille="sm" icone={<RefreshCw size={15} />} onClick={() => refetch()}>{t.common.refresh}</Button>
           <Button variante="primary" taille="sm" icone={<Plus size={15} />} onClick={() => setModalAjout(true)}>
             {t.caisse.manualEntry}

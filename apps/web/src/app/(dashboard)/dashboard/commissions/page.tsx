@@ -8,7 +8,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useCommissions, useValiderCommissions, usePayerCommissions } from '@/hooks/useCommissions';
 import { Commission } from '@/types';
 import { formatMontant, formatDate } from '@/lib/formatters';
-import { exporterCsv } from '@/lib/exportCsv';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
@@ -124,22 +124,17 @@ export default function CommissionsPage() {
     [commissions],
   );
 
-  const exporter = () =>
-    exporterCsv(
-      commissions,
-      [
-        { titre: t.commissions.csv.agent, valeur: (c) => c.agentNom },
-        { titre: t.commissions.csv.agence, valeur: (c) => c.agenceNom },
-        { titre: t.commissions.csv.periode, valeur: (c) => c.periode },
-        { titre: t.commissions.csv.transactions, valeur: (c) => c.nbTransactions },
-        { titre: t.commissions.csv.montantTransactions, valeur: (c) => c.montantTransactions },
-        { titre: t.commissions.csv.taux, valeur: (c) => c.tauxCommission },
-        { titre: t.commissions.csv.commission, valeur: (c) => c.montantCommission },
-        { titre: t.commissions.csv.statut, valeur: (c) => STATUT_LABELS[c.statut] ?? c.statut },
-        { titre: t.commissions.csv.datePaiement, valeur: (c) => (c.datePaiement ? formatDate(c.datePaiement) : '') },
-      ],
-      'commissions',
-    );
+  const colonnesExport = [
+    { titre: t.commissions.csv.agent, valeur: (c: Commission) => c.agentNom },
+    { titre: t.commissions.csv.agence, valeur: (c: Commission) => c.agenceNom },
+    { titre: t.commissions.csv.periode, valeur: (c: Commission) => c.periode },
+    { titre: t.commissions.csv.transactions, valeur: (c: Commission) => c.nbTransactions },
+    { titre: t.commissions.csv.montantTransactions, valeur: (c: Commission) => c.montantTransactions },
+    { titre: t.commissions.csv.taux, valeur: (c: Commission) => c.tauxCommission },
+    { titre: t.commissions.csv.commission, valeur: (c: Commission) => c.montantCommission },
+    { titre: t.commissions.csv.statut, valeur: (c: Commission) => STATUT_LABELS[c.statut] ?? c.statut },
+    { titre: t.commissions.csv.datePaiement, valeur: (c: Commission) => (c.datePaiement ? formatDate(c.datePaiement) : '') },
+  ];
 
   const toutesPageSelectionnees =
     commissionsPage.length > 0 && commissionsPage.every((c) => selectionnees.includes(c.id));
@@ -162,9 +157,12 @@ export default function CommissionsPage() {
         sousTitre={t.commissions.subtitle}
         actions={
           <>
-            <GmButton variante="outline" petit onClick={exporter}>
-              {t.commissions.exportCsv}
-            </GmButton>
+            <GmExportMenu
+              titre="Commissions"
+              donnees={commissions}
+              colonnes={colonnesExport}
+              nomFichier="commissions"
+            />
             <GmButton
               variante="primary"
               petit
@@ -307,9 +305,12 @@ export default function CommissionsPage() {
                 {t.commissions.toolbar.deselect}
               </GmButton>
             )}
-            <GmButton variante="outline" petit onClick={exporter}>
-              {t.commissions.exportCsv}
-            </GmButton>
+            <GmExportMenu
+              titre="Commissions"
+              donnees={commissions}
+              colonnes={colonnesExport}
+              nomFichier="commissions"
+            />
           </div>
         </div>
 

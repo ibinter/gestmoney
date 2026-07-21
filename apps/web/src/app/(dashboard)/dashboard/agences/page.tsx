@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { GmPageHeader, GmButton } from '@/components/gm';
 import { formatDate } from '@/lib/formatters';
-import { exporterCsv } from '@/lib/exportCsv';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { useAgences, useCreateAgence, useToggleAgenceStatus } from '@/hooks/useAgences';
 import { Agence } from '@/types';
 import { useT } from '@/lib/i18n';
@@ -65,20 +65,6 @@ export default function AgencesPage() {
     toggleStatut.mutate({ id: agence.id, active: !agence.active });
   };
 
-  const handleExport = () =>
-    exporterCsv(agences, [
-      { titre: t.agences.csv.nom, valeur: (a) => a.nom },
-      { titre: t.agences.csv.code, valeur: (a) => a.code },
-      { titre: t.agences.csv.ville, valeur: (a) => a.ville },
-      { titre: t.agences.csv.adresse, valeur: (a) => a.adresse },
-      { titre: t.agences.csv.telephone, valeur: (a) => a.telephone },
-      { titre: t.agences.csv.responsable, valeur: (a) => a.responsableNom },
-      { titre: t.agences.csv.agents, valeur: (a) => a.nbAgents },
-      { titre: t.agences.csv.agentsOnline, valeur: (a) => a.nbAgentsEnLigne },
-      { titre: t.agences.csv.statut, valeur: (a) => a.active ? t.agences.csv.active : t.agences.csv.inactive },
-      { titre: t.agences.csv.dateCreation, valeur: (a) => formatDate(a.createdAt) },
-    ], 'agences');
-
   return (
     <>
       <GmPageHeader
@@ -91,7 +77,23 @@ export default function AgencesPage() {
         }
         actions={
           <>
-            <GmButton variante="outline" petit onClick={handleExport}>📥 {t.common.export}</GmButton>
+            <GmExportMenu
+              titre="Agences"
+              donnees={agences}
+              colonnes={[
+                { titre: t.agences.csv.nom, valeur: (a) => a.nom },
+                { titre: t.agences.csv.code, valeur: (a) => a.code },
+                { titre: t.agences.csv.ville, valeur: (a) => a.ville },
+                { titre: t.agences.csv.adresse, valeur: (a) => a.adresse },
+                { titre: t.agences.csv.telephone, valeur: (a) => a.telephone },
+                { titre: t.agences.csv.responsable, valeur: (a) => a.responsableNom },
+                { titre: t.agences.csv.agents, valeur: (a) => a.nbAgents },
+                { titre: t.agences.csv.agentsOnline, valeur: (a) => a.nbAgentsEnLigne },
+                { titre: t.agences.csv.statut, valeur: (a) => a.active ? t.agences.csv.active : t.agences.csv.inactive },
+                { titre: t.agences.csv.dateCreation, valeur: (a) => formatDate(a.createdAt) },
+              ]}
+              nomFichier="agences"
+            />
             <GmButton variante="primary" petit onClick={() => setModalOuvert(true)}>{t.agences.newAgency}</GmButton>
           </>
         }

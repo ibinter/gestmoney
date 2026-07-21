@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { Agent } from '@/types';
 import { formatMontant, formatDate } from '@/lib/formatters';
-import { exporterCsv } from '@/lib/exportCsv';
 import { useAgents, useCreateAgent, useToggleAgentStatus } from '@/hooks/useAgents';
 import { useAgences } from '@/hooks/useAgences';
 import { useT } from '@/lib/i18n';
@@ -124,21 +124,6 @@ export default function AgentsPage() {
     await toggleStatut.mutateAsync({ id: agent.id, actif: !agent.actif });
   };
 
-  const handleExport = () =>
-    exporterCsv(agents, [
-      { titre: t.common.firstName, valeur: (a) => a.prenom },
-      { titre: t.common.lastName, valeur: (a) => a.nom },
-      { titre: t.common.email, valeur: (a) => a.email },
-      { titre: t.common.phone, valeur: (a) => a.telephone },
-      { titre: t.common.agency, valeur: (a) => a.agenceNom },
-      { titre: t.common.statut, valeur: (a) => (a.actif ? t.common.active : t.common.inactive) },
-      { titre: t.common.online, valeur: (a) => (a.enLigne ? t.common.yes : t.common.no) },
-      { titre: t.agents.table.colTxToday, valeur: (a) => a.nbTransactionsAujourdhui },
-      { titre: `${t.agents.table.colVolumeToday} (FCFA)`, valeur: (a) => a.montantTransactionsAujourdhui },
-      { titre: `${t.common.commission} (FCFA)`, valeur: (a) => a.commission },
-      { titre: t.common.registration, valeur: (a) => formatDate(a.createdAt) },
-    ], 'agents');
-
   const pagesAffichees = Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1);
 
   return (
@@ -149,7 +134,24 @@ export default function AgentsPage() {
         sousTitre={t.agents.pageSubtitle}
         actions={
           <>
-            <GmButton variante="outline" petit onClick={handleExport}>📥 {t.common.export}</GmButton>
+            <GmExportMenu
+              titre={t.agents.title}
+              donnees={agents}
+              colonnes={[
+                { titre: t.common.firstName, valeur: (a) => a.prenom },
+                { titre: t.common.lastName, valeur: (a) => a.nom },
+                { titre: t.common.email, valeur: (a) => a.email },
+                { titre: t.common.phone, valeur: (a) => a.telephone },
+                { titre: t.common.agency, valeur: (a) => a.agenceNom },
+                { titre: t.common.statut, valeur: (a) => (a.actif ? t.common.active : t.common.inactive) },
+                { titre: t.common.online, valeur: (a) => (a.enLigne ? t.common.yes : t.common.no) },
+                { titre: t.agents.table.colTxToday, valeur: (a) => a.nbTransactionsAujourdhui },
+                { titre: `${t.agents.table.colVolumeToday} (FCFA)`, valeur: (a) => a.montantTransactionsAujourdhui },
+                { titre: `${t.common.commission} (FCFA)`, valeur: (a) => a.commission },
+                { titre: t.common.registration, valeur: (a) => formatDate(a.createdAt) },
+              ]}
+              nomFichier="agents"
+            />
             <GmButton petit onClick={() => setModalNouvelAgent(true)}>{t.agents.createAgent}</GmButton>
           </>
         }

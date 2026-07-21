@@ -12,7 +12,7 @@ import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
 import { useTransactions, useCreateTransaction, useValiderTransaction } from '@/hooks/useTransactions';
 import { Transaction, TypeTransaction, StatutTransaction, Operateur, OPERATEURS } from '@/types';
 import { formatMontant, formatDate, formatDateTime } from '@/lib/formatters';
-import { exporterCsv } from '@/lib/exportCsv';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
 
@@ -169,22 +169,6 @@ export default function TransactionsPage() {
     setSearch(''); setDateDebut(''); setDateFin(''); setPage(1);
   };
 
-  const exporter = () =>
-    exporterCsv(lignes, [
-      { titre: t.common.date, valeur: (tx) => formatDate(tx.date) },
-      { titre: t.common.reference, valeur: (tx) => tx.reference },
-      { titre: t.common.type, valeur: (tx) => TYPE_LABELS[tx.type] ?? tx.type },
-      { titre: t.common.agent, valeur: (tx) => tx.agentNom },
-      { titre: t.common.agency, valeur: (tx) => tx.agenceNom },
-      { titre: t.common.operator, valeur: (tx) => tx.operateur },
-      { titre: t.common.client, valeur: (tx) => tx.clientNom ?? '' },
-      { titre: t.common.phone, valeur: (tx) => tx.clientTel ?? '' },
-      { titre: `${t.common.amount} (FCFA)`, valeur: (tx) => tx.montant },
-      { titre: `${t.transactions.detail.fees} (FCFA)`, valeur: (tx) => tx.frais },
-      { titre: `${t.common.commission} (FCFA)`, valeur: (tx) => tx.commission },
-      { titre: t.common.statut, valeur: (tx) => STATUT_LABELS[tx.statut] ?? tx.statut },
-    ], 'transactions');
-
   // Numéros de page affichés dans la pagination
   const numerosPages: number[] = [];
   for (let i = 0; i < Math.min(totalPages, 5); i++) {
@@ -207,7 +191,25 @@ export default function TransactionsPage() {
             <GmButton variante="ghost" petit onClick={() => refetch()} disabled={isFetching}>
               {isFetching ? `⏳ ${t.common.refreshing}` : `↻ ${t.common.refresh}`}
             </GmButton>
-            <GmButton variante="ghost" petit className="gm-btn-export" onClick={exporter}>📥 {t.transactions.exportCsv}</GmButton>
+            <GmExportMenu
+              titre="Transactions"
+              donnees={lignes}
+              colonnes={[
+                { titre: t.common.date, valeur: (tx) => formatDate(tx.date) },
+                { titre: t.common.reference, valeur: (tx) => tx.reference },
+                { titre: t.common.type, valeur: (tx) => TYPE_LABELS[tx.type] ?? tx.type },
+                { titre: t.common.agent, valeur: (tx) => tx.agentNom },
+                { titre: t.common.agency, valeur: (tx) => tx.agenceNom },
+                { titre: t.common.operator, valeur: (tx) => tx.operateur },
+                { titre: t.common.client, valeur: (tx) => tx.clientNom ?? '' },
+                { titre: t.common.phone, valeur: (tx) => tx.clientTel ?? '' },
+                { titre: `${t.common.amount} (FCFA)`, valeur: (tx) => tx.montant },
+                { titre: `${t.transactions.detail.fees} (FCFA)`, valeur: (tx) => tx.frais },
+                { titre: `${t.common.commission} (FCFA)`, valeur: (tx) => tx.commission },
+                { titre: t.common.statut, valeur: (tx) => STATUT_LABELS[tx.statut] ?? tx.statut },
+              ]}
+              nomFichier="transactions"
+            />
           </>
         }
       />

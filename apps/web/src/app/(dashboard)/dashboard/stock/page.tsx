@@ -8,6 +8,7 @@
 // ============================================================
 import React, { useMemo, useState } from 'react';
 import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
+import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import {
   useProduits,
   useInventaire,
@@ -117,6 +118,29 @@ export default function StockPage() {
   );
   const nbCritiques = alertes.filter((a) => a.severity === 'CRITICAL').length;
 
+  // Lignes d'inventaire mappées pour l'export (mêmes valeurs que le tableau).
+  const inventaireExport = useMemo(
+    () =>
+      lignes.map((ligne) => {
+        const produit = ligne.product;
+        const seuil = Number(produit?.alertThreshold ?? 0);
+        const dispo = Number(ligne.availableQuantity ?? 0);
+        const niveau = niveauStock(dispo, seuil);
+        const unit = produit?.unit ?? t.stock.inventaire.unitDefault;
+        return {
+          produit: produit?.name ?? t.stock.inventaire.unknownProduct,
+          categorie: produit ? CATEGORIE_BADGE[produit.category].label : '—',
+          agence: ligne.agencyId || '—',
+          niveau: `${dispo.toLocaleString('fr-FR')} ${unit}`,
+          seuil: seuil > 0 ? `${seuil} ${unit}` : '—',
+          valeurUnitaire: produit ? formatMontant(produit.unitPrice) : '—',
+          valorisation: formatMontant(Number(ligne.valorisation ?? 0)),
+          statut: NIVEAU_PILL[niveau].label,
+        };
+      }),
+    [lignes, t, CATEGORIE_BADGE, NIVEAU_PILL],
+  );
+
   // ─── Modal mouvement ───────────────────────────────────────────────────────
   const [modalOuvert, setModalOuvert] = useState(false);
   const [sens, setSens] = useState<'in' | 'out'>('in');
@@ -223,6 +247,21 @@ export default function StockPage() {
             >
               {t.stock.entreeBtn}
             </GmButton>
+            <GmExportMenu
+              titre={t.stock.inventaire.sectionTitle}
+              donnees={inventaireExport}
+              nomFichier="stock_inventaire"
+              colonnes={[
+                { titre: t.stock.inventaire.colProduit, valeur: (r) => r.produit },
+                { titre: t.stock.inventaire.colCategorie, valeur: (r) => r.categorie },
+                { titre: t.stock.inventaire.colAgence, valeur: (r) => r.agence },
+                { titre: t.stock.inventaire.colNiveau, valeur: (r) => r.niveau, align: 'right' },
+                { titre: t.stock.inventaire.colSeuil, valeur: (r) => r.seuil, align: 'right' },
+                { titre: t.stock.inventaire.colValeurUnitaire, valeur: (r) => r.valeurUnitaire, align: 'right' },
+                { titre: t.stock.inventaire.colValorisation, valeur: (r) => r.valorisation, align: 'right' },
+                { titre: t.stock.inventaire.colStatut, valeur: (r) => r.statut },
+              ]}
+            />
           </>
         }
       />
