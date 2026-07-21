@@ -3,82 +3,84 @@ import { NotFoundException } from '@nestjs/common';
 import { CommissionsService } from './commissions.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
+// ─── Fixtures (schéma RÉEL : plan → rates, network, earnings, payments) ─────────
 
-const mockPlanTaux = {
-  id: 'plan-uuid-1',
+const network = {
+  id: 'net-1',
   tenantId: 'tenant-1',
-  nom: 'Grille Orange RETRAIT',
-  operateur: 'ORANGE_MONEY',
-  typeTransaction: 'RETRAIT',
-  active: true,
-  partAgent: 70,
-  partReseau: 30,
-  paliers: [
-    { montantMin: 1, montantMax: 10000, taux: 1, montantFixe: null },
-    { montantMin: 10001, montantMax: 100000, taux: 0.8, montantFixe: null },
-    { montantMin: 100001, montantMax: null, taux: null, montantFixe: 1000 },
-  ],
+  operatorCode: 'ORANGE_MONEY',
+  currency: 'XOF',
 };
 
-const mockPlanFixe = {
-  ...mockPlanTaux,
-  id: 'plan-uuid-2',
-  paliers: [
-    { montantMin: 1, montantMax: 500000, taux: null, montantFixe: 500 },
-  ],
-};
+/** Construit une grille avec ses paliers (CommissionRate) réels. */
+function planAvecRates(rates: any[]) {
+  return {
+    id: 'plan-1',
+    tenantId: 'tenant-1',
+    name: 'Grille Orange RETRAIT',
+    networkId: 'net-1',
+    isActive: true,
+    effectiveFrom: new Date('2020-01-01'),
+    effectiveTo: null,
+    rates: rates.map((r, i) => ({
+      id: `rate-${i}`,
+      transactionType: 'RETRAIT',
+      minAmount: r.minAmount,
+      maxAmount: r.maxAmount,
+      rate: r.rate ?? 0,
+      fixedAmount: r.fixedAmount ?? null,
+      agentShare: 70,
+      superAgentShare: 0,
+      agencyShare: 0,
+      networkShare: 30,
+    })),
+  };
+}
 
-const mockCommission = {
-  id: 'comm-uuid-1',
+const earning = {
+  id: 'earn-1',
   tenantId: 'tenant-1',
-  transactionId: 'txn-uuid-1',
-  agentId: 'agent-uuid-1',
-  agenceId: 'agence-uuid-1',
-  operateur: 'ORANGE_MONEY',
-  typeTransaction: 'RETRAIT',
-  montantTransaction: 50000,
-  montantCommission: 400,
-  partAgent: 280,
-  partReseau: 120,
-  statut: 'DUE',
-  createdAt: new Date(),
+  transactionId: 'txn-1',
+  agentId: 'agent-1',
+  agentAmount: 280,
 };
 
-const mockPrisma = {
+const mockPrisma: any = {
+  network: { findUnique: jest.fn() },
   commissionPlan: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   },
-  commission: {
-    create: jest.fn(),
+  commissionRate: { create: jest.fn() },
+  commissionEarning: {
+    findFirst: jest.fn(),
     findMany: jest.fn(),
+    create: jest.fn(),
     count: jest.fn(),
-    updateMany: jest.fn(),
     deleteMany: jest.fn(),
-    groupBy: jest.fn(),
+    aggregate: jest.fn(),
   },
   commissionPayment: {
     create: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
+    aggregate: jest.fn(),
   },
-  transaction: {
-    findMany: jest.fn(),
-    update: jest.fn(),
-  },
-  $transaction: jest.fn((cb) => cb(mockPrisma)),
+  transaction: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
+  // $transaction(array) → résout toutes les promesses passées.
+  $transaction: jest.fn((arg: any) =>
+    Array.isArray(arg) ? Promise.all(arg) : arg(mockPrisma),
+  ),
 };
-
-// ─── Suite de tests ───────────────────────────────────────────────────────────
 
 describe('CommissionsService', () => {
   let service: CommissionsService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrisma.network.findUnique.mockResolvedValue(network);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -94,15 +96,14 @@ describe('CommissionsService', () => {
 
   describe('calculateCommissionAmount()', () => {
     it('devrait calculer une commission en pourcentage (palier taux)', async () => {
-      mockPrisma.commissionPlan.findFirst.mockResolvedValue({
-        ...mockPlanTaux,
-        paliers: [{ montantMin: 1, montantMax: 10000, taux: 1, montantFixe: null }],
-      });
+      mockPrisma.commissionPlan.findFirst.mockResolvedValue(
+        planAvecRates([{ minAmount: 1, maxAmount: 10000, rate: 1 }]),
+      );
 
       const result = await service.calculateCommissionAmount(
         5000,
-        'RETRAIT',
-        'ORANGE_MONEY',
+        'RETRAIT' as any,
+        'ORANGE_MONEY' as any,
         'tenant-1',
       );
 
@@ -112,12 +113,14 @@ describe('CommissionsService', () => {
     });
 
     it('devrait calculer une commission montant fixe', async () => {
-      mockPrisma.commissionPlan.findFirst.mockResolvedValue(mockPlanFixe);
+      mockPrisma.commissionPlan.findFirst.mockResolvedValue(
+        planAvecRates([{ minAmount: 1, maxAmount: 500000, fixedAmount: 500 }]),
+      );
 
       const result = await service.calculateCommissionAmount(
         200000,
-        'RETRAIT',
-        'ORANGE_MONEY',
+        'RETRAIT' as any,
+        'ORANGE_MONEY' as any,
         'tenant-1',
       );
 
@@ -127,19 +130,18 @@ describe('CommissionsService', () => {
     });
 
     it('devrait appliquer le bon palier parmi plusieurs paliers', async () => {
-      mockPrisma.commissionPlan.findFirst.mockResolvedValue({
-        ...mockPlanTaux,
-        paliers: [
-          { montantMin: 1, montantMax: 10000, taux: 2, montantFixe: null },
-          { montantMin: 10001, montantMax: 100000, taux: 1, montantFixe: null },
-          { montantMin: 100001, montantMax: null, taux: 0.5, montantFixe: null },
-        ],
-      });
+      mockPrisma.commissionPlan.findFirst.mockResolvedValue(
+        planAvecRates([
+          { minAmount: 1, maxAmount: 10000, rate: 2 },
+          { minAmount: 10001, maxAmount: 100000, rate: 1 },
+          { minAmount: 100001, maxAmount: null, rate: 0.5 },
+        ]),
+      );
 
       const result = await service.calculateCommissionAmount(
         50000,
-        'RETRAIT',
-        'ORANGE_MONEY',
+        'RETRAIT' as any,
+        'ORANGE_MONEY' as any,
         'tenant-1',
       );
 
@@ -147,13 +149,13 @@ describe('CommissionsService', () => {
       expect(result.total).toBe(500);
     });
 
-    it('devrait retourner 0 si aucun plan trouvé pour cet opérateur', async () => {
+    it("devrait retourner 0 si aucun réseau/plan trouvé pour l'opérateur", async () => {
       mockPrisma.commissionPlan.findFirst.mockResolvedValue(null);
 
       const result = await service.calculateCommissionAmount(
         50000,
-        'RETRAIT',
-        'WAVE',
+        'RETRAIT' as any,
+        'WAVE' as any,
         'tenant-1',
       );
 
@@ -163,15 +165,14 @@ describe('CommissionsService', () => {
     });
 
     it('devrait retourner 0 si aucun palier ne correspond au montant', async () => {
-      mockPrisma.commissionPlan.findFirst.mockResolvedValue({
-        ...mockPlanTaux,
-        paliers: [{ montantMin: 500000, montantMax: null, taux: 0.5, montantFixe: null }],
-      });
+      mockPrisma.commissionPlan.findFirst.mockResolvedValue(
+        planAvecRates([{ minAmount: 500000, maxAmount: null, rate: 0.5 }]),
+      );
 
       const result = await service.calculateCommissionAmount(
         100,
-        'RETRAIT',
-        'ORANGE_MONEY',
+        'RETRAIT' as any,
+        'ORANGE_MONEY' as any,
         'tenant-1',
       );
 
@@ -179,30 +180,75 @@ describe('CommissionsService', () => {
     });
   });
 
+  // ─── recordCommission() ──────────────────────────────────────────────────────
+
+  describe('recordCommission()', () => {
+    it("devrait créer un CommissionEarning et refléter la commission sur la transaction", async () => {
+      mockPrisma.commissionEarning.findFirst.mockResolvedValue(null);
+      mockPrisma.transaction.findUnique.mockResolvedValue({
+        id: 'txn-1',
+        tenantId: 'tenant-1',
+        networkId: 'net-1',
+        type: 'RETRAIT',
+        amount: 50000,
+        agentId: 'agent-1',
+        agencyId: 'agence-1',
+        createdAt: new Date('2026-07-01'),
+      });
+      mockPrisma.commissionPlan.findFirst.mockResolvedValue(
+        planAvecRates([{ minAmount: 1, maxAmount: 100000, rate: 1 }]),
+      );
+      mockPrisma.commissionEarning.create.mockResolvedValue({ id: 'earn-1' });
+      mockPrisma.transaction.update.mockResolvedValue({ id: 'txn-1' });
+
+      await service.recordCommission('txn-1');
+
+      expect(mockPrisma.commissionEarning.create).toHaveBeenCalledTimes(1);
+      const data = mockPrisma.commissionEarning.create.mock.calls[0][0].data;
+      expect(data.grossAmount).toBe(500); // 1% de 50000
+      expect(data.agentAmount).toBe(350); // 70%
+      expect(data.periodMonth).toBe(7);
+      expect(data.periodYear).toBe(2026);
+      expect(mockPrisma.transaction.update).toHaveBeenCalledWith({
+        where: { id: 'txn-1' },
+        data: { commission: 500 },
+      });
+    });
+
+    it('devrait être idempotent (ne rien créer si une commission existe déjà)', async () => {
+      mockPrisma.commissionEarning.findFirst.mockResolvedValue({ id: 'earn-1' });
+
+      await service.recordCommission('txn-1');
+
+      expect(mockPrisma.transaction.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.commissionEarning.create).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── validatePayment() (batch) ────────────────────────────────────────────────
 
   describe('validatePayment()', () => {
-    it('devrait valider un paiement batch de commissions DUE', async () => {
-      mockPrisma.commission.findMany.mockResolvedValue([mockCommission]);
+    it('devrait agréger les commissions par agent et créer un paiement', async () => {
+      mockPrisma.commissionEarning.findMany.mockResolvedValue([earning]);
       mockPrisma.commissionPayment.create.mockResolvedValue({
-        id: 'payment-uuid-1',
-        montantTotal: 280,
-        nombreCommissions: 1,
+        id: 'pay-1',
+        netAmount: 280,
       });
-      mockPrisma.commission.updateMany.mockResolvedValue({ count: 1 });
 
       const result = await service.validatePayment(
-        { commissionIds: ['comm-uuid-1'] },
+        { commissionIds: ['earn-1'] },
         'tenant-1',
-        'user-uuid-1',
+        'user-1',
       );
 
       expect(result.commissionsPayees).toBe(1);
-      expect(result.montantTotal).toBe(280); // partAgent de la commission
+      expect(result.montantTotal).toBe(280); // somme des agentAmount
+      expect(result.paiements).toBe(1);
+      expect(mockPrisma.commissionPayment.create).toHaveBeenCalledTimes(1);
     });
 
-    it('devrait lever NotFoundException si aucune commission DUE trouvée', async () => {
-      mockPrisma.commission.findMany.mockResolvedValue([]);
+    it('devrait lever NotFoundException si aucune commission trouvée', async () => {
+      mockPrisma.commissionEarning.findMany.mockResolvedValue([]);
 
       await expect(
         service.validatePayment({ commissionIds: ['bad-id'] }, 'tenant-1', 'user-1'),

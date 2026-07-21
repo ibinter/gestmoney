@@ -17,15 +17,9 @@ export class CommissionListener {
     const { transaction } = event;
 
     try {
-      await this.commissionsService.recordCommission(
-        transaction.id,
-        transaction.agentId,
-        transaction.agenceId,
-        transaction.montant,
-        transaction.type,
-        transaction.operateur,
-        transaction.tenantId,
-      );
+      // La commission est recalculée depuis la transaction en base (source
+      // autoritaire) : on ne passe que son identifiant.
+      await this.commissionsService.recordCommission(transaction.id);
 
       this.logger.log(`Commission calculée pour transaction ${transaction.reference}`);
     } catch (error: any) {
