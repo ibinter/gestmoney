@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { EventEmitterModule } from "@nestjs/event-emitter";
@@ -30,6 +30,7 @@ import { AiModule } from "./ai/ai.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { LicencesModule } from "./licences/licences.module";
 import { LicenceGuard } from "./licences/licence.guard";
+import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
 
 @Module({
   imports: [
@@ -88,6 +89,13 @@ import { LicenceGuard } from "./licences/licence.guard";
     // Ses dépendances sont résolues dans ce contexte : `LicencesService` est
     // exporté par `LicencesModule`, `JwtService` par `AuthModule`.
     { provide: APP_GUARD, useClass: LicenceGuard },
+    // ── Journalisation d'audit à l'échelle de TOUTE l'application ───────────
+    // Enregistré en global : toute mutation métier réussie et authentifiée est
+    // tracée (§27). `AuditService` est fourni par `AuditModule`, importé plus
+    // haut et exportant ce service — il est donc injectable ici sans dépendance
+    // circulaire (AuditModule ne dépend que de PrismaModule). L'écriture est en
+    // fire-and-forget : elle ne bloque ni ne fait échouer la réponse HTTP.
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule {}

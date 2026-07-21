@@ -3,9 +3,11 @@ import {
   Get,
   Param,
   Query,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -79,6 +81,7 @@ export class AuditController {
   async exportLogs(
     @CurrentUser() user: CurrentUserData,
     @Res() res: Response,
+    @Req() req: Request,
     @Query('format') format: 'CSV' | 'PDF' = 'CSV',
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -87,6 +90,21 @@ export class AuditController {
     const end = endDate ? new Date(endDate) : new Date();
 
     const buffer = await this.auditService.exportAuditLog(user.tenantId, { start, end }, format);
+
+    // Traçabilité (§27) : télécharger le journal d'audit est une action sensible.
+    // Route GET → non captée par l'AuditInterceptor, on la journalise ici.
+    // Fire-and-forget : ne bloque ni ne fait échouer le téléchargement.
+    void Promise.resolve(
+      this.auditService.log(
+        'EXPORT',
+        user.id,
+        'audit',
+        { format, start, end },
+        user.tenantId,
+        this.ipDe(req),
+        typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : undefined,
+      ),
+    ).catch(() => undefined);
 
     if (format === 'CSV') {
       res.setHeader('Content-Type', 'text/csv');
@@ -122,5 +140,14 @@ export class AuditController {
   @ApiOperation({ summary: 'Détail d\'une entrée du journal d\'audit' })
   findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
     return this.auditService.findById(id, user.tenantId);
+  }
+
+  /** IP réelle : `x-forwarded-for` (premier maillon) en priorité, sinon `req.ip`. */
+  private ipDe(req: Request): string | undefined {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip ?? undefined;
   }
 }
