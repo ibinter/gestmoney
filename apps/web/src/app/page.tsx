@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { SaraBubble } from '@/components/landing/SaraBubble';
 import { Logo } from '@/components/ui/Logo';
 
 // ─── Données ───────────────────────────────────────────────────
@@ -975,6 +976,9 @@ export default function LandingPage() {
           .marquee-track { animation: none !important; }
         }
       `}</style>
+
+      {/* Bulle SARA — chat commercial public */}
+      <SaraBubble />
     </div>
   );
 }
