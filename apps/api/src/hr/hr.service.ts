@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { normaliserPagination } from '../common/utils/pagination';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { ContractDto } from './dto/contract.dto';
 import {
@@ -59,7 +60,8 @@ export class HrService {
     page?: number;
     limit?: number;
   }) {
-    const { status, search, page = 1, limit = 20 } = filters;
+    const { status, search, page, limit } = filters;
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const where: any = {};
     if (status) where.status = status;
     if (search) {
@@ -72,14 +74,14 @@ export class HrService {
     const [data, total] = await Promise.all([
       this.prisma.employee.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take: l,
         include: { contracts: { where: { isActive: true }, take: 1 } },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.employee.count({ where }),
     ]);
-    return { data, total, page, limit };
+    return { data, total, page: p, limit: l };
   }
 
   async createEmployee(dto: CreateEmployeeDto, actorId: string) {

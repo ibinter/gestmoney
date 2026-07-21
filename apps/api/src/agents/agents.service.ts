@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { QueryAgentDto } from './dto/query-agent.dto';
+import { normaliserPagination } from '../common/utils/pagination';
 
 @Injectable()
 export class AgentsService {
@@ -213,41 +214,41 @@ export class AgentsService {
     return { message: 'Agent réactivé avec succès' };
   }
 
-  async getTransactions(id: string, tenantId: string, page = 1, limit = 20) {
+  async getTransactions(id: string, tenantId: string, page?: number, limit?: number) {
     const agent = await this.prisma.agent.findFirst({ where: { id, tenantId } });
     if (!agent) throw new NotFoundException('Agent non trouvé');
 
-    const skip = (page - 1) * limit;
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const [data, total] = await Promise.all([
       this.prisma.transaction.findMany({
         where: { agentId: id },
         skip,
-        take: limit,
+        take: l,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.transaction.count({ where: { agentId: id } }),
     ]);
 
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { data, meta: { page: p, limit: l, total, totalPages: Math.ceil(total / l) } };
   }
 
-  async getCommissions(id: string, tenantId: string, page = 1, limit = 20) {
+  async getCommissions(id: string, tenantId: string, page?: number, limit?: number) {
     const agent = await this.prisma.agent.findFirst({ where: { id, tenantId } });
     if (!agent) throw new NotFoundException('Agent non trouvé');
 
-    const skip = (page - 1) * limit;
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const [data, total] = await Promise.all([
       this.prisma.commissionEarning.findMany({
         where: { agentId: id },
         skip,
-        take: limit,
+        take: l,
         orderBy: { createdAt: 'desc' },
         include: { transaction: { select: { reference: true, type: true, amount: true } } },
       }),
       this.prisma.commissionEarning.count({ where: { agentId: id } }),
     ]);
 
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { data, meta: { page: p, limit: l, total, totalPages: Math.ceil(total / l) } };
   }
 
   async getFloat(id: string, tenantId: string) {

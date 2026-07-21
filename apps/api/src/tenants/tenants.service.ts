@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
+import { normaliserPagination } from '../common/utils/pagination';
 
 @Injectable()
 export class TenantsService {
@@ -36,8 +37,8 @@ export class TenantsService {
     return tenant;
   }
 
-  async findAll(page = 1, limit = 20, search?: string) {
-    const skip = (page - 1) * limit;
+  async findAll(page?: number, limit?: number, search?: string) {
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const where: any = {};
 
     if (search) {
@@ -51,7 +52,7 @@ export class TenantsService {
       this.prisma.tenant.findMany({
         where,
         skip,
-        take: limit,
+        take: l,
         orderBy: { createdAt: 'desc' },
         include: {
           _count: { select: { users: true, agencies: true, agents: true } },
@@ -62,7 +63,7 @@ export class TenantsService {
 
     return {
       data,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      meta: { page: p, limit: l, total, totalPages: Math.ceil(total / l) },
     };
   }
 

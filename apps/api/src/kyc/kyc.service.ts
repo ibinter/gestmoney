@@ -8,6 +8,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { KycSubmissionDto } from './dto/kyc-submission.dto';
+import { normaliserPagination } from '../common/utils/pagination';
 
 export enum KycStatus {
   PENDING = 'PENDING',
@@ -242,8 +243,8 @@ export class KycService {
 
   // ─── Liste des KYC en attente ─────────────────────────────────────────────
 
-  async getPending(tenantId: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
+  async getPending(tenantId: string, page?: number, limit?: number) {
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
 
     const [data, total] = await Promise.all([
       this.prisma.kycVerification.findMany({
@@ -255,7 +256,7 @@ export class KycService {
         },
         orderBy: { submittedAt: 'asc' }, // FIFO
         skip,
-        take: limit,
+        take: l,
       }),
       this.prisma.kycVerification.count({
         where: { tenantId, status: KycStatus.PENDING },
@@ -265,9 +266,9 @@ export class KycService {
     return {
       data,
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      page: p,
+      limit: l,
+      totalPages: Math.ceil(total / l),
     };
   }
 

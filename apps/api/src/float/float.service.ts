@@ -12,6 +12,7 @@ import {
   InsufficientFloatException,
 } from '../common/exceptions/business.exceptions';
 import { MobileMoneyOperator } from '../transactions/interfaces/transaction.interface';
+import { normaliserPagination } from '../common/utils/pagination';
 
 export const FLOAT_EVENTS = {
   LOW_BALANCE_ALERT: 'float.low_balance_alert',
@@ -381,7 +382,8 @@ export class FloatService {
 
   // ─── Mouvements & Alertes ────────────────────────────────────────────────────
 
-  async getMovements(tenantId: string, agentId?: string, operateur?: string, page = 1, limit = 20) {
+  async getMovements(tenantId: string, agentId?: string, operateur?: string, page?: number, limit?: number) {
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const where: any = { tenantId };
     if (agentId || operateur) {
       where.floatAccount = {
@@ -393,8 +395,8 @@ export class FloatService {
     const [movements, total] = await Promise.all([
       this.prisma.floatMovement.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take: l,
         orderBy: { createdAt: 'desc' },
         include: {
           floatAccount: {
@@ -425,7 +427,7 @@ export class FloatService {
       createdAt: m.createdAt,
     }));
 
-    return { data, total, page, limit };
+    return { data, total, page: p, limit: l };
   }
 
   async getAlerts(tenantId: string) {

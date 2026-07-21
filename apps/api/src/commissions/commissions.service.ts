@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { normaliserPagination } from '../common/utils/pagination';
 import { CommissionPlanDto } from './dto/commission-plan.dto';
 import {
   CalculateCommissionsDto,
@@ -300,17 +301,18 @@ export class CommissionsService {
     return { payment, commissionsPayees: commissions.length, montantTotal: totalMontant };
   }
 
-  async getPayments(tenantId: string, page = 1, limit = 20) {
+  async getPayments(tenantId: string, page?: number, limit?: number) {
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const [data, total] = await Promise.all([
       this.prisma.commissionPayment.findMany({
         where: { tenantId },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take: l,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.commissionPayment.count({ where: { tenantId } }),
     ]);
 
-    return { data, total, page, limit };
+    return { data, total, page: p, limit: l };
   }
 }

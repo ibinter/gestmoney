@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { normaliserPagination } from '../common/utils/pagination';
 
 export type NotificationChannel = 'SMS' | 'EMAIL' | 'PUSH';
 
@@ -132,17 +133,18 @@ export class NotificationsService {
 
   // ─── Historique notifications ────────────────────────────────────────────────
 
-  async getHistory(tenantId: string, userId?: string, page = 1, limit = 20) {
+  async getHistory(tenantId: string, userId?: string, page?: number, limit?: number) {
     // Le schéma nomme la colonne `recipient` (et non `destinataire`) ;
     // `userId` est aussi renseigné pour les notifications PUSH.
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const where: any = { tenantId };
     if (userId) where.OR = [{ recipient: userId }, { userId }];
 
     const [rows, total] = await Promise.all([
       this.prisma.notificationLog.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take: l,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.notificationLog.count({ where }),
@@ -164,7 +166,7 @@ export class NotificationsService {
       createdAt: n.createdAt,
     }));
 
-    return { data, total, page, limit };
+    return { data, total, page: p, limit: l };
   }
 
   // ─── Log interne ─────────────────────────────────────────────────────────────

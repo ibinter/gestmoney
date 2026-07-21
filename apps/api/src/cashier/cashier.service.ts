@@ -4,6 +4,7 @@ import {
   CaisseAlreadyOpenException,
   CaisseNotOpenException,
 } from '../common/exceptions/business.exceptions';
+import { normaliserPagination } from '../common/utils/pagination';
 
 export interface OpenCaisseDto {
   agentId: string;
@@ -175,18 +176,19 @@ export class CashierService {
     });
   }
 
-  async getHistory(agentId: string, tenantId: string, page = 1, limit = 20) {
+  async getHistory(agentId: string, tenantId: string, page?: number, limit?: number) {
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
     const [data, total] = await Promise.all([
       this.prisma.caisseSession.findMany({
         where: { agentId, tenantId, statut: 'FERMEE' },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take: l,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.caisseSession.count({ where: { agentId, tenantId, statut: 'FERMEE' } }),
     ]);
 
-    return { data, total, page, limit };
+    return { data, total, page: p, limit: l };
   }
 
   // ─── Coffre ───────────────────────────────────────────────────────────────────

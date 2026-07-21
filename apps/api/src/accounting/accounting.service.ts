@@ -18,6 +18,7 @@ import {
   ICashFlow,
   TrialBalanceLine,
 } from './interfaces/accounting.interface';
+import { normaliserPagination } from '../common/utils/pagination';
 import { ITransaction } from '../transactions/interfaces/transaction.interface';
 import {
   SYSCOHADA_CHART_OF_ACCOUNTS,
@@ -427,7 +428,8 @@ export class AccountingService {
     query: QueryLedgerDto,
     tenantId: string,
   ): Promise<{ data: IJournalEntry[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 20, accountNumber, startDate, endDate, fiscalYearId } = query;
+    const { page, limit, accountNumber, startDate, endDate, fiscalYearId } = query;
+    const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
 
     const where: any = { tenantId };
     if (fiscalYearId) where.fiscalYearId = fiscalYearId;
@@ -440,12 +442,11 @@ export class AccountingService {
       where.lines = { some: { account: { code: { startsWith: accountNumber } } } };
     }
 
-    const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
       this.prisma.journalEntry.findMany({
         where,
         skip,
-        take: limit,
+        take: l,
         orderBy: { entryDate: 'desc' },
         include: { lines: { include: { account: true } } },
       }),
@@ -455,8 +456,8 @@ export class AccountingService {
     return {
       data: data.map(this._mapJournalEntry),
       total,
-      page,
-      limit,
+      page: p,
+      limit: l,
     };
   }
 
