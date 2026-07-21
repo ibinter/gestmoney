@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     'confidentialite', 'cookies', 'donnees', 'propriete-intellectuelle',
     'support', 'sauvegarde', 'resiliation', 'remboursement',
     'essai', 'sara', 'suppression-compte', 'reclamations',
+    'protection-marque', 'responsabilite-ia',
   ].map(slug => ({
     url: `${BASE_URL}/legal/${slug}`,
     changeFrequency: 'yearly' as const,
