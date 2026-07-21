@@ -109,11 +109,13 @@ export function AssistantIA() {
 
     let reponse: string;
     try {
-      // Tenter l'API en production
+      // Tenter l'API en production. On n'envoie PAS userId : le backend le
+      // déduit du JWT, et le DTO (whitelisté) rejette tout champ superflu —
+      // envoyer userId ferait échouer la requête et retomber sur le repli.
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: q, userId: user?.id }),
+        body: JSON.stringify({ message: q, contexte: 'INTERNE' }),
       });
       if (res.ok) {
         const data = await res.json();

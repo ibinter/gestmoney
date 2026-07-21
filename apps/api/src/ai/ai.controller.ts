@@ -1,14 +1,27 @@
 import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { AiService } from './ai.service';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { v4 as uuidv4 } from 'uuid';
 
+// Sans ces décorateurs, la validation globale (`whitelist` +
+// `forbidNonWhitelisted`) rejetait TOUTE requête avec « property message
+// should not exist » : le chat SARA renvoyait donc un 400 systématique.
 class ChatDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
   message: string;
+
+  @IsOptional()
+  @IsString()
   sessionId?: string;
+
+  @IsOptional()
+  @IsIn(['PUBLIC', 'INTERNE', 'SUPPORT'])
   contexte?: 'PUBLIC' | 'INTERNE' | 'SUPPORT';
 }
 

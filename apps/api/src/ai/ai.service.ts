@@ -161,17 +161,27 @@ export class AiService {
     };
   }
 
+  /**
+   * Réponses de repli quand aucun fournisseur IA n'est configuré (pas de clé)
+   * ou qu'il échoue. Ce sont des réponses fixes, mais elles doivent rester
+   * EXACTES : un prospect qui lit un tarif ici le prend pour argent comptant.
+   * Les 4 forfaits actuels sont Starter 9 900, Essentiel 19 900,
+   * Professional 39 900 XOF/mois et Enterprise sur devis.
+   */
   private fallbackResponse(message: string): string {
     const q = message.toLowerCase();
     if (q.includes('prix') || q.includes('tarif') || q.includes('abonnement')) {
-      return 'GESTMONEY propose 3 formules : **Starter** (49 000 XOF/mois), **Professional** (149 000 XOF/mois) et **Enterprise** (sur devis). Essai gratuit 14 jours sans carte bancaire. Souhaitez-vous une démonstration personnalisée ?';
+      return 'GESTMONEY propose 4 formules : **Starter** (9 900 XOF/mois), **Essentiel** (19 900 XOF/mois), **Professional** (39 900 XOF/mois) et **Enterprise** (sur devis). Essai gratuit 14 jours sans carte bancaire, et 2 mois offerts sur l\'abonnement annuel. Souhaitez-vous une démonstration ?';
     }
-    if (q.includes('opérateur') || q.includes('orange') || q.includes('mtn') || q.includes('wave')) {
-      return 'GESTMONEY supporte **Orange Money**, **MTN MoMo**, **Wave**, **Moov Money** et **Airtel Money** avec des adaptateurs natifs. La configuration se fait en quelques minutes depuis le SuperAdmin.';
+    if (q.includes('opérateur') || q.includes('operateur') || q.includes('orange') || q.includes('mtn') || q.includes('wave') || q.includes('moov') || q.includes('airtel')) {
+      return 'GESTMONEY prend en charge **Orange Money**, **MTN MoMo**, **Wave**, **Moov Money** et **Airtel Money**. La configuration se fait depuis l\'espace d\'administration.';
+    }
+    if (q.includes('paiement') || q.includes('payer') || q.includes('paye')) {
+      return 'GESTMONEY accepte de nombreux moyens de paiement : Mobile Money, cartes et passerelles (CinetPay, Stripe, PayPal…), virements national et international, transfert d\'argent, espèces en agence, chèque, cryptomonnaie, code prépayé et paiement à la livraison. Chaque moyen s\'active selon votre pays.';
     }
     if (q.includes('demo') || q.includes('démo') || q.includes('essai')) {
-      return 'Je vous invite à démarrer votre **essai gratuit de 14 jours** en cliquant sur "Accéder à la plateforme". Notre équipe peut aussi organiser une démonstration personnalisée — rendez-vous sur la section Contact.';
+      return 'Vous pouvez démarrer un **essai gratuit de 14 jours** sans carte bancaire. Notre équipe peut aussi organiser une démonstration — rendez-vous sur la section Contact.';
     }
-    return 'Bonjour ! Je suis **SARA**, votre assistante GESTMONEY. Posez-moi vos questions sur la plateforme, les tarifs, les opérateurs intégrés ou demandez une démonstration. 💬';
+    return 'Bonjour ! Je suis **SARA**, votre assistante GESTMONEY. Posez-moi vos questions sur la plateforme, les tarifs, les opérateurs ou les moyens de paiement. 💬';
   }
 }
