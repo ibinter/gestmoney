@@ -7,13 +7,17 @@ import {
   InsufficientFloatException,
 } from '../common/exceptions/business.exceptions';
 
+// Le schéma Prisma est en anglais (`balance`, `minimumBalance`…) ; le service
+// lit ces champs et ne connaît pas les alias FR. Les fixtures doivent donc
+// refléter les noms réels lus par le code.
 const mockFloatAccount = {
   id: 'float-uuid-1',
   agentId: 'agent-uuid-1',
   operateur: 'ORANGE_MONEY',
-  solde: 100000,
-  seuilMin: 10000,
-  seuilCible: 200000,
+  balance: 100000,
+  minimumBalance: 10000,
+  maximumBalance: 200000,
+  currency: 'XOF',
   tenantId: 'tenant-1',
 };
 
@@ -66,7 +70,7 @@ describe('FloatService', () => {
       mockPrisma.floatAccount.findFirst.mockResolvedValue(mockFloatAccount);
       mockPrisma.floatAccount.findUnique.mockResolvedValue({
         ...mockFloatAccount,
-        solde: 50000, // après débit
+        balance: 50000, // après débit
       });
       mockPrisma.floatAccount.update.mockResolvedValue({});
       mockPrisma.floatMovement.create.mockResolvedValue({});
@@ -77,7 +81,7 @@ describe('FloatService', () => {
 
       expect(mockPrisma.floatAccount.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ solde: { decrement: 50000 } }),
+          data: expect.objectContaining({ balance: { decrement: 50000 } }),
         }),
       );
     });
@@ -93,7 +97,7 @@ describe('FloatService', () => {
     it('devrait lever InsufficientFloatException si solde insuffisant', async () => {
       mockPrisma.floatAccount.findFirst.mockResolvedValue({
         ...mockFloatAccount,
-        solde: 1000,
+        balance: 1000,
       });
 
       await expect(
@@ -105,10 +109,10 @@ describe('FloatService', () => {
       mockPrisma.floatAccount.findFirst.mockResolvedValue(mockFloatAccount);
       mockPrisma.floatAccount.update.mockResolvedValue({});
       mockPrisma.floatMovement.create.mockResolvedValue({});
-      // Solde après débit = 5000 (< seuilMin 10000)
+      // Solde après débit = 5000 (< minimumBalance 10000)
       mockPrisma.floatAccount.findUnique.mockResolvedValue({
         ...mockFloatAccount,
-        solde: 5000,
+        balance: 5000,
       });
 
       await service.debitFloat('agent-uuid-1', 'ORANGE_MONEY', 95000, 'tenant-1');
@@ -134,7 +138,7 @@ describe('FloatService', () => {
 
       expect(mockPrisma.floatAccount.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ solde: { increment: 50000 } }),
+          data: expect.objectContaining({ balance: { increment: 50000 } }),
         }),
       );
     });
@@ -145,13 +149,13 @@ describe('FloatService', () => {
   describe('getAlerts()', () => {
     it('devrait retourner les comptes sous seuil', async () => {
       mockPrisma.floatAccount.findMany.mockResolvedValue([
-        { ...mockFloatAccount, solde: 5000, agent: { nom: 'Doe', prenom: 'John', agenceId: 'a1' } },
-        { ...mockFloatAccount, id: 'f2', solde: 50000, agent: { nom: 'Smith', prenom: 'Jane', agenceId: 'a1' } },
+        { ...mockFloatAccount, balance: 5000, agent: { agentCode: 'AG-1', agencyId: 'a1' } },
+        { ...mockFloatAccount, id: 'f2', balance: 50000, agent: { agentCode: 'AG-2', agencyId: 'a1' } },
       ]);
 
       const alerts = await service.getAlerts('tenant-1');
 
-      // Seul le premier (solde 5000 < seuilMin 10000) doit être dans les alertes
+      // Seul le premier (balance 5000 < minimumBalance 10000) doit être dans les alertes
       expect(alerts).toHaveLength(1);
       expect(alerts[0].solde).toBe(5000);
       expect(alerts[0].niveau).toBe('BAS');
@@ -159,7 +163,7 @@ describe('FloatService', () => {
 
     it('devrait marquer CRITIQUE si solde = 0', async () => {
       mockPrisma.floatAccount.findMany.mockResolvedValue([
-        { ...mockFloatAccount, solde: 0, agent: { nom: 'Doe', prenom: 'John', agenceId: 'a1' } },
+        { ...mockFloatAccount, balance: 0, agent: { agentCode: 'AG-1', agencyId: 'a1' } },
       ]);
 
       const alerts = await service.getAlerts('tenant-1');
@@ -173,14 +177,13 @@ describe('FloatService', () => {
     it('devrait calculer les prévisions basées sur 7 jours', async () => {
       mockPrisma.floatMovement.groupBy.mockResolvedValue([
         {
-          agentId: 'agent-uuid-1',
-          operateur: 'ORANGE_MONEY',
-          _sum: { montant: 700000 }, // 100k/jour
+          floatAccountId: 'float-uuid-1',
+          _sum: { amount: 700000 }, // 100k/jour
         },
       ]);
 
       mockPrisma.floatAccount.findMany.mockResolvedValue([
-        { ...mockFloatAccount, solde: 150000 },
+        { ...mockFloatAccount, balance: 150000 },
       ]);
 
       const forecast = await service.getForecast('tenant-1');
@@ -193,14 +196,13 @@ describe('FloatService', () => {
     it('devrait retourner priorité URGENTE si <= 1 jour', async () => {
       mockPrisma.floatMovement.groupBy.mockResolvedValue([
         {
-          agentId: 'agent-uuid-1',
-          operateur: 'ORANGE_MONEY',
-          _sum: { montant: 700000 },
+          floatAccountId: 'float-uuid-1',
+          _sum: { amount: 700000 },
         },
       ]);
 
       mockPrisma.floatAccount.findMany.mockResolvedValue([
-        { ...mockFloatAccount, solde: 50000 }, // 50000 / 100000/j < 1 jour
+        { ...mockFloatAccount, balance: 50000 }, // 50000 / 100000/j < 1 jour
       ]);
 
       const forecast = await service.getForecast('tenant-1');
@@ -210,7 +212,7 @@ describe('FloatService', () => {
     it('devrait retourner priorite NORMALE si > 3 jours', async () => {
       mockPrisma.floatMovement.groupBy.mockResolvedValue([]);
       mockPrisma.floatAccount.findMany.mockResolvedValue([
-        { ...mockFloatAccount, solde: 500000 },
+        { ...mockFloatAccount, balance: 500000 },
       ]);
 
       const forecast = await service.getForecast('tenant-1');

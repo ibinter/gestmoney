@@ -23,21 +23,30 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+          // Le code web n'utilise ni caméra, ni micro, ni géolocalisation : on les verrouille.
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           {
-            key: 'Content-Security-Policy',
+            // CSP en mode RAPPORT SEULEMENT (Report-Only) : elle N'EST PAS bloquante.
+            // Le site est en production ; une CSP trop stricte le casserait. En
+            // Report-Only, les violations sont seulement journalisées par le
+            // navigateur (console) sans bloquer les ressources. Après une période
+            // d'observation sans violation légitime, cette politique pourra être
+            // promue en `Content-Security-Policy` (bloquante).
+            key: 'Content-Security-Policy-Report-Only',
             value: [
               "default-src 'self'",
+              // Next.js requiert 'unsafe-inline' / 'unsafe-eval' pour son runtime.
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://storage.gestmoney.com https://gestmoney.ibigsoft.com",
+              "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' " + (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3011'),
-              "frame-ancestors 'none'",
+              // API/SARA même origine + WebSocket (wss) éventuel.
+              "connect-src 'self' https: wss:",
+              "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'",
             ].join('; '),

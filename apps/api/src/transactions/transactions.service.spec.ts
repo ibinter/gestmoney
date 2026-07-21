@@ -130,9 +130,11 @@ describe('TransactionsService', () => {
     });
 
     it('devrait lever AgentSuspendedException si agent suspendu', async () => {
+      // Le service lit le champ Prisma anglais `status` ('SUSPENDED'),
+      // pas l'alias FR `statut`.
       mockPrisma.agent.findFirst.mockResolvedValue({
         ...mockAgent,
-        statut: 'SUSPENDU',
+        status: 'SUSPENDED',
       });
 
       await expect(service.create(dto, tenantId, userId)).rejects.toThrow(

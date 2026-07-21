@@ -25,6 +25,19 @@ async function bootstrap() {
   // Securite
   app.use(helmet());
 
+  // En-tetes de securite HTTP explicites (sans dependance supplementaire).
+  // Places tot, avant `listen`, pour couvrir toutes les reponses de l'API.
+  // Valeurs volontairement strictes pour une API JSON : elle n'est jamais
+  // affichee dans une iframe (X-Frame-Options: DENY) et ne doit divulguer
+  // aucun referrer (Referrer-Policy: no-referrer).
+  app.use((_req: any, res: any, next: any) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-DNS-Prefetch-Control", "off");
+    next();
+  });
+
   // Cookie parser (pour les tokens JWT en cookie httpOnly)
   app.use(cookieParser());
 

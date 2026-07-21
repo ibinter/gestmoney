@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -43,6 +44,11 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  // Anti-bruteforce : 5 tentatives / minute par IP sur la connexion uniquement.
+  // Signature @nestjs/throttler v5 : { <nom-du-throttler>: { limit, ttl } }.
+  // Le throttler par defaut est nomme "default" (cf. ThrottlerModule dans
+  // app.module.ts) ; ttl exprime en millisecondes (60000 = 60 s).
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Connexion utilisateur' })

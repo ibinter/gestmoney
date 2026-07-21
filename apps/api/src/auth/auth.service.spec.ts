@@ -10,7 +10,17 @@ import { PrismaService } from '../prisma/prisma.service';
 // ─── Mocks globaux ────────────────────────────────────────────────────────────
 
 jest.mock('bcrypt');
-jest.mock('otplib');
+// Mock par fabrique (et non automock) : `otplib` charge `@scure/base`, publié
+// en ESM pur dans node_modules et non transformé par Jest. Un automock devrait
+// d'abord require() le vrai module et échouerait au parsing de cet ESM. La
+// fabrique fournit directement la surface utilisée par le service.
+jest.mock('otplib', () => ({
+  authenticator: {
+    verify: jest.fn(),
+    generateSecret: jest.fn(() => 'MOCK_SECRET'),
+    keyuri: jest.fn(() => 'otpauth://mock'),
+  },
+}));
 
 const mockUser = {
   id: 'user-uuid-1',

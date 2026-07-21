@@ -531,7 +531,7 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 17, marginBottom: 60, maxWidth: 520, margin: '0 auto 60px' }}>
             Une plateforme unique, conçue pour les réalités du terrain africain.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 20 }}>
             {FEATURES.map((f, i) => (
               <div key={i} style={{
                 background: '#f8fef9', border: '1.5px solid #d1fae5',
@@ -762,7 +762,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 900, textAlign: 'center', marginBottom: 56, color: '#0a2e15' }}>
             Ils font confiance à GESTMONEY.
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))', gap: 20 }}>
             {TEMOIGNAGES.map((t, i) => (
               <div key={i} style={{ background: '#f8fef9', border: '1.5px solid #d1fae5', borderRadius: 18, padding: 28, boxShadow: '0 2px 12px rgba(0,158,0,0.06)' }}>
                 <Stars n={t.note} />
@@ -923,7 +923,7 @@ export default function LandingPage() {
             </div>
             {[
               { titre: 'Navigation', liens: [['Fonctionnalités','#fonctionnalites'],['Modules','#modules'],['Tarifs','#tarifs'],['Moyens de paiement','#paiement'],['Démonstration','#contact'],['Connexion','/login'],['Créer un compte','/register']] },
-              { titre: 'Ressources', liens: [['Centre d\'aide','/dashboard/aide'],['Guide','/dashboard/aide'],['FAQ','#faq'],['Support','/dashboard/support']] },
+              { titre: 'Ressources', liens: [['Guide utilisateur','/guide'],['Cas pratiques','/guide/cas-pratiques'],['FAQ','#faq'],['Support','/dashboard/support']] },
               { titre: 'IBIG Soft', liens: [['À propos','https://ibigsoft.com'],['IBIG PARTNERS','https://ibigpartners.com/'],['Devenir partenaire','https://ibigpartners.com/'],['Contact','mailto:contact@ibigsoft.com']] },
             ].map(col => (
               <div key={col.titre}>

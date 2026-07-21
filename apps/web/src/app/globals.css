@@ -58,6 +58,41 @@
   body { @apply bg-background text-foreground; }
 }
 
+/* ============================================================
+   VAGUE D — Filet de sécurité responsive GLOBAL (320–412px + zoom)
+   ------------------------------------------------------------
+   Ces règles sont volontairement HORS @layer (donc non purgées et
+   prioritaires sur les bases Tailwind) et placées dans globals.css,
+   importé AVANT mockup-system.css : elles ne redéfinissent que des
+   sélecteurs que mockup-system ne touche pas (html, body, médias),
+   il n'y a donc aucun conflit d'ordre.
+
+   Le filet anti-débordement de mockup-system ne vise que .gm-main /
+   .gm-layout (sous 900px). Or l'AppShell réel est bâti en utilitaires
+   Tailwind : sans ce bloc, une page pouvait pousser la largeur du body.
+   ============================================================ */
+
+/* La page ne défile JAMAIS horizontalement, quelle que soit la largeur.
+   Les contenus larges (tableaux, code) défilent dans LEUR conteneur
+   overflow-x:auto — jamais le <body>. */
+html { max-width: 100%; }
+body { max-width: 100%; overflow-x: hidden; }
+
+/* Médias fluides — Tailwind preflight ne contraint pas svg/canvas. */
+img, svg, video, canvas { max-width: 100%; }
+img, video { height: auto; }
+
+/* Régions défilantes : défilement tactile fluide sur mobile. */
+.overflow-x-auto, .gm-table-wrap, .gm-table-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mots très longs (références, e-mails, URLs) : on casse plutôt que
+   d'élargir la ligne sur les petits écrans. */
+@media (max-width: 640px) {
+  .gm-pag-info, .gm-selected-count, .gm-breadcrumb { overflow-wrap: anywhere; }
+}
+
 /* ── Dark mode overrides pour les couleurs statiques GESTMONEY ── */
 .dark .bg-white          { background-color: hsl(0 0% 12%); }
 .dark .bg-surface        { background-color: hsl(0 0% 10%); }

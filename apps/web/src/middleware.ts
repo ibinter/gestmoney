@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/legal',
+  '/guide',
   '/mentions-legales',
   '/cgu',
   '/confidentialite',
