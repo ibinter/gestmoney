@@ -854,6 +854,10 @@ model Customer {
   status            CustomerStatus @default(ACTIVE)
   kycVerified       Boolean        @default(false)
   kycVerifiedAt     DateTime?
+  kycStatus         String         @default("PENDING") // PENDING | VERIFIED | REJECTED
+  kycRejectionReason String?
+  kycDocumentUrl    String?        @db.Text // pièce d'identité en data URL base64
+  kycDocumentType   String?
   totalTransactions Int            @default(0)
   totalVolume       Decimal        @default(0) @db.Decimal(15, 2)
   loyaltyPoints     Int            @default(0)

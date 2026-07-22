@@ -28,7 +28,11 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { QueryCustomerDto } from './dto/query-customer.dto';
 import { LoyaltyRedeemDto } from './dto/loyalty-redeem.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleType } from '../common/enums/role.enum';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
+import { SoumettreKycDto, RejeterKycDto } from './dto/kyc.dto';
 
 @ApiTags('Customers')
 @ApiBearerAuth()
@@ -90,6 +94,44 @@ export class CustomersController {
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.customersService.update(id, dto, user.tenantId);
+  }
+
+  // ─── KYC ─────────────────────────────────────────────────────────────────────
+
+  @Patch(':id/kyc/submit')
+  @ApiOperation({ summary: "Soumettre / déposer le dossier KYC d'un client (→ en attente)" })
+  soumettreKyc(
+    @Param('id') id: string,
+    @Body() dto: SoumettreKycDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.customersService.soumettreKyc(id, user.tenantId, dto);
+  }
+
+  @Patch(':id/kyc/approve')
+  @UseGuards(RolesGuard)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+  @ApiOperation({ summary: 'Approuver le KYC (admin) → vérifié' })
+  approuverKyc(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.customersService.approuverKyc(id, user.tenantId);
+  }
+
+  @Patch(':id/kyc/reject')
+  @UseGuards(RolesGuard)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+  @ApiOperation({ summary: 'Rejeter le KYC (admin) → rejeté + motif' })
+  rejeterKyc(
+    @Param('id') id: string,
+    @Body() dto: RejeterKycDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.customersService.rejeterKyc(id, user.tenantId, dto.reason);
+  }
+
+  @Get(':id/kyc/document')
+  @ApiOperation({ summary: 'Récupérer le document KYC (data URL base64)' })
+  getKycDocument(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.customersService.getKycDocument(id, user.tenantId);
   }
 
   @Get(':id/transactions')

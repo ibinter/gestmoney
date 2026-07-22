@@ -51,7 +51,7 @@ export class CustomersService {
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
-  private mapCustomer(c: any): ICustomer {
+  private mapCustomer(c: any): any {
     return {
       id: c.id,
       tenantId: c.tenantId,
@@ -72,7 +72,16 @@ export class CustomersService {
       prenom: c.firstName ?? '',
       nom: c.lastName ?? '',
       telephone: c.phoneNumber,
-      kycStatut: c.kycVerified ? 'verifie' : 'en_attente',
+      kycStatut:
+        c.kycStatus === 'VERIFIED'
+          ? 'verifie'
+          : c.kycStatus === 'REJECTED'
+            ? 'rejete'
+            : 'en_attente',
+      kycStatus: c.kycStatus ?? 'PENDING',
+      kycMotifRejet: c.kycRejectionReason ?? null,
+      kycDocumentType: c.kycDocumentType ?? null,
+      kycADocument: !!c.kycDocumentUrl,
       soldeWallet: Number(c.accounts?.[0]?.balance ?? 0),
       nbTransactions: c.totalTransactions ?? 0,
       montantTotal: Number(c.totalVolume ?? 0),
@@ -102,6 +111,92 @@ export class CustomersService {
 
     this.logger.log(`Client créé: ${dto.firstName} ${dto.lastName}`);
     return this.mapCustomer(customer);
+  }
+
+  // ─── KYC (vérification d'identité client) ──────────────────────────────────────
+
+  /** Valide un document en data URL base64 (<= 4 Mo). */
+  private validerDocumentKyc(dataUrl?: string): string | null {
+    if (!dataUrl) return null;
+    const m = /^data:([a-zA-Z0-9.+/-]+);base64,(.+)$/.exec(dataUrl.trim());
+    if (!m) {
+      throw new BadRequestException(
+        'Document invalide : une data URL base64 est attendue.',
+      );
+    }
+    if (Buffer.byteLength(m[2], 'base64') > 4_000_000) {
+      throw new BadRequestException('Document trop volumineux (max 4 Mo).');
+    }
+    return dataUrl.trim();
+  }
+
+  private async trouverClient(id: string, tenantId: string) {
+    const c = await this.prisma.customer.findFirst({ where: { id, tenantId } });
+    if (!c) throw new NotFoundException('Client introuvable');
+    return c;
+  }
+
+  /** Soumettre / (re)déposer le dossier KYC d'un client → statut EN ATTENTE. */
+  async soumettreKyc(
+    id: string,
+    tenantId: string,
+    dto: { documentType?: string; documentUrl?: string; nationalId?: string },
+  ) {
+    await this.trouverClient(id, tenantId);
+    const doc = this.validerDocumentKyc(dto.documentUrl);
+    const updated = await this.prisma.customer.update({
+      where: { id },
+      data: {
+        kycStatus: 'PENDING',
+        kycRejectionReason: null,
+        ...(doc
+          ? { kycDocumentUrl: doc, kycDocumentType: dto.documentType ?? 'piece-identite' }
+          : {}),
+        ...(dto.nationalId ? { nationalId: dto.nationalId } : {}),
+      },
+    });
+    return this.mapCustomer(updated);
+  }
+
+  /** Approuver le KYC (réservé admin) → VÉRIFIÉ. */
+  async approuverKyc(id: string, tenantId: string) {
+    await this.trouverClient(id, tenantId);
+    const updated = await this.prisma.customer.update({
+      where: { id },
+      data: {
+        kycStatus: 'VERIFIED',
+        kycVerified: true,
+        kycVerifiedAt: new Date(),
+        kycRejectionReason: null,
+      },
+    });
+    this.logger.log(`KYC approuvé : client ${id}`);
+    return this.mapCustomer(updated);
+  }
+
+  /** Rejeter le KYC (réservé admin) → REJETÉ + motif. */
+  async rejeterKyc(id: string, tenantId: string, reason?: string) {
+    await this.trouverClient(id, tenantId);
+    const updated = await this.prisma.customer.update({
+      where: { id },
+      data: {
+        kycStatus: 'REJECTED',
+        kycVerified: false,
+        kycRejectionReason: reason?.trim() || 'Document non conforme',
+      },
+    });
+    this.logger.log(`KYC rejeté : client ${id}`);
+    return this.mapCustomer(updated);
+  }
+
+  /** Récupère le document KYC (pour affichage dans la fiche). */
+  async getKycDocument(id: string, tenantId: string) {
+    const c = await this.prisma.customer.findFirst({
+      where: { id, tenantId },
+      select: { kycDocumentUrl: true, kycDocumentType: true },
+    });
+    if (!c) throw new NotFoundException('Client introuvable');
+    return { documentUrl: c.kycDocumentUrl ?? null, documentType: c.kycDocumentType ?? null };
   }
 
   async findAll(
