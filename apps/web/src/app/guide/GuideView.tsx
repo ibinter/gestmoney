@@ -18,6 +18,7 @@ const UI = {
     subtitle:
       'Tout ce qu’il faut savoir pour utiliser GESTMONEY, module par module.',
     toc: 'Sommaire',
+    lexique: 'Lexique',
     downloadPdf: 'Télécharger le guide en PDF',
     casTitle: 'Besoin d’exemples concrets ?',
     casText: 'Consultez les cas pratiques : des scénarios pas-à-pas prêts à suivre.',
@@ -34,6 +35,7 @@ const UI = {
     subtitle:
       'Everything you need to use GESTMONEY, module by module.',
     toc: 'Contents',
+    lexique: 'Glossary',
     downloadPdf: 'Download the guide as PDF',
     casTitle: 'Need concrete examples?',
     casText: 'Check the practical cases: ready-to-follow step-by-step scenarios.',
@@ -80,6 +82,12 @@ export function GuideView() {
             >
               <span aria-hidden>⬇</span> {ui.downloadPdf}
             </button>
+            <Link
+              href="/guide/lexique"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 px-5 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400 transition-colors"
+            >
+              <span aria-hidden>📖</span> {ui.lexique}
+            </Link>
             <Link
               href="/guide/cas-pratiques"
               className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 px-5 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400 transition-colors"
