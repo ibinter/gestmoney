@@ -10,6 +10,7 @@ import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { QueryAgentDto } from './dto/query-agent.dto';
 import { normaliserPagination } from '../common/utils/pagination';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AgentsService {
@@ -26,11 +27,17 @@ export class AgentsService {
       if (existingAgent) throw new ConflictException('Cet utilisateur est déjà enregistré comme agent');
     }
 
+    // Le front envoie prenom/nom (firstName/lastName) et non un fullName/code.
+    // On dérive un nom complet et on génère un code agent si absent.
+    const fullName = (dto.fullName
+      || `${dto.firstName ?? ''} ${dto.lastName ?? ''}`.trim());
+    const agentCode = dto.code || `AGT-${Date.now().toString(36).toUpperCase()}`;
+
     // Vérifier unicité du code
     const existing = await this.prisma.agent.findFirst({
-      where: { agentCode: dto.code, tenantId },
+      where: { agentCode, tenantId },
     });
-    if (existing) throw new ConflictException(`Le code agent "${dto.code}" est déjà utilisé`);
+    if (existing) throw new ConflictException(`Le code agent "${agentCode}" est déjà utilisé`);
 
     // Vérifier l'agence
     const agency = await this.prisma.agency.findFirst({
@@ -38,17 +45,51 @@ export class AgentsService {
     });
     if (!agency) throw new NotFoundException('Agence non trouvée');
 
-    // Le userId est obligatoire dans le schéma réel
-    if (!dto.userId) throw new BadRequestException('L\'ID utilisateur est requis pour créer un agent');
+    // L'agent doit être lié à un User. Si aucun userId fourni, on crée le compte
+    // utilisateur à partir des infos du formulaire (prénom/nom/email/téléphone/mot de passe).
+    let userId = dto.userId;
+    if (!userId) {
+      const [firstName, ...rest] = fullName.split(' ');
+      const lastName = dto.lastName ?? (rest.join(' ') || firstName);
+      const email = dto.email
+        || `${agentCode.toLowerCase()}@agents.${tenantId}.local`;
+
+      const existingUser = await this.prisma.user.findFirst({
+        where: { email, tenantId },
+      });
+      if (existingUser) throw new ConflictException('Un utilisateur avec cet email existe déjà');
+
+      const passwordHash = await bcrypt.hash(dto.password || `Agent-${Date.now()}`, 12);
+
+      const agentRoles = await this.prisma.role.findMany({
+        where: { name: 'AGENT', tenantId },
+      });
+
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          tenantId,
+          status: 'ACTIVE',
+          firstName: dto.firstName || firstName || 'Agent',
+          lastName,
+          phone: dto.phone,
+          ...(agentRoles.length > 0 && {
+            userRoles: { create: agentRoles.map((r) => ({ roleId: r.id })) },
+          }),
+        },
+      });
+      userId = user.id;
+    }
 
     const agent = await this.prisma.agent.create({
       data: {
         tenantId,
         agencyId: dto.agencyId,
-        userId: dto.userId,
-        agentCode: dto.code,
+        userId,
+        agentCode,
         phoneNumber: dto.phone,
-        nationalId: dto.code, // code utilisé comme nationalId par défaut
+        nationalId: agentCode, // code utilisé comme nationalId par défaut
         address: dto.zone || 'N/A',
         status: 'ACTIVE',
       },

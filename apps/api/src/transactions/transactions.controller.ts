@@ -104,6 +104,15 @@ export class TransactionsController {
     return this.transactionsService.findOne(id, req.user.tenantId);
   }
 
+  @Post(':id/complete')
+  @ApiOperation({ summary: 'Valider (compléter) une transaction en attente' })
+  @ApiParam({ name: 'id', description: 'ID de la transaction' })
+  @ApiResponse({ status: 201, description: 'Transaction complétée (commission calculée)' })
+  @ApiResponse({ status: 400, description: 'Transaction non complétable (statut incompatible)' })
+  complete(@Param('id') id: string, @Req() req: any) {
+    return this.transactionsService.complete(id, req.user.tenantId, req.user.id);
+  }
+
   @Post(':id/cancel')
   @ApiOperation({ summary: 'Annuler une transaction en attente' })
   @ApiParam({ name: 'id', description: 'ID de la transaction' })

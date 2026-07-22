@@ -1,14 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class ReconcileDto {
   @ApiProperty({ description: "ID de l'écriture de journal à rapprocher" })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   journalEntryId: string;
 
   @ApiPropertyOptional({ description: 'ID de la transaction Mobile Money correspondante' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   transactionId?: string;
 
   @ApiPropertyOptional({ description: 'Référence bancaire externe (relevé de banque)' })
@@ -57,10 +58,12 @@ export class CreateChartOfAccountDto {
 
 export class AutoEntryDto {
   @ApiProperty({ description: 'ID de la transaction Mobile Money source' })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   transactionId: string;
 
   @ApiProperty({ description: "ID de l'exercice fiscal cible" })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   fiscalYearId: string;
 }

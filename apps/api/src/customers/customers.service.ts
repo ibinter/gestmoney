@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { QueryCustomerDto } from './dto/query-customer.dto';
 import { LoyaltyRedeemDto } from './dto/loyalty-redeem.dto';
 import { v4 as uuidv4 } from 'uuid';
@@ -145,7 +146,7 @@ export class CustomersService {
     return this.mapCustomer(customer);
   }
 
-  async update(id: string, dto: Partial<CreateCustomerDto>, tenantId: string): Promise<ICustomer> {
+  async update(id: string, dto: UpdateCustomerDto, tenantId: string): Promise<ICustomer> {
     await this.findOne(id, tenantId);
     const updated = await this.prisma.customer.update({
       where: { id },
@@ -154,6 +155,7 @@ export class CustomersService {
         ...(dto.lastName && { lastName: dto.lastName }),
         ...(dto.email !== undefined && { email: dto.email }),
         ...(dto.address !== undefined && { address: dto.address }),
+        ...(dto.status && { status: dto.status as any }),
       },
     });
     return this.mapCustomer(updated);

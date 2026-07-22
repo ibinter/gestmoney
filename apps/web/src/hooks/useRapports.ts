@@ -101,16 +101,43 @@ export function useRapports(periode?: string) {
   });
 }
 
+// Mappe les types FR de l'UI vers l'enum ReportType attendu par l'API (DTO EN strict).
+type ReportTypeApi =
+  | 'DAILY'
+  | 'MONTHLY'
+  | 'AGENT_PERFORMANCE'
+  | 'OPERATOR_COMPARISON'
+  | 'FLOAT_USAGE'
+  | 'COMMISSIONS'
+  | 'CUSTOM';
+
+function versReportType(type?: string): ReportTypeApi {
+  switch (type) {
+    case 'journalier':
+      return 'DAILY';
+    case 'mensuel':
+      return 'MONTHLY';
+    case 'hebdomadaire':
+      return 'CUSTOM';
+    default:
+      return 'MONTHLY';
+  }
+}
+
 export function useGenererRapport() {
   return useMutation({
-    mutationFn: async (params: { periode: string; type?: string }) => {
-      try {
-        const res = await api.post('/reports/generate', params);
-        return res.data;
-      } catch {
-        await new Promise((r) => setTimeout(r, 2000));
-        return { success: true, message: 'Rapport en cours de génération...' };
-      }
+    mutationFn: async (params: { periode: string; type?: string; startDate?: string; endDate?: string }) => {
+      // Le DTO GenerateReportDto (backend) exige { type: ReportType, format }
+      // et refuse tout champ non listé (forbidNonWhitelisted). On ne transmet
+      // donc jamais `periode` brut : on le convertit en type + dates optionnelles.
+      const payload: Record<string, unknown> = {
+        type: versReportType(params.type),
+        format: 'PDF',
+      };
+      if (params.startDate) payload.startDate = params.startDate;
+      if (params.endDate) payload.endDate = params.endDate;
+      const res = await api.post('/reports/generate', payload);
+      return res.data;
     },
   });
 }

@@ -239,9 +239,17 @@ export class FloatService {
     tenantId: string,
     userId: string,
   ) {
-    const account = await this.findAccount(dto.agentId, dto.operateur, tenantId);
+    // Le front float est au niveau opérateur (pas d'agent) : si aucun agentId
+    // n'est fourni, on résout le compte float du tenant pour cet opérateur.
+    const account = dto.agentId
+      ? await this.findAccount(dto.agentId, dto.operateur, tenantId)
+      : await this.prisma.floatAccount.findFirst({
+          where: { tenantId, network: { operatorCode: dto.operateur } },
+          orderBy: { balance: 'asc' },
+          include: { network: { select: { operatorCode: true, name: true } } },
+        });
 
-    if (!account) throw new FloatAccountNotFoundException(dto.agentId, dto.operateur);
+    if (!account) throw new FloatAccountNotFoundException(dto.agentId ?? '—', dto.operateur);
 
     const request = await this.prisma.replenishmentRequest.create({
       data: {

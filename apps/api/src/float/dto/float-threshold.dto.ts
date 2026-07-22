@@ -5,13 +5,13 @@ import {
   IsNumber,
   IsOptional,
   IsPositive,
-  IsUUID,
+  IsString,
 } from 'class-validator';
 import { MobileMoneyOperator } from '../../transactions/interfaces/transaction.interface';
 
 export class FloatThresholdDto {
   @ApiProperty({ description: "ID de l'agent" })
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   agentId: string;
 

@@ -6,14 +6,13 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { MobileMoneyOperator } from '../../transactions/interfaces/transaction.interface';
 
 export class CreateFloatMovementDto {
   @ApiProperty({ description: "ID de l'agent" })
-  @IsUUID()
+  @IsString()
   @IsNotEmpty()
   agentId: string;
 
@@ -40,6 +39,6 @@ export class CreateFloatMovementDto {
 
   @ApiPropertyOptional({ description: 'ID de la transaction associée' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   transactionId?: string;
 }

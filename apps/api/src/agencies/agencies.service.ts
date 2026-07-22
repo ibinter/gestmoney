@@ -15,8 +15,23 @@ export class AgenciesService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateAgencyDto, tenantId: string, createdBy: string) {
+    // Le formulaire front ne fournit pas de réseau : on retombe sur le réseau
+    // par défaut du tenant (premier réseau créé) quand networkId est absent.
+    let networkId = dto.networkId;
+    if (!networkId) {
+      const defaultNetwork = await this.prisma.network.findFirst({
+        where: { tenantId },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      if (!defaultNetwork) {
+        throw new NotFoundException('Aucun réseau disponible pour ce tenant');
+      }
+      networkId = defaultNetwork.id;
+    }
+
     const existing = await this.prisma.agency.findFirst({
-      where: { code: dto.code, tenantId, networkId: dto.networkId },
+      where: { code: dto.code, tenantId, networkId },
     });
     if (existing) throw new ConflictException(`Le code agence "${dto.code}" est déjà utilisé dans ce réseau`);
 
@@ -30,7 +45,7 @@ export class AgenciesService {
         country: dto.country || 'CI',
         phone: dto.phone || '',
         email: dto.email,
-        networkId: dto.networkId,
+        networkId,
         tenantId,
         managerId: dto.managerId,
         status: 'ACTIVE',

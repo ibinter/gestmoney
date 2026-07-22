@@ -53,16 +53,19 @@ export class HrService {
 
   // ─── Employees ────────────────────────────────────────────────────────────
 
-  async findAllEmployees(filters: {
-    status?: string;
-    agencyId?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) {
+  async findAllEmployees(
+    tenantId: string,
+    filters: {
+      status?: string;
+      agencyId?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
     const { status, search, page, limit } = filters;
     const { page: p, limit: l, skip } = normaliserPagination(page, limit, 20);
-    const where: any = {};
+    const where: any = { tenantId };
     if (status) where.status = status;
     if (search) {
       where.OR = [
@@ -84,7 +87,7 @@ export class HrService {
     return { data, total, page: p, limit: l };
   }
 
-  async createEmployee(dto: CreateEmployeeDto, actorId: string) {
+  async createEmployee(dto: CreateEmployeeDto, tenantId: string, actorId: string) {
     // employeeNumber auto-généré : année + random
     const employeeNumber = `EMP-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
     const employee = await this.prisma.employee.create({
@@ -101,17 +104,16 @@ export class HrService {
         department: dto.department ?? 'Mobile Money',
         nationalId: dto.nationalId,
         status: 'ACTIVE',
-        // tenantId requis — à récupérer depuis le JWT en production
-        tenantId: 'default',
+        tenantId,
       },
     });
     await this.auditLog('EMPLOYEE_CREATED', actorId, { employeeId: employee.id });
     return employee;
   }
 
-  async findEmployeeById(id: string) {
-    const emp = await this.prisma.employee.findUnique({
-      where: { id },
+  async findEmployeeById(id: string, tenantId?: string) {
+    const emp = await this.prisma.employee.findFirst({
+      where: tenantId ? { id, tenantId } : { id },
       include: {
         contracts: { orderBy: { startDate: 'desc' } },
         leaves: { orderBy: { createdAt: 'desc' }, take: 5 },
@@ -122,8 +124,13 @@ export class HrService {
     return emp;
   }
 
-  async updateEmployee(id: string, data: Partial<CreateEmployeeDto>, actorId: string) {
-    await this.findEmployeeById(id);
+  async updateEmployee(
+    id: string,
+    data: Partial<CreateEmployeeDto>,
+    tenantId: string,
+    actorId: string,
+  ) {
+    await this.findEmployeeById(id, tenantId);
     const updated = await this.prisma.employee.update({
       where: { id },
       data: {
@@ -139,8 +146,8 @@ export class HrService {
     return updated;
   }
 
-  async terminateEmployee(id: string, reason: string, actorId: string) {
-    await this.findEmployeeById(id);
+  async terminateEmployee(id: string, reason: string, tenantId: string, actorId: string) {
+    await this.findEmployeeById(id, tenantId);
     const updated = await this.prisma.employee.update({
       where: { id },
       data: {
@@ -158,8 +165,8 @@ export class HrService {
 
   // ─── Contracts ────────────────────────────────────────────────────────────
 
-  async findAllContracts(filters: { employeeId?: string; active?: boolean }) {
-    const where: any = {};
+  async findAllContracts(tenantId: string, filters: { employeeId?: string; active?: boolean }) {
+    const where: any = { tenantId };
     if (filters.employeeId) where.employeeId = filters.employeeId;
     if (filters.active !== undefined) where.isActive = filters.active;
     return this.prisma.contract.findMany({
@@ -171,8 +178,8 @@ export class HrService {
     });
   }
 
-  async createContract(dto: ContractDto, actorId: string) {
-    await this.findEmployeeById(dto.employeeId);
+  async createContract(dto: ContractDto, tenantId: string, actorId: string) {
+    await this.findEmployeeById(dto.employeeId, tenantId);
     if (dto.type === 'CDI') {
       await this.prisma.contract.updateMany({
         where: { employeeId: dto.employeeId, isActive: true },
@@ -190,7 +197,7 @@ export class HrService {
         department: 'Mobile Money',
         terms: dto.description,
         isActive: true,
-        tenantId: 'default',
+        tenantId,
       },
     });
     await this.auditLog('CONTRACT_CREATED', actorId, { contractId: contract.id, employeeId: dto.employeeId });
@@ -199,8 +206,8 @@ export class HrService {
 
   // ─── Payroll ──────────────────────────────────────────────────────────────
 
-  async findPayroll(year: number, month: number, employeeId?: string) {
-    const where: any = { periodYear: year, periodMonth: month };
+  async findPayroll(tenantId: string, year: number, month: number, employeeId?: string) {
+    const where: any = { tenantId, periodYear: year, periodMonth: month };
     if (employeeId) where.employeeId = employeeId;
     return this.prisma.payroll.findMany({
       where,
@@ -211,8 +218,8 @@ export class HrService {
     });
   }
 
-  async generatePayroll(dto: GeneratePayrollDto, actorId: string) {
-    const where: any = { status: 'ACTIVE' };
+  async generatePayroll(dto: GeneratePayrollDto, tenantId: string, actorId: string) {
+    const where: any = { status: 'ACTIVE', tenantId };
     if (dto.employeeId) where.id = dto.employeeId;
 
     const employees = await this.prisma.employee.findMany({
@@ -257,7 +264,7 @@ export class HrService {
           taxes: igrMonthly,
           netSalary,
           status: 'DRAFT',
-          tenantId: 'default',
+          tenantId,
         },
       });
       payrolls.push({
@@ -288,8 +295,8 @@ export class HrService {
     return { generated: payrolls.length, payrolls };
   }
 
-  async validatePayroll(id: string, dto: ValidatePayrollDto, actorId: string) {
-    const payroll = await this.prisma.payroll.findUnique({ where: { id } });
+  async validatePayroll(id: string, dto: ValidatePayrollDto, tenantId: string, actorId: string) {
+    const payroll = await this.prisma.payroll.findFirst({ where: { id, tenantId } });
     if (!payroll) throw new NotFoundException(`Fiche de paie ${id} introuvable`);
     if (payroll.status !== 'DRAFT') {
       throw new BadRequestException('Cette fiche de paie est déjà validée ou annulée');
@@ -308,8 +315,8 @@ export class HrService {
 
   // ─── Leaves ───────────────────────────────────────────────────────────────
 
-  async findLeaves(filters: { employeeId?: string; status?: string }) {
-    const where: any = {};
+  async findLeaves(tenantId: string, filters: { employeeId?: string; status?: string }) {
+    const where: any = { tenantId };
     if (filters.employeeId) where.employeeId = filters.employeeId;
     if (filters.status) where.status = filters.status;
     return this.prisma.leave.findMany({
@@ -319,8 +326,8 @@ export class HrService {
     });
   }
 
-  async createLeaveRequest(employeeId: string, dto: LeaveRequestDto) {
-    await this.findEmployeeById(employeeId);
+  async createLeaveRequest(dto: LeaveRequestDto, tenantId: string, employeeId: string) {
+    await this.findEmployeeById(employeeId, tenantId);
     const start = new Date(dto.startDate);
     const end = new Date(dto.endDate);
     if (end <= start) throw new BadRequestException('La date de fin doit être postérieure à la date de début');
@@ -354,13 +361,13 @@ export class HrService {
         days,
         reason: dto.reason,
         status: 'PENDING',
-        tenantId: 'default',
+        tenantId,
       },
     });
   }
 
-  async approveLeave(id: string, dto: LeaveApprovalDto, actorId: string) {
-    const leave = await this.prisma.leave.findUnique({ where: { id } });
+  async approveLeave(id: string, dto: LeaveApprovalDto, tenantId: string, actorId: string) {
+    const leave = await this.prisma.leave.findFirst({ where: { id, tenantId } });
     if (!leave) throw new NotFoundException(`Demande de congé ${id} introuvable`);
     if (leave.status !== 'PENDING') throw new BadRequestException('Cette demande est déjà traitée');
 
@@ -376,8 +383,8 @@ export class HrService {
     return updated;
   }
 
-  async rejectLeave(id: string, dto: LeaveRejectionDto, actorId: string) {
-    const leave = await this.prisma.leave.findUnique({ where: { id } });
+  async rejectLeave(id: string, dto: LeaveRejectionDto, tenantId: string, actorId: string) {
+    const leave = await this.prisma.leave.findFirst({ where: { id, tenantId } });
     if (!leave) throw new NotFoundException(`Demande de congé ${id} introuvable`);
     if (leave.status !== 'PENDING') throw new BadRequestException('Cette demande est déjà traitée');
 

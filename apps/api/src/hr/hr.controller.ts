@@ -6,7 +6,6 @@ import {
   Patch,
   Post,
   Query,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -29,15 +28,12 @@ import {
   LeaveRejectionDto,
 } from './dto/leave-request.dto';
 import { CheckInDto, CheckOutDto, AttendanceQueryDto } from './dto/attendance.dto';
-
-// Placeholder guards — remplacer par vos guards d'authentification réels
-// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { RolesGuard } from '../roles/roles.guard';
-// import { Roles } from '../roles/roles.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @ApiTags('RH — Ressources Humaines')
 @ApiBearerAuth()
-// @UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('hr')
 export class HrController {
   constructor(private readonly hrService: HrService) {}
@@ -52,13 +48,14 @@ export class HrController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAllEmployees(
+    @CurrentUser() user: CurrentUserData,
     @Query('status') status?: string,
     @Query('agencyId') agencyId?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.hrService.findAllEmployees({
+    return this.hrService.findAllEmployees(user.tenantId, {
       status,
       agencyId,
       search,
@@ -69,15 +66,15 @@ export class HrController {
 
   @Post('employees')
   @ApiOperation({ summary: 'Créer un nouvel employé' })
-  createEmployee(@Body() dto: CreateEmployeeDto, @Request() req: any) {
-    return this.hrService.createEmployee(dto, req.user?.id ?? 'system');
+  createEmployee(@Body() dto: CreateEmployeeDto, @CurrentUser() user: CurrentUserData) {
+    return this.hrService.createEmployee(dto, user.tenantId, user.id);
   }
 
   @Get('employees/:id')
   @ApiOperation({ summary: 'Profil complet d\'un employé' })
   @ApiParam({ name: 'id', description: 'UUID de l\'employé' })
-  findEmployee(@Param('id') id: string) {
-    return this.hrService.findEmployeeById(id);
+  findEmployee(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.hrService.findEmployeeById(id, user.tenantId);
   }
 
   @Patch('employees/:id')
@@ -86,21 +83,20 @@ export class HrController {
   updateEmployee(
     @Param('id') id: string,
     @Body() dto: Partial<CreateEmployeeDto>,
-    @Request() req: any,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.hrService.updateEmployee(id, dto, req.user?.id ?? 'system');
+    return this.hrService.updateEmployee(id, dto, user.tenantId, user.id);
   }
 
   @Post('employees/:id/terminate')
   @ApiOperation({ summary: 'Procéder à la fin de contrat d\'un employé (audit loggé)' })
   @ApiParam({ name: 'id' })
-  // @Roles('HR_MANAGER', 'ADMIN')
   terminateEmployee(
     @Param('id') id: string,
     @Body('reason') reason: string,
-    @Request() req: any,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.hrService.terminateEmployee(id, reason, req.user?.id ?? 'system');
+    return this.hrService.terminateEmployee(id, reason, user.tenantId, user.id);
   }
 
   // ─── Contracts ────────────────────────────────────────────────────────────
@@ -110,10 +106,11 @@ export class HrController {
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
   findAllContracts(
+    @CurrentUser() user: CurrentUserData,
     @Query('employeeId') employeeId?: string,
     @Query('active') active?: string,
   ) {
-    return this.hrService.findAllContracts({
+    return this.hrService.findAllContracts(user.tenantId, {
       employeeId,
       active: active !== undefined ? active === 'true' : undefined,
     });
@@ -121,8 +118,8 @@ export class HrController {
 
   @Post('contracts')
   @ApiOperation({ summary: 'Créer un nouveau contrat de travail' })
-  createContract(@Body() dto: ContractDto, @Request() req: any) {
-    return this.hrService.createContract(dto, req.user?.id ?? 'system');
+  createContract(@Body() dto: ContractDto, @CurrentUser() user: CurrentUserData) {
+    return this.hrService.createContract(dto, user.tenantId, user.id);
   }
 
   // ─── Payroll ──────────────────────────────────────────────────────────────
@@ -133,11 +130,13 @@ export class HrController {
   @ApiQuery({ name: 'month', type: Number })
   @ApiQuery({ name: 'employeeId', required: false })
   findPayroll(
+    @CurrentUser() user: CurrentUserData,
     @Query('year') year: string,
     @Query('month') month: string,
     @Query('employeeId') employeeId?: string,
   ) {
     return this.hrService.findPayroll(
+      user.tenantId,
       parseInt(year, 10),
       parseInt(month, 10),
       employeeId,
@@ -152,20 +151,19 @@ export class HrController {
       'commissions du mois. Génère une écriture SYSCOHADA compte 421.',
   })
   // @Roles('HR_MANAGER', 'ADMIN')
-  generatePayroll(@Body() dto: GeneratePayrollDto, @Request() req: any) {
-    return this.hrService.generatePayroll(dto, req.user?.id ?? 'system');
+  generatePayroll(@Body() dto: GeneratePayrollDto, @CurrentUser() user: CurrentUserData) {
+    return this.hrService.generatePayroll(dto, user.tenantId, user.id);
   }
 
   @Post('payroll/:id/validate')
   @ApiOperation({ summary: 'Valider une fiche de paie (audit loggé)' })
   @ApiParam({ name: 'id', description: 'UUID de la fiche de paie' })
-  // @Roles('HR_MANAGER', 'ADMIN')
   validatePayroll(
     @Param('id') id: string,
     @Body() dto: ValidatePayrollDto,
-    @Request() req: any,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.hrService.validatePayroll(id, dto, req.user?.id ?? 'system');
+    return this.hrService.validatePayroll(id, dto, user.tenantId, user.id);
   }
 
   // ─── Leaves ───────────────────────────────────────────────────────────────
@@ -175,16 +173,17 @@ export class HrController {
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
   findLeaves(
+    @CurrentUser() user: CurrentUserData,
     @Query('employeeId') employeeId?: string,
     @Query('status') status?: string,
   ) {
-    return this.hrService.findLeaves({ employeeId, status });
+    return this.hrService.findLeaves(user.tenantId, { employeeId, status });
   }
 
   @Post('leaves')
   @ApiOperation({ summary: 'Soumettre une demande de congé (vérifie solde OHADA 30j/an)' })
-  createLeave(@Body() dto: LeaveRequestDto, @Request() req: any) {
-    return this.hrService.createLeaveRequest(req.user?.id ?? 'system', dto);
+  createLeave(@Body() dto: LeaveRequestDto, @CurrentUser() user: CurrentUserData) {
+    return this.hrService.createLeaveRequest(dto, user.tenantId, user.id);
   }
 
   @Patch('leaves/:id/approve')
@@ -193,9 +192,9 @@ export class HrController {
   approveLeave(
     @Param('id') id: string,
     @Body() dto: LeaveApprovalDto,
-    @Request() req: any,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.hrService.approveLeave(id, dto, req.user?.id ?? 'system');
+    return this.hrService.approveLeave(id, dto, user.tenantId, user.id);
   }
 
   @Patch('leaves/:id/reject')
@@ -204,9 +203,9 @@ export class HrController {
   rejectLeave(
     @Param('id') id: string,
     @Body() dto: LeaveRejectionDto,
-    @Request() req: any,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.hrService.rejectLeave(id, dto, req.user?.id ?? 'system');
+    return this.hrService.rejectLeave(id, dto, user.tenantId, user.id);
   }
 
   // ─── Attendance ───────────────────────────────────────────────────────────
@@ -222,13 +221,13 @@ export class HrController {
 
   @Post('attendance/checkin')
   @ApiOperation({ summary: 'Pointer l\'entrée (avec géolocalisation optionnelle)' })
-  checkIn(@Body() dto: CheckInDto, @Request() req: any) {
-    return this.hrService.checkIn(dto, req.user?.id ?? 'system');
+  checkIn(@Body() dto: CheckInDto, @CurrentUser() user: CurrentUserData) {
+    return this.hrService.checkIn(dto, user.id);
   }
 
   @Post('attendance/checkout')
   @ApiOperation({ summary: 'Pointer la sortie (calcule heures normales + supplémentaires)' })
-  checkOut(@Body() dto: CheckOutDto, @Request() req: any) {
-    return this.hrService.checkOut(dto, req.user?.id ?? 'system');
+  checkOut(@Body() dto: CheckOutDto, @CurrentUser() user: CurrentUserData) {
+    return this.hrService.checkOut(dto, user.id);
   }
 }

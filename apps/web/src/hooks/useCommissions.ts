@@ -66,11 +66,17 @@ export function useCommissionsResume() {
     queryFn: async () => {
       try {
         const res = await api.get('/commissions/summary');
+        // L'API renvoie { calculee, validee, payee } (chacun { count, montantTotal }).
+        // L'ancien mapping lisait des champs inexistants (totalDue…) → toujours 0.
+        const d = res.data ?? {};
+        const calculee = Number(d.calculee?.montantTotal ?? 0);
+        const validee = Number(d.validee?.montantTotal ?? 0);
+        const payee = Number(d.payee?.montantTotal ?? 0);
         return {
-          duesCeMois: Number(res.data.totalDue ?? 0),
-          payees: Number(res.data.totalPaid ?? 0),
-          validees: Number(res.data.totalValidated ?? 0),
-          enAttente: Number(res.data.totalPending ?? 0),
+          duesCeMois: calculee,
+          payees: payee,
+          validees: validee,
+          enAttente: Math.max(0, calculee - payee),
           isMock: false,
         };
       } catch {

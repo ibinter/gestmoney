@@ -75,7 +75,7 @@ export function useToggleAgenceStatus() {
   return useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       try {
-        const res = await api.patch(`/agencies/${id}`, { active: active });
+        const res = await api.patch(`/agencies/${id}`, { isActive: active });
         return res.data;
       } catch {
         return { success: true };

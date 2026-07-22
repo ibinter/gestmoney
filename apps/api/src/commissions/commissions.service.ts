@@ -11,6 +11,8 @@ import { CommissionPlanNotFoundException } from '../common/exceptions/business.e
 import {
   MobileMoneyOperator,
   TransactionType,
+  fromPrismaTransactionType,
+  toPrismaTransactionType,
 } from '../transactions/interfaces/transaction.interface';
 
 /**
@@ -94,7 +96,10 @@ export class CommissionsService {
     });
     if (!plan || plan.rates.length === 0) return null;
 
-    const typeStr = String(params.type);
+    // Les taux sont indexés sur l'enum Prisma (DEPOSIT/WITHDRAWAL…), tout comme
+    // Transaction.type. On normalise donc le type reçu (qu'il vienne d'un DTO FR
+    // ou d'une transaction en base) vers le même vocabulaire avant comparaison.
+    const typeStr = toPrismaTransactionType(String(params.type));
     const rate = plan.rates
       .filter((r) => r.transactionType === typeStr)
       .filter(
@@ -315,7 +320,9 @@ export class CommissionsService {
       nom: plan.name,
       description: plan.description ?? null,
       operateur: plan.network?.operatorCode ?? null,
-      typeTransaction: premier?.transactionType ?? null,
+      typeTransaction: premier?.transactionType
+        ? fromPrismaTransactionType(premier.transactionType)
+        : null,
       active: plan.isActive,
       partAgent: premier ? this.num(premier.agentShare) : 70,
       partReseau: premier
@@ -342,7 +349,9 @@ export class CommissionsService {
 
   /** Construit les lignes CommissionRate à partir des paliers du DTO. */
   private ratesDepuisDto(dto: Partial<CommissionPlanDto>, tenantId: string) {
-    const typeStr = String(dto.typeTransaction);
+    // Stocker le type dans le vocabulaire enum Prisma pour correspondre à
+    // Transaction.type (sinon la résolution de commission ne matcherait jamais).
+    const typeStr = toPrismaTransactionType(String(dto.typeTransaction));
     const partAgent = dto.partAgent ?? 70;
     const partReseau = dto.partReseau ?? 30;
     return (dto.paliers ?? []).map((p) => ({

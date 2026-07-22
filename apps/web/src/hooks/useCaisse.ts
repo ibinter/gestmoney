@@ -72,7 +72,21 @@ export function useCaisseStats() {
 export function useAddEcriture() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<EcritureCaisse>) => api.post('/caisse/ecritures', data),
+    // La charge utile front ({ type:'entree', libelle, montant, categorie }) ne
+    // correspond pas au DTO API ({ montant, motif, type:'ENTREE'|'SORTIE' }) :
+    // envoyée telle quelle, elle produisait un 400 (forbidNonWhitelisted + enum).
+    // Le champ `categorie` n'existe pas côté CashMovement : on le préfixe au motif
+    // pour ne pas perdre l'information.
+    mutationFn: (data: Partial<EcritureCaisse>) => {
+      const type = String(data.type ?? 'entree').toLowerCase() === 'sortie' ? 'SORTIE' : 'ENTREE';
+      const libelle = data.libelle ?? '';
+      const motif = data.categorie ? `[${data.categorie}] ${libelle}`.trim() : libelle;
+      return api.post('/caisse/ecritures', {
+        montant: Number(data.montant ?? 0),
+        motif,
+        type,
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['caisse'] });
     },

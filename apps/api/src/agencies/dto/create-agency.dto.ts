@@ -37,9 +37,10 @@ export class CreateAgencyDto {
   @IsEmail()
   email?: string;
 
-  @ApiProperty({ example: 'network-uuid-123', description: 'ID du réseau auquel appartient l\'agence' })
+  @ApiPropertyOptional({ example: 'network-uuid-123', description: 'ID du réseau auquel appartient l\'agence (réseau par défaut du tenant si absent)' })
+  @IsOptional()
   @IsString()
-  networkId: string;
+  networkId?: string;
 
   @ApiPropertyOptional({ example: 'manager-user-uuid', description: 'ID du responsable de l\'agence' })
   @IsOptional()

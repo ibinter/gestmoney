@@ -4,7 +4,6 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -28,12 +27,12 @@ export class QueryLedgerDto {
 
   @ApiPropertyOptional({ description: "ID de l'exercice fiscal" })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   fiscalYearId?: string;
 
   @ApiPropertyOptional({ description: 'ID du centre de coûts' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   costCenterId?: string;
 
   @ApiPropertyOptional({ description: 'Filtrer uniquement les écritures non rapprochées' })

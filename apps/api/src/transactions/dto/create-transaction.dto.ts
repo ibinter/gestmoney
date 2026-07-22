@@ -55,15 +55,26 @@ export class CreateTransactionDto {
   @IsEnum(['ORANGE_MONEY', 'MTN_MOMO', 'WAVE', 'MOOV_MONEY', 'AIRTEL_MONEY', 'M_PESA', 'FREE_MONEY', 'TMONEY'])
   operateur: MobileMoneyOperator;
 
-  @ApiProperty({ description: "ID de l'agent exécutant la transaction" })
-  @IsUUID()
-  @IsNotEmpty()
-  agentId: string;
-
-  @ApiProperty({ description: 'Numéro de téléphone du client', example: '+22507XXXXXXXX' })
+  @ApiPropertyOptional({
+    description:
+      "ID de l'agent exécutant la transaction (CUID). Optionnel : à défaut, " +
+      "l'agent rattaché à l'utilisateur authentifié est utilisé.",
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  clientPhone: string;
+  agentId?: string;
+
+  @ApiPropertyOptional({ description: 'Numéro de téléphone du client', example: '+22507XXXXXXXX' })
+  @IsOptional()
+  @IsString()
+  clientPhone?: string;
+
+  @ApiPropertyOptional({ description: 'Nom du client' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  clientNom?: string;
 
   @ApiPropertyOptional({ description: 'Description ou motif de la transaction' })
   @IsOptional()

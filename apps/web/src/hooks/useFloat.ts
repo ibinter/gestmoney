@@ -95,15 +95,32 @@ export function useDemandesReappro() {
   });
 }
 
+// Le front utilise des codes opérateur en minuscules ; l'API attend les
+// operatorCode en majuscules (ORANGE_MONEY, MOOV_MONEY, AIRTEL_MONEY…).
+const OPERATEUR_API_MAP: Record<string, string> = {
+  orange_money: 'ORANGE_MONEY',
+  mtn_momo: 'MTN_MOMO',
+  wave: 'WAVE',
+  moov: 'MOOV_MONEY',
+  moov_money: 'MOOV_MONEY',
+  airtel: 'AIRTEL_MONEY',
+  airtel_money: 'AIRTEL_MONEY',
+};
+
+function toOperateurApi(op?: string): string | undefined {
+  if (!op) return undefined;
+  return OPERATEUR_API_MAP[op.toLowerCase()] ?? op.toUpperCase();
+}
+
 export function useCreerDemandeReappro() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: Partial<DemandeReapprovisionnement>) => {
       try {
         const res = await api.post('/float/replenish', {
-          operator: data.operateur,
-          amount: data.montant,
-          notes: data.commentaire,
+          operateur: toOperateurApi(data.operateur),
+          montantDemande: data.montant,
+          justification: data.commentaire,
         });
         return res.data;
       } catch {

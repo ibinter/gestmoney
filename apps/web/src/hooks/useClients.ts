@@ -13,6 +13,27 @@ const mockClients: Client[] = [
   { id: 'c8', nom: 'Toure', prenom: 'Aminata', telephone: '0703334455', ville: 'Abidjan', operateur: 'MTN MoMo', soldeWallet: 0, nbTransactions: 0, montantTotal: 0, statut: 'inactif', kycStatut: 'en_attente', createdAt: '2024-01-10' },
 ];
 
+// L'API renvoie déjà les champs FR calculés (statut, kycStatut, prenom…) ET
+// des champs EN bruts (status renvoyé en minuscules « active », kycStatus
+// absent). On privilégie donc les champs FR fournis par l'API et on ne
+// retombe sur le mapping EN (normalisé en majuscules) que s'ils manquent —
+// sinon tout client s'affichait « inactif » / « en_attente ».
+function mapStatut(c: Record<string, unknown>): Client['statut'] {
+  if (c.statut === 'actif' || c.statut === 'bloque' || c.statut === 'inactif') {
+    return c.statut as Client['statut'];
+  }
+  const s = String(c.status ?? '').toUpperCase();
+  return s === 'ACTIVE' ? 'actif' : s === 'BLACKLISTED' || s === 'BLOCKED' ? 'bloque' : 'inactif';
+}
+
+function mapKyc(c: Record<string, unknown>): Client['kycStatut'] {
+  if (c.kycStatut === 'verifie' || c.kycStatut === 'rejete' || c.kycStatut === 'en_attente') {
+    return c.kycStatut as Client['kycStatut'];
+  }
+  const k = String(c.kycStatus ?? '').toUpperCase();
+  return k === 'VERIFIED' ? 'verifie' : k === 'REJECTED' ? 'rejete' : 'en_attente';
+}
+
 function mapClient(c: Record<string, unknown>): Client {
   return {
     id: String(c.id ?? ''),
@@ -25,8 +46,8 @@ function mapClient(c: Record<string, unknown>): Client {
     soldeWallet: Number(c.walletBalance ?? c.soldeWallet ?? 0),
     nbTransactions: Number(c.transactionsCount ?? c.nbTransactions ?? 0),
     montantTotal: Number(c.totalAmount ?? c.montantTotal ?? 0),
-    statut: (c.status === 'ACTIVE' ? 'actif' : c.status === 'BLOCKED' ? 'bloque' : 'inactif') as Client['statut'],
-    kycStatut: (c.kycStatus === 'VERIFIED' ? 'verifie' : c.kycStatus === 'REJECTED' ? 'rejete' : 'en_attente') as Client['kycStatut'],
+    statut: mapStatut(c),
+    kycStatut: mapKyc(c),
     createdAt: String(c.createdAt ?? ''),
   };
 }
@@ -50,7 +71,17 @@ export function useClients(params?: Record<string, string>) {
 export function useCreateClient() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Client>) => api.post('/customers', data),
+    // L'API attend le DTO EN (firstName/lastName/phone/address) en
+    // forbidNonWhitelisted : on mappe les champs FR du formulaire et on
+    // n'envoie QUE les champs autorisés (jamais prenom/nom/telephone/ville).
+    mutationFn: (data: Partial<Client>) =>
+      api.post('/customers', {
+        firstName: data.prenom,
+        lastName: data.nom,
+        phone: data.telephone,
+        ...(data.email ? { email: data.email } : {}),
+        ...(data.ville ? { address: data.ville } : {}),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
   });
 }
@@ -58,8 +89,10 @@ export function useCreateClient() {
 export function useToggleClientStatus() {
   const qc = useQueryClient();
   return useMutation({
+    // L'enum Prisma CustomerStatus est ACTIVE / INACTIVE / BLACKLISTED
+    // (pas « BLOCKED » — cette valeur était silencieusement ignorée).
     mutationFn: ({ id, statut }: { id: string; statut: Client['statut'] }) =>
-      api.patch(`/customers/${id}`, { status: statut === 'actif' ? 'ACTIVE' : statut === 'bloque' ? 'BLOCKED' : 'INACTIVE' }),
+      api.patch(`/customers/${id}`, { status: statut === 'actif' ? 'ACTIVE' : statut === 'bloque' ? 'BLACKLISTED' : 'INACTIVE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
   });
 }

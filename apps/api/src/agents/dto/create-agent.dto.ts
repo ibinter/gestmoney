@@ -6,6 +6,7 @@ import {
   IsNumber,
   Min,
   MaxLength,
+  MinLength,
   IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -26,10 +27,30 @@ export enum MobileMoneyOperator {
 }
 
 export class CreateAgentDto {
-  @ApiProperty({ example: 'Jean Dupont', description: 'Nom complet de l\'agent' })
+  @ApiPropertyOptional({ example: 'Jean Dupont', description: 'Nom complet de l\'agent (sinon dérivé de firstName + lastName)' })
+  @IsOptional()
   @IsString()
   @MaxLength(100)
-  fullName: string;
+  fullName?: string;
+
+  @ApiPropertyOptional({ example: 'Jean', description: 'Prénom de l\'agent' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Dupont', description: 'Nom de famille de l\'agent' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: 'MotDePasse123', description: 'Mot de passe du compte agent (si un utilisateur doit être créé)' })
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  @MaxLength(100)
+  password?: string;
 
   @ApiProperty({ example: '+2250102030405', description: 'Numéro de téléphone' })
   @IsString()
@@ -40,10 +61,11 @@ export class CreateAgentDto {
   @IsEmail()
   email?: string;
 
-  @ApiProperty({ example: 'AGT-2024-001', description: 'Code unique de l\'agent' })
+  @ApiPropertyOptional({ example: 'AGT-2024-001', description: 'Code unique de l\'agent (généré si absent)' })
+  @IsOptional()
   @IsString()
   @MaxLength(50)
-  code: string;
+  code?: string;
 
   @ApiProperty({ example: 'agency-uuid-123', description: 'ID de l\'agence' })
   @IsString()

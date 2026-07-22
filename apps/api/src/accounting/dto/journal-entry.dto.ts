@@ -7,7 +7,6 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUUID,
   MaxLength,
   Min,
   ValidateNested,
@@ -66,7 +65,8 @@ export class CreateJournalEntryDto {
   description: string;
 
   @ApiProperty({ description: "ID de l'exercice fiscal", type: String })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   fiscalYearId: string;
 
   @ApiProperty({ description: 'Lignes de journal (débit = crédit obligatoire)', type: [JournalLineDto] })
@@ -77,16 +77,16 @@ export class CreateJournalEntryDto {
 
   @ApiPropertyOptional({ description: 'ID de la transaction source (Mobile Money)' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   transactionId?: string;
 
   @ApiPropertyOptional({ description: "ID de l'agent concerné" })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   agentId?: string;
 
   @ApiPropertyOptional({ description: 'ID du centre de coûts' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   costCenterId?: string;
 }

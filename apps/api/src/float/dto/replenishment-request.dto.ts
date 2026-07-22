@@ -6,16 +6,15 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { MobileMoneyOperator } from '../../transactions/interfaces/transaction.interface';
 
 export class ReplenishmentRequestDto {
-  @ApiProperty({ description: "ID de l'agent demandeur" })
-  @IsUUID()
-  @IsNotEmpty()
-  agentId: string;
+  @ApiPropertyOptional({ description: "ID de l'agent demandeur (optionnel : réappro au niveau opérateur si absent)" })
+  @IsOptional()
+  @IsString()
+  agentId?: string;
 
   @ApiProperty({ enum: ['ORANGE_MONEY', 'MTN_MOMO', 'WAVE', 'MOOV_MONEY', 'AIRTEL_MONEY', 'M_PESA', 'FREE_MONEY', 'TMONEY'] })
   @IsEnum(['ORANGE_MONEY', 'MTN_MOMO', 'WAVE', 'MOOV_MONEY', 'AIRTEL_MONEY', 'M_PESA', 'FREE_MONEY', 'TMONEY'])

@@ -5,7 +5,7 @@ import {
   IsEnum,
   IsNumber,
   IsOptional,
-  IsUUID,
+  IsString,
   Max,
   Min,
 } from 'class-validator';
@@ -13,14 +13,14 @@ import {
 export type CommissionStatus = 'DUE' | 'PAID' | 'PENDING' | 'CANCELLED';
 
 export class QueryCommissionDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'ID agent (CUID)' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   agentId?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'ID agence (CUID)' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   agenceId?: string;
 
   @ApiPropertyOptional()
@@ -65,21 +65,21 @@ export class CalculateCommissionsDto {
   @IsDateString()
   dateFin?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'ID agent (CUID)' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   agentId?: string;
 }
 
 export class ValidatePaymentDto {
-  @ApiPropertyOptional({ description: 'IDs des commissions à payer (vide = toutes DUE)' })
+  @ApiPropertyOptional({ description: 'IDs (CUID) des commissions à payer (vide = toutes DUE)' })
   @IsOptional()
-  @IsUUID(undefined, { each: true })
+  @IsString({ each: true })
   commissionIds?: string[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'ID agent (CUID)' })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   agentId?: string;
 
   @ApiPropertyOptional()

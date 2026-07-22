@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import {
   ITransaction,
   ITransactionStats,
   ITransactionSummary,
+  toPrismaTransactionType,
 } from './interfaces/transaction.interface';
 import {
   AgentNotFoundException,
@@ -53,27 +55,55 @@ export class TransactionsService {
   private async validateTransaction(
     dto: CreateTransactionDto,
     tenantId: string,
+    agentId: string,
+    networkId: string,
   ): Promise<void> {
     // Vérifier que l'agent existe et est actif
     const agent = await this.prisma.agent.findFirst({
-      where: { id: dto.agentId, tenantId },
+      where: { id: agentId, tenantId },
     });
 
-    if (!agent) throw new AgentNotFoundException(dto.agentId);
-    if (agent.status === 'SUSPENDED') throw new AgentSuspendedException(dto.agentId);
+    if (!agent) throw new AgentNotFoundException(agentId);
+    if (agent.status === 'SUSPENDED') throw new AgentSuspendedException(agentId);
 
-    // Vérifier float suffisant (pour RETRAIT, CASH_OUT)
+    // Vérifier float suffisant (pour RETRAIT, CASH_OUT, TRANSFERT). Le compte de
+    // float est indexé par réseau (FloatAccount.networkId), pas par opérateur.
+    // Contrôle appliqué uniquement si un compte de float existe pour ce couple
+    // agent/réseau — sinon on ne bloque pas (float non configuré).
     const debitTypes = ['RETRAIT', 'CASH_OUT', 'TRANSFERT'];
     if (debitTypes.includes(dto.type)) {
       const floatAccount = await this.prisma.floatAccount.findFirst({
-        where: { agentId: dto.agentId, operatorCode: dto.operateur, tenantId } as any,
+        where: { agentId, networkId, tenantId },
       });
 
-      const solde = (floatAccount as any)?.solde ?? (floatAccount as any)?.balance ?? 0;
-      if (!floatAccount || solde < dto.montant) {
+      const solde = Number(floatAccount?.balance ?? 0);
+      if (floatAccount && solde < dto.montant) {
         throw new InsufficientFloatException(dto.operateur, solde, dto.montant);
       }
     }
+  }
+
+  /**
+   * Résout l'agent auteur de la transaction. Le formulaire front ne fournit pas
+   * d'`agentId` (aucun sélecteur d'agent) : on retombe sur l'agent rattaché à
+   * l'utilisateur authentifié. Sans agent identifiable, on lève une erreur claire.
+   */
+  private async resolveAgentId(
+    dto: CreateTransactionDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<string> {
+    if (dto.agentId) return dto.agentId;
+    const agent = await this.prisma.agent.findFirst({
+      where: { userId, tenantId },
+      select: { id: true },
+    });
+    if (!agent) {
+      throw new BadRequestException(
+        "Impossible de créer la transaction : aucun agent n'est précisé et l'utilisateur courant n'est rattaché à aucun agent.",
+      );
+    }
+    return agent.id;
   }
 
   // ─── Calcul frais ─────────────────────────────────────────────────────────────
@@ -96,14 +126,32 @@ export class TransactionsService {
   // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
   async create(dto: CreateTransactionDto, tenantId: string, userId: string): Promise<ITransaction> {
-    await this.validateTransaction(dto, tenantId);
+    // 1. Résoudre l'agent (fourni ou déduit de l'utilisateur courant).
+    const agentId = await this.resolveAgentId(dto, tenantId, userId);
+
+    // 2. Résoudre le réseau à partir de l'opérateur : `networkId` est OBLIGATOIRE
+    //    sur Transaction. Son absence provoquait une erreur Prisma 500 à chaque
+    //    création.
+    const network = await this.prisma.network.findUnique({
+      where: {
+        tenantId_operatorCode: { tenantId, operatorCode: dto.operateur },
+      },
+      select: { id: true },
+    });
+    if (!network) {
+      throw new BadRequestException(
+        `Aucun réseau configuré pour l'opérateur « ${dto.operateur} » sur ce tenant.`,
+      );
+    }
+
+    await this.validateTransaction(dto, tenantId, agentId, network.id);
 
     const frais = this.calculateFrais(dto.montant, dto.type, dto.operateur);
     const reference = this.generateReference();
 
     // Récupérer l'agencyId de l'agent
     const agent = await this.prisma.agent.findFirst({
-      where: { id: dto.agentId, tenantId },
+      where: { id: agentId, tenantId },
       select: { agencyId: true },
     });
 
@@ -111,19 +159,24 @@ export class TransactionsService {
       const txData: any = {
         tenantId,
         reference,
-        type: dto.type,
+        // Enum Prisma strict : mapper le type métier FR (DEPOT/CASH_IN…) vers
+        // l'enum réel (DEPOSIT/WITHDRAWAL…). On garde le type métier d'origine
+        // dans metadata.uiType pour un affichage exact côté front.
+        type: toPrismaTransactionType(dto.type),
         status: 'PENDING',
         operatorCode: dto.operateur,
+        networkId: network.id,
         amount: dto.montant,
         fee: frais,
         netAmount: dto.montant - frais,
         commission: 0,
         currency: 'XOF',
-        agentId: dto.agentId,
+        agentId,
         agencyId: agent?.agencyId ?? '',
         receiverPhone: dto.clientPhone,
+        receiverName: dto.clientNom,
         description: dto.description,
-        metadata: dto.metadata,
+        metadata: { ...(dto.metadata ?? {}), uiType: dto.type },
       };
       const created = await tx.transaction.create({ data: txData });
 
@@ -150,6 +203,51 @@ export class TransactionsService {
 
     this.logger.log(`Transaction créée: ${reference} | ${dto.type} | ${dto.montant} FCFA`);
     return txResult;
+  }
+
+  /**
+   * Valide (complète) une transaction PENDING. Émet l'évènement COMPLETED qui
+   * déclenche l'enregistrement de la commission (CommissionListener). Sans cette
+   * action, aucune transaction n'atteignait jamais l'état COMPLETED et AUCUNE
+   * commission n'était donc calculée.
+   */
+  async complete(id: string, tenantId: string, userId: string): Promise<ITransaction> {
+    const transaction = await this.findOne(id, tenantId);
+
+    if (transaction.status !== 'PENDING') {
+      throw new BadRequestException(
+        `Transaction ${id} non complétable (statut actuel: ${transaction.status}).`,
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.transaction.update({
+        where: { id },
+        data: { status: 'COMPLETED', completedAt: new Date() },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: 'UPDATE',
+          resource: 'Transaction',
+          resourceId: id,
+          newValues: { status: 'COMPLETED', reference: transaction.reference } as any,
+        },
+      });
+
+      return result;
+    });
+
+    const completedTx = updated as unknown as ITransaction;
+    this.eventEmitter.emit(
+      TRANSACTION_EVENTS.COMPLETED,
+      new TransactionCompletedEvent(completedTx),
+    );
+
+    this.logger.log(`Transaction complétée: ${transaction.reference}`);
+    return completedTx;
   }
 
   async findAll(
@@ -181,21 +279,26 @@ export class TransactionsService {
       if (dateDebut) where.createdAt.gte = new Date(dateDebut);
       if (dateFin) where.createdAt.lte = new Date(dateFin);
     }
-    if (type) where.type = type;
-    if (operateur) where.operateur = operateur;
+    // Noms de colonnes RÉELS du schéma Prisma (operatorCode/amount/receiverPhone/
+    // agencyId) — les anciens champs FR (operateur/montant/clientPhone/agenceId)
+    // n'existent pas et provoquaient une erreur Prisma 500 dès qu'un filtre était
+    // fourni (notamment la recherche).
+    if (type) where.type = toPrismaTransactionType(type);
+    if (operateur) where.operatorCode = operateur;
     if (statut) where.status = statut;
     if (agentId) where.agentId = agentId;
-    if (agenceId) where.agenceId = agenceId;
+    if (agenceId) where.agencyId = agenceId;
     if (montantMin !== undefined || montantMax !== undefined) {
-      where.montant = {};
-      if (montantMin !== undefined) where.montant.gte = montantMin;
-      if (montantMax !== undefined) where.montant.lte = montantMax;
+      where.amount = {};
+      if (montantMin !== undefined) where.amount.gte = montantMin;
+      if (montantMax !== undefined) where.amount.lte = montantMax;
     }
-    if (clientPhone) where.clientPhone = { contains: clientPhone };
+    if (clientPhone) where.receiverPhone = { contains: clientPhone };
     if (search) {
       where.OR = [
         { reference: { contains: search, mode: 'insensitive' } },
-        { clientPhone: { contains: search } },
+        { receiverPhone: { contains: search } },
+        { receiverName: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -207,6 +310,10 @@ export class TransactionsService {
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
+        include: {
+          agent: { select: { id: true, agentCode: true } },
+          agency: { select: { id: true, name: true } },
+        },
       }),
       this.prisma.transaction.count({ where }),
     ]);
@@ -278,6 +385,7 @@ export class TransactionsService {
         type: 'REVERSAL',
         status: 'COMPLETED',
         operatorCode: (transaction as any).operatorCode ?? (transaction as any).operateur,
+        networkId: (transaction as any).networkId,
         amount: (transaction as any).amount ?? (transaction as any).montant,
         fee: 0,
         netAmount: (transaction as any).amount ?? (transaction as any).montant ?? 0,
@@ -460,21 +568,24 @@ export class TransactionsService {
       'Description',
     ].join(',');
 
-    const rows = data.map((t) =>
-      [
-        t.reference,
-        t.createdAt.toISOString(),
-        t.type,
-        t.operateur,
-        t.montant,
-        t.frais,
-        t.commission,
-        t.status,
-        t.agentId,
-        t.clientPhone,
-        `"${t.description ?? ''}"`,
-      ].join(','),
-    );
+    const rows = data.map((t) => {
+      const r = t as any;
+      const createdAt =
+        r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt ?? '');
+      return [
+        r.reference,
+        createdAt,
+        r.metadata?.uiType ?? r.type,
+        r.operatorCode ?? r.operateur,
+        r.amount ?? r.montant,
+        r.fee ?? r.frais,
+        r.commission,
+        r.status,
+        r.agentId,
+        r.receiverPhone ?? r.clientPhone,
+        `"${r.description ?? ''}"`,
+      ].join(',');
+    });
 
     return [headers, ...rows].join('\n');
   }

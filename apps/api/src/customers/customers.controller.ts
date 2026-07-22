@@ -24,6 +24,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { QueryCustomerDto } from './dto/query-customer.dto';
 import { LoyaltyRedeemDto } from './dto/loyalty-redeem.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -85,7 +86,7 @@ export class CustomersController {
   @ApiOperation({ summary: 'Modifier un client' })
   update(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateCustomerDto>,
+    @Body() dto: UpdateCustomerDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.customersService.update(id, dto, user.tenantId);

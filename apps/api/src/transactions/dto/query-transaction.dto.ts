@@ -43,14 +43,14 @@ export class QueryTransactionDto {
   @IsEnum(['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'REVERSED'])
   statut?: TransactionStatus;
 
-  @ApiPropertyOptional({ description: "ID de l'agent" })
+  @ApiPropertyOptional({ description: "ID de l'agent (CUID)" })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   agentId?: string;
 
-  @ApiPropertyOptional({ description: "ID de l'agence" })
+  @ApiPropertyOptional({ description: "ID de l'agence (CUID)" })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   agenceId?: string;
 
   @ApiPropertyOptional({ description: 'Montant minimum' })
