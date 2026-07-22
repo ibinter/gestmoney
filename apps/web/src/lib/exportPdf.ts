@@ -166,25 +166,44 @@ export function exporterPdf(
     ` : '<p style="color:#888;font-size:11px;margin-top:12px;">Aucune donnée pour la période sélectionnée.</p>'}
     ${piedPage(opts, now)}
   </div>
-  <script>window.onload = function() { window.print(); }</script>
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const w = window.open(url, '_blank', 'width=900,height=700');
-  if (w) {
-    w.onbeforeunload = () => URL.revokeObjectURL(url);
-  } else {
-    // Fallback si popup bloquée : téléchargement direct
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${opts.nomFichier ?? opts.titre.toLowerCase().replace(/\s+/g,'_')}_${now.toISOString().slice(0,10)}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  imprimerHtml(html);
+}
+
+/**
+ * Imprime un document HTML via un iframe caché. Fiable et JAMAIS bloqué par le
+ * navigateur, contrairement à `window.open` (popup). L'utilisateur choisit
+ * « Enregistrer en PDF » dans la boîte de dialogue d'impression.
+ */
+export function imprimerHtml(html: string): void {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText =
+    'position:fixed;left:-9999px;top:0;width:0;height:0;border:0;';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
+    return;
   }
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  // Laisser le temps au rendu (polices / mise en page) avant d'imprimer.
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      /* ignore */
+    }
+    // Retirer l'iframe bien après (ne pas annuler la boîte d'impression).
+    setTimeout(() => iframe.remove(), 60000);
+  }, 300);
 }
 
 // Export XLSX simplifié via SpreadsheetML (XML lisible par Excel)

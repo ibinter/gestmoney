@@ -14,6 +14,7 @@
 // ============================================================
 
 import { renderGuideMarkdown, type GuideDoc } from './content';
+import { imprimerHtml } from '@/lib/exportPdf';
 
 export interface GuidePdfSection {
   /** Emoji d'illustration (repris devant le titre). */
@@ -179,23 +180,9 @@ export function exporterGuidePdf(opts: GuidePdfOptions): void {
       <p class="ref">${ref}</p>
     </div>
   </div>
-  <script>window.onload = function () { window.print(); };</script>
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const w = window.open(url, '_blank', 'width=920,height=720');
-  if (w) {
-    w.onbeforeunload = () => URL.revokeObjectURL(url);
-  } else {
-    // Fallback si la popup est bloquée : téléchargement direct du HTML imprimable.
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${opts.nomFichier ?? 'gestmoney_guide'}_${now.toISOString().slice(0, 10)}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  }
+  // Impression via iframe caché (jamais bloqué par les popups).
+  imprimerHtml(html);
 }
