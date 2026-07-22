@@ -2,13 +2,17 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
   Request,
   Res,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import {
   ApiTags,
@@ -194,6 +198,28 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Profil utilisateur' })
   async getMe(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('avatar')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Mettre à jour la photo de profil' })
+  @ApiResponse({ status: 200, description: 'Avatar mis à jour (data URL)' })
+  async updateAvatar(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.authService.updateAvatar(userId, file ?? null);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('avatar')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Supprimer la photo de profil' })
+  async removeAvatar(@CurrentUser('id') userId: string) {
+    return this.authService.updateAvatar(userId, null);
   }
 
   @UseGuards(JwtAuthGuard)

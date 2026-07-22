@@ -13,12 +13,13 @@ import { Toggle } from '@/components/ui/Toggle';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboarding } from '@/components/ui/Onboarding';
 import { useT } from '@/lib/i18n';
+import api from '@/lib/api';
 
 // ——————————————————————————————————————
 // Onglet Profil
 // ——————————————————————————————————————
 function OngletProfil() {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const t = useT();
   const [form, setForm] = useState({
     prenom: user?.prenom ?? '',
@@ -29,7 +30,41 @@ function OngletProfil() {
     fuseau: 'Africa/Abidjan',
   });
   const [saved, setSaved] = useState(false);
-  const [infoPhoto, setInfoPhoto] = useState(false);
+  const [uploadPhoto, setUploadPhoto] = useState(false);
+  const [photoErr, setPhotoErr] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const choisirPhoto = () => fileInputRef.current?.click();
+
+  const changerPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setPhotoErr('Veuillez choisir une image.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 1_500_000) {
+      setPhotoErr('Image trop volumineuse (max 1,5 Mo).');
+      e.target.value = '';
+      return;
+    }
+    setPhotoErr('');
+    setUploadPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/auth/avatar', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      updateUser({ avatar: res.data.avatar });
+    } catch {
+      setPhotoErr("Échec de l'envoi de la photo.");
+    } finally {
+      setUploadPhoto(false);
+      e.target.value = '';
+    }
+  };
 
   const handleChange = (field: string, value: string) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -48,26 +83,38 @@ function OngletProfil() {
       <Card padding="md">
         <div className="flex items-center gap-6">
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-sidebar flex items-center justify-center text-white text-2xl font-bold">
-              {(form.prenom[0] ?? '').toUpperCase()}{(form.nom[0] ?? '').toUpperCase()}
-            </div>
+            {user?.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatar} alt="" className="w-20 h-20 rounded-full object-cover" />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-sidebar flex items-center justify-center text-white text-2xl font-bold">
+                {(form.prenom[0] ?? '').toUpperCase()}{(form.nom[0] ?? '').toUpperCase()}
+              </div>
+            )}
             <button
               type="button"
               aria-label={t.settings.changePhoto}
-              title={t.common.comingSoon}
-              onClick={() => setInfoPhoto(true)}
-              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-yellow-400 transition-colors"
+              onClick={choisirPhoto}
+              disabled={uploadPhoto}
+              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-yellow-400 transition-colors disabled:opacity-50"
             >
               <Camera size={14} className="text-sidebar" />
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={changerPhoto}
+            />
           </div>
           <div>
             <p className="font-semibold text-text-main">{form.prenom} {form.nom}</p>
             <p className="text-sm text-text-muted mt-0.5">{user?.role ?? t.settings.defaultUser}</p>
-            <button type="button" title={t.common.comingSoon} onClick={() => setInfoPhoto(true)} className="text-xs text-primary hover:underline mt-2">
-              {t.settings.uploadPhoto}
+            <button type="button" onClick={choisirPhoto} disabled={uploadPhoto} className="text-xs text-primary hover:underline mt-2 disabled:opacity-50">
+              {uploadPhoto ? '…' : t.settings.uploadPhoto}
             </button>
-            {infoPhoto && <p className="text-xs text-text-muted mt-1">{t.common.comingSoon}</p>}
+            {photoErr && <p className="text-xs text-red-500 mt-1">{photoErr}</p>}
           </div>
         </div>
       </Card>

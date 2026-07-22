@@ -224,17 +224,22 @@ function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => vo
     { id: 'm0', auteur: 'Vous', role: 'user', contenu: ticket.description, date: ticket.dateCreation },
   ]);
   const [nouveau, setNouveau] = useState('');
-  const [infoAttach, setInfoAttach] = useState(false);
+  const [fichierJoint, setFichierJoint] = useState('');
+  const attachRef = React.useRef<HTMLInputElement>(null);
   const { user } = useAuthStore();
   const statut = STATUT_CONFIG[ticket.statut];
 
   const envoyer = () => {
-    if (!nouveau.trim()) return;
+    if (!nouveau.trim() && !fichierJoint) return;
+    const contenu = [nouveau.trim(), fichierJoint ? `📎 ${fichierJoint}` : '']
+      .filter(Boolean)
+      .join('\n');
     setMessages((prev) => [...prev, {
       id: `m${Date.now()}`, auteur: 'Vous', role: 'user',
-      contenu: nouveau.trim(), date: new Date().toISOString(),
+      contenu, date: new Date().toISOString(),
     }]);
     setNouveau('');
+    setFichierJoint('');
   };
 
   return (
@@ -300,9 +305,10 @@ function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => vo
                   className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/04 text-text-main text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none transition-all"
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <button type="button" title={t.common.comingSoon} onClick={() => setInfoAttach(true)} className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-main transition-colors">
-                    <Paperclip size={13} /> {infoAttach ? t.common.comingSoon : t.support.attach}
+                  <button type="button" onClick={() => attachRef.current?.click()} className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-main transition-colors">
+                    <Paperclip size={13} /> {fichierJoint || t.support.attach}
                   </button>
+                  <input ref={attachRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFichierJoint(f.name); e.target.value = ''; }} />
                   <button
                     onClick={envoyer}
                     disabled={!nouveau.trim()}

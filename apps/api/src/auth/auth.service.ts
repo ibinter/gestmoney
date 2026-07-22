@@ -335,6 +335,35 @@ export class AuthService {
 
   // ─── Profil ──────────────────────────────────────────────────────────────────
 
+  /**
+   * Met à jour la photo de profil. L'image est stockée en data URL base64 dans
+   * `User.avatar` (petit fichier — évite tout service de fichiers statiques et
+   * toute modification nginx). `file = null` supprime la photo.
+   */
+  async updateAvatar(userId: string, file: Express.Multer.File | null) {
+    let avatar: string | null = null;
+    if (file) {
+      if (!file.mimetype?.startsWith('image/')) {
+        throw new BadRequestException('Le fichier doit être une image.');
+      }
+      const MAX_OCTETS = 1_500_000; // 1,5 Mo
+      const taille = file.size ?? file.buffer?.length ?? 0;
+      if (taille > MAX_OCTETS || (file.buffer?.length ?? 0) > MAX_OCTETS) {
+        throw new BadRequestException('Image trop volumineuse (max 1,5 Mo).');
+      }
+      if (!file.buffer || file.buffer.length === 0) {
+        throw new BadRequestException('Fichier vide.');
+      }
+      avatar = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    }
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatar },
+      select: { id: true, avatar: true },
+    });
+    return { avatar: user.avatar };
+  }
+
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
