@@ -484,12 +484,12 @@ export const LEXIQUE: LexiqueEntry[] = [
     fr: {
       terme: 'SARA',
       definition:
-        "Système normalisé de déclaration fiscale et réglementaire utilisé en zone UEMOA pour la télédéclaration. GESTMONEY produit des exports compatibles pour faciliter les obligations déclaratives.",
+        "Assistant intelligent (IA) intégré à GESTMONEY. SARA aide les utilisateurs à prendre en main la plateforme, répond aux questions sur les fonctionnalités et guide dans les tâches courantes. Ses réponses sont fournies à titre indicatif, ne sont pas contractuelles et peuvent comporter des erreurs : elles ne remplacent pas un conseil professionnel.",
     },
     en: {
       terme: 'SARA',
       definition:
-        "A standardised tax and regulatory reporting system used in the WAEMU zone for electronic filing. GESTMONEY produces compatible exports to ease reporting obligations.",
+        "The intelligent (AI) assistant built into GESTMONEY. SARA helps users get started with the platform, answers questions about features and guides them through everyday tasks. Its answers are indicative, non-contractual and may contain errors: they do not replace professional advice.",
     },
   },
   {
