@@ -7,17 +7,21 @@ import {
 import { clsx } from 'clsx';
 import { formatRelativeTime } from '@/lib/formatters';
 import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
+import {
+  useTickets, useTicket, useCreateTicket, useEnvoyerMessage, useSupportStats,
+  type ApiTicket, type ApiMessage, type PrioriteApi, type StatutApi,
+} from '@/hooks/useSupport';
 
-// ─── Types ────────────────────────────────────────────────────────────────
+// ─── Types (valeurs FR minuscules attendues par les configs UI) ─────────────
 type StatutTicket = 'ouvert' | 'en_cours' | 'resolu' | 'ferme';
 type PrioriteTicket = 'basse' | 'normale' | 'haute' | 'urgente';
 type CategorieTicket = 'technique' | 'facturation' | 'agent' | 'transaction' | 'float' | 'autre';
 
 interface Ticket {
-  id: string;
+  id: string;          // id réel API (pour le détail / les mutations)
+  numero: string;      // référence affichée (ex. TK-2026-001)
   titre: string;
   statut: StatutTicket;
   priorite: PrioriteTicket;
@@ -36,51 +40,47 @@ interface Message {
   date: string;
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────
-const MOCK_TICKETS: Ticket[] = [
-  {
-    id: 'TK-2026-001',
-    titre: 'Transaction bloquée en attente depuis 48h',
-    statut: 'en_cours',
-    priorite: 'haute',
-    categorie: 'transaction',
-    dateCreation: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    dateMaj: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    nbMessages: 4,
-    description: 'La transaction TX-2026-07-A48C9F est bloquée depuis 48 heures avec le statut "En attente". Le client a confirmé que les fonds ont bien été débités côté Wave.',
-  },
-  {
-    id: 'TK-2026-002',
-    titre: 'Impossibilité de se connecter — agent Koné Drissa',
-    statut: 'resolu',
-    priorite: 'normale',
-    categorie: 'technique',
-    dateCreation: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    dateMaj: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    nbMessages: 6,
-    description: 'L\'agent Koné Drissa ne peut plus se connecter à l\'application depuis la mise à jour.',
-  },
-  {
-    id: 'TK-2026-003',
-    titre: 'Alerte float Orange Money — seuil non respecté',
-    statut: 'ouvert',
-    priorite: 'urgente',
-    categorie: 'float',
-    dateCreation: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    dateMaj: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    nbMessages: 1,
-    description: 'Malgré le rechargement du float Orange Money ce matin, les alertes continuent d\'être envoyées et le solde affiché ne correspond pas au solde réel.',
-  },
-];
-
-const MOCK_MESSAGES: Record<string, Message[]> = {
-  'TK-2026-001': [
-    { id: 'm1', auteur: 'Vous', role: 'user', contenu: 'La transaction TX-2026-07-A48C9F est bloquée depuis 48h. Le client Wave a confirmé le débit.', date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString() },
-    { id: 'm2', auteur: 'Support IBIG', role: 'support', contenu: 'Bonjour, nous avons bien reçu votre ticket. Pouvez-vous nous donner le numéro de téléphone du client pour vérification côté Wave ?', date: new Date(Date.now() - 46 * 60 * 60 * 1000).toISOString() },
-    { id: 'm3', auteur: 'Vous', role: 'user', contenu: 'Le numéro du client est le 07 XX XX XX XX. La transaction référence Wave est WV-20260710-8847C.', date: new Date(Date.now() - 44 * 60 * 60 * 1000).toISOString() },
-    { id: 'm4', auteur: 'Support IBIG', role: 'support', contenu: 'Merci. Nous avons transmis la demande à Wave Sénégal. Un retour est attendu sous 24h. Nous vous tenons informé.', date: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() },
-  ],
+// ─── Mapping enums API (MAJUSCULES) → valeurs des configs UI ─────────────────
+const STATUT_MAP: Record<StatutApi, StatutTicket> = {
+  NOUVEAU: 'ouvert',
+  OUVERT: 'ouvert',
+  EN_COURS: 'en_cours',
+  ATTENTE_CLIENT: 'en_cours',
+  ESCALADE: 'en_cours',
+  RESOLU: 'resolu',
+  FERME: 'ferme',
 };
+
+const PRIORITE_MAP: Record<PrioriteApi, PrioriteTicket> = {
+  BASSE: 'basse',
+  NORMALE: 'normale',
+  HAUTE: 'haute',
+  URGENTE: 'urgente',
+};
+
+const CATEGORIES: CategorieTicket[] = ['technique', 'transaction', 'float', 'agent', 'facturation', 'autre'];
+
+/** Ramène une catégorie libre de l'API vers une clé connue (sinon « autre »). */
+function mapCategorie(c: string | null): CategorieTicket {
+  const val = (c ?? '').toLowerCase() as CategorieTicket;
+  return CATEGORIES.includes(val) ? val : 'autre';
+}
+
+/** Convertit un ticket API vers la forme locale consommée par le rendu. */
+function mapTicket(t: ApiTicket): Ticket {
+  return {
+    id: t.id,
+    numero: t.numero,
+    titre: t.objet,
+    statut: STATUT_MAP[t.statut] ?? 'ouvert',
+    priorite: PRIORITE_MAP[t.priorite] ?? 'normale',
+    categorie: mapCategorie(t.categorie),
+    dateCreation: t.createdAt,
+    dateMaj: t.updatedAt,
+    nbMessages: t.nbMessages,
+    description: t.description,
+  };
+}
 
 // ─── Constantes UI ────────────────────────────────────────────────────────
 /** Clé de traduction du statut dans `t.support.status`. */
@@ -107,8 +107,6 @@ const PRIORITE_CONFIG: Record<PrioriteTicket, { couleur: string; point: string }
   urgente: { couleur: 'text-red-500',   point: 'bg-red-500 animate-pulse' },
 };
 
-const CATEGORIES: CategorieTicket[] = ['technique', 'transaction', 'float', 'agent', 'facturation', 'autre'];
-
 /** Libellé traduit d'un statut de ticket. */
 const labelStatut = (t: Translations, s: StatutTicket) => t.support.status[STATUT_I18N[s]];
 
@@ -116,33 +114,32 @@ const labelStatut = (t: Translations, s: StatutTicket) => t.support.status[STATU
 const labelPriorite = (t: Translations, p: PrioriteTicket) => t.support.priority_levels[PRIORITE_I18N[p]];
 
 // ─── Formulaire nouveau ticket ─────────────────────────────────────────────
-function NouveauTicketModal({ onFermer, onCreer }: { onFermer: () => void; onCreer: (t: Ticket) => void }) {
+function NouveauTicketModal({ onFermer, onCreer }: { onFermer: () => void; onCreer: (id: string) => void }) {
   const t = useT();
+  const creer = useCreateTicket();
   const [form, setForm] = useState({
     titre: '', categorie: 'technique' as CategorieTicket,
     priorite: 'normale' as PrioriteTicket, description: '',
   });
-  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState('');
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.titre.trim() || !form.description.trim()) return;
-    setEnvoi(true);
+    setErreur('');
     try {
-      await api.post('/support/tickets', form);
-    } catch { /* fallback local */ }
-    const nouveau: Ticket = {
-      id: `TK-2026-${String(Math.floor(Math.random() * 900 + 100))}`,
-      ...form,
-      statut: 'ouvert',
-      dateCreation: new Date().toISOString(),
-      dateMaj: new Date().toISOString(),
-      nbMessages: 1,
-    };
-    onCreer(nouveau);
-    setEnvoi(false);
+      const ticket = await creer.mutateAsync({
+        objet: form.titre.trim(),
+        description: form.description.trim(),
+        categorie: form.categorie,
+        priorite: form.priorite.toUpperCase() as PrioriteApi,
+      });
+      onCreer(ticket.id);
+    } catch {
+      setErreur('Une erreur est survenue. Réessayez.');
+    }
   };
 
   return (
@@ -201,14 +198,15 @@ function NouveauTicketModal({ onFermer, onCreer }: { onFermer: () => void; onCre
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/04 text-text-main text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none"
             />
           </div>
+          {erreur && <p className="text-xs text-red-500">{erreur}</p>}
           <div className="flex items-center justify-between pt-2">
             <button type="button" onClick={onFermer} className="text-sm text-text-muted hover:text-text-main transition-colors px-3 py-2">{t.support.cancel}</button>
             <button
               type="submit"
-              disabled={envoi || !form.titre.trim() || !form.description.trim()}
+              disabled={creer.isPending || !form.titre.trim() || !form.description.trim()}
               className="flex items-center gap-2 bg-primary text-sidebar text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {envoi ? t.support.sending : <><Send size={14} /> {t.support.sendTicket}</>}
+              {creer.isPending ? t.support.sending : <><Send size={14} /> {t.support.sendTicket}</>}
             </button>
           </div>
         </form>
@@ -218,42 +216,81 @@ function NouveauTicketModal({ onFermer, onCreer }: { onFermer: () => void; onCre
 }
 
 // ─── Vue ticket détaillée ──────────────────────────────────────────────────
-function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => void }) {
+function TicketDetail({ ticketId, onRetour }: { ticketId: string; onRetour: () => void }) {
   const t = useT();
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES[ticket.id] ?? [
-    { id: 'm0', auteur: 'Vous', role: 'user', contenu: ticket.description, date: ticket.dateCreation },
-  ]);
+  const { user } = useAuthStore();
+  const { data, isLoading, isError } = useTicket(ticketId);
+  const envoyerMessage = useEnvoyerMessage();
   const [nouveau, setNouveau] = useState('');
   const [fichierJoint, setFichierJoint] = useState('');
   const attachRef = React.useRef<HTMLInputElement>(null);
-  const { user } = useAuthStore();
-  const statut = STATUT_CONFIG[ticket.statut];
 
-  const envoyer = () => {
-    if (!nouveau.trim() && !fichierJoint) return;
+  const envoyer = async () => {
+    if ((!nouveau.trim() && !fichierJoint) || envoyerMessage.isPending) return;
     const contenu = [nouveau.trim(), fichierJoint ? `📎 ${fichierJoint}` : '']
       .filter(Boolean)
       .join('\n');
-    setMessages((prev) => [...prev, {
-      id: `m${Date.now()}`, auteur: 'Vous', role: 'user',
-      contenu, date: new Date().toISOString(),
-    }]);
-    setNouveau('');
-    setFichierJoint('');
+    try {
+      await envoyerMessage.mutateAsync({ id: ticketId, contenu });
+      setNouveau('');
+      setFichierJoint('');
+    } catch { /* l'erreur reste visible via l'état de la mutation */ }
   };
+
+  const retour = (
+    <button onClick={onRetour} className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-main transition-colors">
+      ← {t.support.backToTickets}
+    </button>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {retour}
+        <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 px-6 py-12 text-center">
+          <p className="text-text-muted text-sm animate-pulse">{t.support.sending}…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="space-y-6">
+        {retour}
+        <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 px-6 py-12 text-center">
+          <AlertTriangle size={32} className="text-red-400 mx-auto mb-3 opacity-70" />
+          <p className="text-text-muted text-sm">{t.support.noTickets}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const ticket = mapTicket(data);
+  const statut = STATUT_CONFIG[ticket.statut];
+  const messages: Message[] = data.messages
+    .filter((m: ApiMessage) => !m.interne)
+    .map((m: ApiMessage) => {
+      const role: Message['role'] = m.auteurId && user?.id === m.auteurId ? 'user' : 'support';
+      return {
+        id: m.id,
+        role,
+        auteur: m.auteurNom ?? (role === 'user' ? t.support.you : t.support.supportBadge),
+        contenu: m.contenu,
+        date: m.createdAt,
+      };
+    });
 
   return (
     <div className="space-y-6">
-      <button onClick={onRetour} className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-main transition-colors">
-        ← {t.support.backToTickets}
-      </button>
+      {retour}
 
       <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-100 dark:border-white/08">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="font-mono text-xs text-text-muted bg-gray-100 dark:bg-white/08 px-2 py-0.5 rounded-lg">{ticket.id}</span>
+                <span className="font-mono text-xs text-text-muted bg-gray-100 dark:bg-white/08 px-2 py-0.5 rounded-lg">{ticket.numero}</span>
                 <span className={clsx('flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full', statut.couleur)}>
                   {statut.icone} {labelStatut(t, ticket.statut)}
                 </span>
@@ -282,7 +319,7 @@ function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => vo
                 {msg.role === 'support' && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">{t.support.supportBadge}</span>}
                 <span className="text-xs text-text-muted ml-auto">{formatRelativeTime(msg.date)}</span>
               </div>
-              <p className="text-sm text-text-muted leading-relaxed pl-8">{msg.contenu}</p>
+              <p className="text-sm text-text-muted leading-relaxed pl-8 whitespace-pre-line">{msg.contenu}</p>
             </div>
             );
           })}
@@ -311,7 +348,7 @@ function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => vo
                   <input ref={attachRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFichierJoint(f.name); e.target.value = ''; }} />
                   <button
                     onClick={envoyer}
-                    disabled={!nouveau.trim()}
+                    disabled={!nouveau.trim() || envoyerMessage.isPending}
                     className="flex items-center gap-1.5 bg-primary text-sidebar text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40"
                   >
                     <Send size={12} /> {t.support.reply}
@@ -329,27 +366,30 @@ function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => vo
 // ─── Page principale ───────────────────────────────────────────────────────
 export default function SupportPage() {
   const lang = useT();
-  const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS);
-  const [ticketActif, setTicketActif] = useState<Ticket | null>(null);
+  const [ticketActifId, setTicketActifId] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
   const [filtreStatut, setFiltreStatut] = useState<StatutTicket | 'tous'>('tous');
 
-  const creerTicket = (t: Ticket) => {
-    setTickets((prev) => [t, ...prev]);
+  const { data: apiTickets, isLoading, isError } = useTickets();
+  const { data: statsApi } = useSupportStats();
+
+  const tickets: Ticket[] = (apiTickets ?? []).map(mapTicket);
+
+  const creerTicket = (id: string) => {
     setModal(false);
-    setTicketActif(t);
+    setTicketActifId(id);
   };
 
   const ticketsFiltres = tickets.filter((t) => filtreStatut === 'tous' || t.statut === filtreStatut);
 
-  const stats = {
+  const stats = statsApi ?? {
     total:   tickets.length,
     ouverts: tickets.filter((t) => t.statut === 'ouvert').length,
     enCours: tickets.filter((t) => t.statut === 'en_cours').length,
     resolus: tickets.filter((t) => t.statut === 'resolu').length,
   };
 
-  if (ticketActif) return <TicketDetail ticket={ticketActif} onRetour={() => setTicketActif(null)} />;
+  if (ticketActifId) return <TicketDetail ticketId={ticketActifId} onRetour={() => setTicketActifId(null)} />;
 
   return (
     <div className="space-y-6">
@@ -411,7 +451,16 @@ export default function SupportPage() {
 
       {/* Liste tickets */}
       <div className="space-y-2">
-        {ticketsFiltres.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 px-6 py-12 text-center">
+            <p className="text-text-muted text-sm animate-pulse">{lang.support.sending}…</p>
+          </div>
+        ) : isError ? (
+          <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 px-6 py-12 text-center">
+            <AlertTriangle size={32} className="text-red-400 mx-auto mb-3 opacity-70" />
+            <p className="text-text-muted text-sm">{lang.support.noTickets}</p>
+          </div>
+        ) : ticketsFiltres.length === 0 ? (
           <div className="bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 px-6 py-12 text-center">
             <TicketIcon size={32} className="text-text-muted mx-auto mb-3 opacity-40" />
             <p className="text-text-muted text-sm">{lang.support.noTickets}</p>
@@ -425,14 +474,14 @@ export default function SupportPage() {
           return (
             <button
               key={t.id}
-              onClick={() => setTicketActif(t)}
+              onClick={() => setTicketActifId(t.id)}
               className="w-full bg-white dark:bg-white/03 rounded-2xl border border-gray-100 dark:border-white/08 px-5 py-4 text-left hover:border-primary/30 hover:shadow-sm transition-all group"
             >
               <div className="flex items-start gap-4">
                 <div className={clsx('w-2 h-2 rounded-full mt-2 flex-shrink-0', p.point)} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-mono text-xs text-text-muted">{t.id}</span>
+                    <span className="font-mono text-xs text-text-muted">{t.numero}</span>
                     <span className={clsx('flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full', s.couleur)}>
                       {s.icone} {labelStatut(lang, t.statut)}
                     </span>
