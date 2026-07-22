@@ -37,6 +37,7 @@ const STATS_MOCK = {
 // ─── Modal prévisualisation ────────────────────────────────────────────────
 function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFermer: () => void }) {
   const t = useT();
+  const [apercu, setApercu] = useState<'desktop' | 'mobile'>('desktop');
   const html = rendreDemoTemplate(templateId);
   // Séparation nette : TEMPLATES_INFO porte la STRUCTURE (catégorie,
   // variables disponibles), le dictionnaire porte le TEXTE affiché. Sans
@@ -58,8 +59,17 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-white/08 rounded-xl p-1 gap-1">
-            {[t.superadmin.emailsPage.desktop, t.superadmin.emailsPage.mobile].map((v) => (
-              <button key={v} className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors">{v}</button>
+            {([['desktop', t.superadmin.emailsPage.desktop], ['mobile', t.superadmin.emailsPage.mobile]] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setApercu(mode)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                  apercu === mode ? 'bg-white/15 text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
+                )}
+              >
+                {label}
+              </button>
             ))}
           </div>
           <button
@@ -74,7 +84,7 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
       {/* Simulateur client email */}
       <div className="flex-1 overflow-auto bg-[#1a1a2e] flex flex-col items-center py-8 px-4">
         {/* En-tête simulé inbox */}
-        <div className="w-full max-w-[620px] bg-[#22222e] rounded-t-xl border border-white/10 px-5 py-3 text-sm text-gray-400 flex items-center gap-4">
+        <div className="w-full bg-[#22222e] rounded-t-xl border border-white/10 px-5 py-3 text-sm text-gray-400 flex items-center gap-4 transition-all duration-300" style={{ maxWidth: apercu === 'mobile' ? 380 : 620 }}>
           <span className="text-gray-500 text-xs">{t.superadmin.emailsPage.from}</span>
           <span className="text-gray-300 font-medium">GESTMONEY &lt;noreply@gestmoney.ibigsoft.com&gt;</span>
           <span className="text-gray-500 text-xs ml-auto">{t.superadmin.emailsPage.subject}</span>
@@ -82,7 +92,7 @@ function PreviewModal({ templateId, onFermer }: { templateId: TemplateId; onFerm
         </div>
 
         {/* Rendu HTML */}
-        <div className="w-full max-w-[620px] border-x border-b border-white/10 rounded-b-xl overflow-hidden shadow-2xl">
+        <div className="w-full border-x border-b border-white/10 rounded-b-xl overflow-hidden shadow-2xl transition-all duration-300" style={{ maxWidth: apercu === 'mobile' ? 380 : 620 }}>
           <iframe
             srcDoc={html}
             title={`${t.superadmin.emailsPage.previewTitle} ${info.titre}`}

@@ -52,6 +52,13 @@ export default function DemonstrationsPage() {
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [selected, setSelected] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  // Aucun hook de mutation CRM démonstrations n'existe encore (useCrm n'expose que des lectures) :
+  // les actions d'écriture affichent un message honnête au lieu de simuler un succès.
+  const [toast, setToast] = useState<string | null>(null);
+  const notifyComingSoon = () => {
+    setToast(t.common.comingSoon);
+    setTimeout(() => setToast(null), 2500);
+  };
 
   const params: Record<string, string> = { limit: '100' };
   if (filtreStatut !== 'Tous') params.statut = filtreStatut;
@@ -177,12 +184,12 @@ export default function DemonstrationsPage() {
             <div className="flex gap-2 flex-wrap">
               {detail.statut === 'PLANIFIEE' && (
                 <>
-                  <button className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.demos.detail.markDone}</button>
-                  <button className="px-4 py-2.5 rounded-xl border border-red-300 text-red-600 text-sm font-bold">{t.superadmin.demos.detail.cancel}</button>
+                  <button onClick={notifyComingSoon} title={t.common.comingSoon} className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.demos.detail.markDone}</button>
+                  <button onClick={notifyComingSoon} title={t.common.comingSoon} className="px-4 py-2.5 rounded-xl border border-red-300 text-red-600 text-sm font-bold">{t.superadmin.demos.detail.cancel}</button>
                 </>
               )}
               {detail.statut === 'REALISEE' && (
-                <button className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.demos.detail.createOffer}</button>
+                <button onClick={notifyComingSoon} title={t.common.comingSoon} className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.demos.detail.createOffer}</button>
               )}
             </div>
           </div>
@@ -218,11 +225,17 @@ export default function DemonstrationsPage() {
                   <option value="TELEPHONE">{t.superadmin.demos.form.telephone}</option>
                 </select>
               </div>
-              <button className="w-full py-3 rounded-xl bg-brand-green text-white font-bold text-sm hover:bg-green-700 transition-colors">
+              <button onClick={notifyComingSoon} title={t.common.comingSoon} className="w-full py-3 rounded-xl bg-brand-green text-white font-bold text-sm hover:bg-green-700 transition-colors">
                 {t.superadmin.demos.form.confirm}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold shadow-2xl">
+          {toast}
         </div>
       )}
     </div>

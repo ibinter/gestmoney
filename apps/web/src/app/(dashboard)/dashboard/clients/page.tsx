@@ -58,6 +58,7 @@ export default function ClientsPage() {
   const [page, setPage] = useState(1);
   const LIMIT = 15;
   const [modalOuvert, setModalOuvert] = useState(false);
+  const [clientVu, setClientVu] = useState<Client | null>(null);
   const [formClient, setFormClient] = useState(FORM_INIT_CLIENT);
   const [erreurClient, setErreurClient] = useState('');
   const [succesClient, setSuccesClient] = useState('');
@@ -289,9 +290,9 @@ export default function ClientsPage() {
                     </td>
                     <td>
                       <div className="gm-action-btns">
-                        <button className="gm-action-btn" type="button">{t.common.view}</button>
+                        <button className="gm-action-btn" type="button" onClick={() => setClientVu(c)}>{t.common.view}</button>
                         {c.kycStatut === 'en_attente' && (
-                          <button className="gm-action-btn" type="button">{t.clients.table.verifyKyc}</button>
+                          <button className="gm-action-btn" type="button" onClick={() => setClientVu(c)}>{t.clients.table.verifyKyc}</button>
                         )}
                       </div>
                     </td>
@@ -362,6 +363,41 @@ export default function ClientsPage() {
             <Button type="button" variante="ghost" onClick={() => { setModalOuvert(false); setFormClient(FORM_INIT_CLIENT); setErreurClient(''); }}>{t.common.cancel}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modale DÉTAIL client (lecture seule) */}
+      <Modal ouvert={!!clientVu} onFermer={() => setClientVu(null)} titre={clientVu ? `${clientVu.prenom} ${clientVu.nom}` : ''} taille="md">
+        {clientVu && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {([
+                [t.common.phone, clientVu.telephone || '—'],
+                [t.common.email, clientVu.email || '—'],
+                [t.common.city, clientVu.ville || '—'],
+                [t.common.operator, clientVu.operateur || '—'],
+                [t.clients.table.colWallet, formatMontant(clientVu.soldeWallet)],
+                [t.clients.table.colTransactions, String(clientVu.nbTransactions ?? 0)],
+                [t.clients.table.colTotalVolume, formatMontant(clientVu.montantTotal)],
+                [t.common.registration, clientVu.createdAt ? formatDate(clientVu.createdAt) : '—'],
+              ] as [string, string][]).map(([label, val]) => (
+                <div key={label}>
+                  <div className="text-xs uppercase tracking-wide text-text-muted mb-1">{label}</div>
+                  <div className="text-sm font-semibold text-text-main">{val}</div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-text-muted mb-1">{t.common.statut}</div>
+                <span className={`gm-status-pill ${STATUT_PILLS[clientVu.statut] ?? 'gm-pill-offline'}`}>{STATUT_LABELS[clientVu.statut] ?? clientVu.statut}</span>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-text-muted mb-1">{t.clients.table.colKyc}</div>
+                <GmStatusPill statut={KYC_STATUTS[clientVu.kycStatut] ?? 'pending'}>{KYC_LABELS[clientVu.kycStatut] ?? clientVu.kycStatut}</GmStatusPill>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </>
   );

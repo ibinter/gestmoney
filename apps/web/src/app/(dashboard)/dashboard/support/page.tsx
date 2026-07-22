@@ -224,6 +224,7 @@ function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => vo
     { id: 'm0', auteur: 'Vous', role: 'user', contenu: ticket.description, date: ticket.dateCreation },
   ]);
   const [nouveau, setNouveau] = useState('');
+  const [infoAttach, setInfoAttach] = useState(false);
   const { user } = useAuthStore();
   const statut = STATUT_CONFIG[ticket.statut];
 
@@ -299,8 +300,8 @@ function TicketDetail({ ticket, onRetour }: { ticket: Ticket; onRetour: () => vo
                   className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/04 text-text-main text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none transition-all"
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <button className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-main transition-colors">
-                    <Paperclip size={13} /> {t.support.attach}
+                  <button type="button" title={t.common.comingSoon} onClick={() => setInfoAttach(true)} className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-main transition-colors">
+                    <Paperclip size={13} /> {infoAttach ? t.common.comingSoon : t.support.attach}
                   </button>
                   <button
                     onClick={envoyer}

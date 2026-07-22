@@ -29,6 +29,7 @@ function OngletProfil() {
     fuseau: 'Africa/Abidjan',
   });
   const [saved, setSaved] = useState(false);
+  const [infoPhoto, setInfoPhoto] = useState(false);
 
   const handleChange = (field: string, value: string) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -51,7 +52,10 @@ function OngletProfil() {
               {(form.prenom[0] ?? '').toUpperCase()}{(form.nom[0] ?? '').toUpperCase()}
             </div>
             <button
+              type="button"
               aria-label={t.settings.changePhoto}
+              title={t.common.comingSoon}
+              onClick={() => setInfoPhoto(true)}
               className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-yellow-400 transition-colors"
             >
               <Camera size={14} className="text-sidebar" />
@@ -60,9 +64,10 @@ function OngletProfil() {
           <div>
             <p className="font-semibold text-text-main">{form.prenom} {form.nom}</p>
             <p className="text-sm text-text-muted mt-0.5">{user?.role ?? t.settings.defaultUser}</p>
-            <button className="text-xs text-primary hover:underline mt-2">
+            <button type="button" title={t.common.comingSoon} onClick={() => setInfoPhoto(true)} className="text-xs text-primary hover:underline mt-2">
               {t.settings.uploadPhoto}
             </button>
+            {infoPhoto && <p className="text-xs text-text-muted mt-1">{t.common.comingSoon}</p>}
           </div>
         </div>
       </Card>

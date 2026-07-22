@@ -134,6 +134,7 @@ export const fr = {
     inactive: 'Inactif',
     suspended: 'Suspendu',
     registration: 'Inscription',
+    comingSoon: 'Bientôt disponible',
     commission: 'Commission',
     agency: 'Agence',
     operator: 'Opérateur',

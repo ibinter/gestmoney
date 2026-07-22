@@ -19,6 +19,7 @@ export default function AgencesPage() {
   const t = useT();
   const [search, setSearch] = useState('');
   const [modalOuvert, setModalOuvert] = useState(false);
+  const [agenceVue, setAgenceVue] = useState<Agence | null>(null);
   const [form, setForm] = useState(FORM_INIT);
   const [erreur, setErreur] = useState('');
   const [succes, setSucces] = useState('');
@@ -190,7 +191,7 @@ export default function AgencesPage() {
               </div>
 
               <div className="gm-agence-actions">
-                <button type="button" className="gm-agence-btn gm-primary">{t.agences.actions.viewDetails}</button>
+                <button type="button" className="gm-agence-btn gm-primary" onClick={() => setAgenceVue(a)}>{t.agences.actions.viewDetails}</button>
                 <button
                   type="button"
                   className="gm-agence-btn"
@@ -286,6 +287,34 @@ export default function AgencesPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modale DÉTAIL agence (lecture seule) */}
+      <Modal ouvert={!!agenceVue} onFermer={() => setAgenceVue(null)} titre={agenceVue ? agenceVue.nom : ''} taille="md">
+        {agenceVue && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {([
+                [t.agences.modal.codeLabel, agenceVue.code || '—'],
+                [t.agences.modal.villeLabel, agenceVue.ville || '—'],
+                [t.agences.modal.adresseLabel, agenceVue.adresse || '—'],
+                [t.agences.modal.telephoneLabel, agenceVue.telephone || '—'],
+                [t.agences.modal.responsableLabel, agenceVue.responsableNom || '—'],
+                [t.agences.metrics.opening, formatDate(agenceVue.createdAt)],
+                [t.agences.metrics.agents, String(agenceVue.nbAgents)],
+                [t.agences.metrics.online, String(agenceVue.nbAgentsEnLigne)],
+              ] as [string, string][]).map(([label, val]) => (
+                <div key={label}>
+                  <div className="text-xs uppercase tracking-wide text-text-muted mb-1">{label}</div>
+                  <div className="text-sm font-semibold text-text-main">{val}</div>
+                </div>
+              ))}
+            </div>
+            <span className={`gm-status-pill ${agenceVue.active ? 'gm-pill-active' : 'gm-pill-danger'}`}>
+              {agenceVue.active ? t.agences.pillActive : t.agences.pillInactive}
+            </span>
+          </div>
+        )}
       </Modal>
     </>
   );

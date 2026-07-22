@@ -125,7 +125,7 @@ export default function OffresPage() {
                     <td className="px-4 py-3"><Badge couleur={STATUT_COULEUR[o.statut] ?? 'neutral'}>{labelStatut(t, o.statut)}</Badge></td>
                     <td className="px-4 py-3 text-xs" style={{ color: expire ? '#E60000' : 'inherit' }}>{datePart(o.dateExpiration)}</td>
                     <td className="px-4 py-3">
-                      <button className="text-xs text-brand-green hover:underline font-semibold">{t.superadmin.offres.view}</button>
+                      <button onClick={(e) => { e.stopPropagation(); setSelected(o.id); }} className="text-xs text-brand-green hover:underline font-semibold">{t.superadmin.offres.view}</button>
                     </td>
                   </tr>
                 );
@@ -182,9 +182,9 @@ export default function OffresPage() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {detail.statut === 'BROUILLON' && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.send}</button>}
-              {['ENVOYEE', 'CONSULTEE'].includes(detail.statut) && <button className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.markConverted}</button>}
-              <button className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">{t.superadmin.offres.detail.pdf}</button>
+              {detail.statut === 'BROUILLON' && <button onClick={() => alert(t.common.comingSoon)} className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.send}</button>}
+              {['ENVOYEE', 'CONSULTEE'].includes(detail.statut) && <button onClick={() => alert(t.common.comingSoon)} className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.markConverted}</button>}
+              <button onClick={() => alert(t.common.comingSoon)} className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">{t.superadmin.offres.detail.pdf}</button>
             </div>
           </div>
         </div>

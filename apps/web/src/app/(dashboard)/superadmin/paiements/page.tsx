@@ -117,7 +117,8 @@ export default function PaiementsPage() {
                   <td className="px-4 py-3"><Badge couleur={STATUT_COULEUR[p.statut] ?? 'neutral'}>{labelStatut(t, p.statut)}</Badge></td>
                   <td className="px-4 py-3 text-xs text-text-muted">{formatRelativeTime(p.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <button className="text-xs text-brand-green hover:underline font-semibold">{t.superadmin.paiements.view}</button>
+                    <button onClick={(e) => { e.stopPropagation(); setSelected(p.id); }}
+                      className="text-xs text-brand-green hover:underline font-semibold">{t.superadmin.paiements.view}</button>
                   </td>
                 </tr>
               ))}

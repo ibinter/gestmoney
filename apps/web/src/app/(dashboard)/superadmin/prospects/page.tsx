@@ -60,6 +60,12 @@ export default function ProspectsPage() {
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [recherche, setRecherche] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  // Aucun hook de mutation CRM n'existe encore : les actions d'écriture affichent un message honnête.
+  const [toast, setToast] = useState<string | null>(null);
+  const notifyComingSoon = () => {
+    setToast(t.common.comingSoon);
+    setTimeout(() => setToast(null), 2500);
+  };
 
   const params: Record<string, string> = { limit: '100' };
   if (filtreStatut !== 'Tous') params.statut = filtreStatut;
@@ -77,7 +83,8 @@ export default function ProspectsPage() {
           <h1 className="text-2xl font-black text-text-main">{t.superadmin.prospects.title}</h1>
           <p className="text-sm text-text-muted">{t.superadmin.prospects.subtitle}</p>
         </div>
-        <button className="btn-primary text-sm px-4 py-2 rounded-xl font-bold bg-brand-green text-white hover:bg-green-700 transition-colors">
+        <button onClick={notifyComingSoon} title={t.common.comingSoon}
+          className="btn-primary text-sm px-4 py-2 rounded-xl font-bold bg-brand-green text-white hover:bg-green-700 transition-colors">
           {t.superadmin.prospects.newProspect}
         </button>
       </div>
@@ -220,17 +227,26 @@ export default function ProspectsPage() {
               <p className="text-sm text-text-muted mb-4 bg-gray-50 dark:bg-white/5 rounded-xl p-3">{detail.notes}</p>
             )}
             <div className="flex gap-2 flex-wrap">
-              <button className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold hover:bg-green-700 transition-colors">
+              <button onClick={notifyComingSoon} title={t.common.comingSoon}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold hover:bg-green-700 transition-colors">
                 {t.superadmin.prospects.detail.planDemo}
               </button>
-              <button className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-main hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+              <button onClick={notifyComingSoon} title={t.common.comingSoon}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-main hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                 {t.superadmin.prospects.detail.creerOffre}
               </button>
-              <button className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted hover:text-red-500 transition-colors">
+              <button onClick={notifyComingSoon} title={t.common.comingSoon}
+                className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted hover:text-red-500 transition-colors">
                 {t.superadmin.prospects.detail.perdu}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold shadow-2xl">
+          {toast}
         </div>
       )}
     </div>

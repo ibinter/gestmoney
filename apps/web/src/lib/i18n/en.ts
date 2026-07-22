@@ -132,6 +132,7 @@ export const en: Translations = {
     inactive: 'Inactive',
     suspended: 'Suspended',
     registration: 'Registered',
+    comingSoon: 'Coming soon',
     commission: 'Commission',
     agency: 'Branch',
     operator: 'Operator',
