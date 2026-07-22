@@ -38,6 +38,8 @@ interface Message {
   role: 'user' | 'support';
   contenu: string;
   date: string;
+  pieceJointe?: string | null;
+  pieceJointeNom?: string | null;
 }
 
 // ─── Mapping enums API (MAJUSCULES) → valeurs des configs UI ─────────────────
@@ -222,18 +224,36 @@ function TicketDetail({ ticketId, onRetour }: { ticketId: string; onRetour: () =
   const { data, isLoading, isError } = useTicket(ticketId);
   const envoyerMessage = useEnvoyerMessage();
   const [nouveau, setNouveau] = useState('');
-  const [fichierJoint, setFichierJoint] = useState('');
+  const [fichierJoint, setFichierJoint] = useState<{ nom: string; dataUrl: string } | null>(null);
+  const [fichierErr, setFichierErr] = useState('');
   const attachRef = React.useRef<HTMLInputElement>(null);
+
+  const choisirFichier = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.size > 3_000_000) { setFichierErr('Fichier trop volumineux (max 3 Mo).'); return; }
+    setFichierErr('');
+    const reader = new FileReader();
+    reader.onload = () => setFichierJoint({ nom: f.name, dataUrl: String(reader.result) });
+    reader.onerror = () => setFichierErr('Lecture du fichier impossible.');
+    reader.readAsDataURL(f);
+  };
 
   const envoyer = async () => {
     if ((!nouveau.trim() && !fichierJoint) || envoyerMessage.isPending) return;
-    const contenu = [nouveau.trim(), fichierJoint ? `📎 ${fichierJoint}` : '']
-      .filter(Boolean)
-      .join('\n');
+    const contenu = nouveau.trim() || (fichierJoint ? `📎 ${fichierJoint.nom}` : '');
     try {
-      await envoyerMessage.mutateAsync({ id: ticketId, contenu });
+      await envoyerMessage.mutateAsync({
+        id: ticketId,
+        contenu,
+        ...(fichierJoint
+          ? { pieceJointe: fichierJoint.dataUrl, pieceJointeNom: fichierJoint.nom }
+          : {}),
+      });
       setNouveau('');
-      setFichierJoint('');
+      setFichierJoint(null);
+      setFichierErr('');
     } catch { /* l'erreur reste visible via l'état de la mutation */ }
   };
 
@@ -278,6 +298,8 @@ function TicketDetail({ ticketId, onRetour }: { ticketId: string; onRetour: () =
         auteur: m.auteurNom ?? (role === 'user' ? t.support.you : t.support.supportBadge),
         contenu: m.contenu,
         date: m.createdAt,
+        pieceJointe: m.pieceJointe ?? null,
+        pieceJointeNom: m.pieceJointeNom ?? null,
       };
     });
 
@@ -320,6 +342,20 @@ function TicketDetail({ ticketId, onRetour }: { ticketId: string; onRetour: () =
                 <span className="text-xs text-text-muted ml-auto">{formatRelativeTime(msg.date)}</span>
               </div>
               <p className="text-sm text-text-muted leading-relaxed pl-8 whitespace-pre-line">{msg.contenu}</p>
+              {msg.pieceJointe && (
+                <div className="pl-8 mt-2">
+                  {msg.pieceJointe.startsWith('data:image/') ? (
+                    <a href={msg.pieceJointe} target="_blank" rel="noreferrer" download={msg.pieceJointeNom ?? 'piece-jointe'}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={msg.pieceJointe} alt={msg.pieceJointeNom ?? ''} className="max-h-40 rounded-lg border border-gray-200 dark:border-white/10" />
+                    </a>
+                  ) : (
+                    <a href={msg.pieceJointe} download={msg.pieceJointeNom ?? 'piece-jointe'} className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                      <Paperclip size={12} /> {msg.pieceJointeNom ?? 'piece-jointe'}
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
             );
           })}
@@ -343,17 +379,18 @@ function TicketDetail({ ticketId, onRetour }: { ticketId: string; onRetour: () =
                 />
                 <div className="flex items-center justify-between mt-2">
                   <button type="button" onClick={() => attachRef.current?.click()} className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-main transition-colors">
-                    <Paperclip size={13} /> {fichierJoint || t.support.attach}
+                    <Paperclip size={13} /> {fichierJoint?.nom ?? t.support.attach}
                   </button>
-                  <input ref={attachRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFichierJoint(f.name); e.target.value = ''; }} />
+                  <input ref={attachRef} type="file" className="hidden" onChange={choisirFichier} />
                   <button
                     onClick={envoyer}
-                    disabled={!nouveau.trim() || envoyerMessage.isPending}
+                    disabled={(!nouveau.trim() && !fichierJoint) || envoyerMessage.isPending}
                     className="flex items-center gap-1.5 bg-primary text-sidebar text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40"
                   >
                     <Send size={12} /> {t.support.reply}
                   </button>
                 </div>
+                {fichierErr && <p className="text-xs text-red-500 mt-1">{fichierErr}</p>}
               </div>
             </div>
           </div>

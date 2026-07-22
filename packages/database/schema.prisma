@@ -2182,12 +2182,14 @@ model Ticket {
 }
 
 model TicketMessage {
-  id        String   @id @default(cuid())
-  ticketId  String
-  auteurId  String?
-  contenu   String   @db.Text
-  interne   Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  ticketId       String
+  auteurId       String?
+  contenu        String   @db.Text
+  interne        Boolean  @default(false)
+  pieceJointe    String?  @db.Text // fichier en data URL base64 (Cloudflare bloque le multipart)
+  pieceJointeNom String?
+  createdAt      DateTime @default(now())
 
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 

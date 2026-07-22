@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { normaliserPagination } from '../common/utils/pagination';
 import {
@@ -20,6 +25,23 @@ export class SupportService {
   private genererNumero(): string {
     // Identifiant lisible et unique sans dépendre d'un compteur (pas de course).
     return `TCK-${Date.now().toString(36).toUpperCase()}`;
+  }
+
+  /** Valide une pièce jointe en data URL base64 (tout type, <= 3 Mo). */
+  private validerPieceJointe(dataUrl?: string): string | null {
+    if (!dataUrl) return null;
+    const m = /^data:([a-zA-Z0-9.+/-]+);base64,(.+)$/.exec(dataUrl.trim());
+    if (!m) {
+      throw new BadRequestException(
+        'Pièce jointe invalide : une data URL base64 est attendue.',
+      );
+    }
+    const octets = Buffer.byteLength(m[2], 'base64');
+    if (octets === 0) throw new BadRequestException('Pièce jointe vide.');
+    if (octets > 3_000_000) {
+      throw new BadRequestException('Pièce jointe trop volumineuse (max 3 Mo).');
+    }
+    return dataUrl.trim();
   }
 
   private toDto(t: any) {
@@ -121,6 +143,8 @@ export class SupportService {
         interne: m.interne,
         auteurId: m.auteurId,
         auteurNom: m.auteurId ? nomParId.get(m.auteurId) ?? null : null,
+        pieceJointe: m.pieceJointe ?? null,
+        pieceJointeNom: m.pieceJointeNom ?? null,
         createdAt: m.createdAt,
       })),
     };
@@ -150,8 +174,15 @@ export class SupportService {
     const ticket = await this.prisma.ticket.findFirst({ where: { id, userId } });
     if (!ticket) throw new NotFoundException('Ticket introuvable');
 
+    const pieceJointe = this.validerPieceJointe(dto.pieceJointe);
     const message = await this.prisma.ticketMessage.create({
-      data: { ticketId: id, auteurId: userId, contenu: dto.contenu },
+      data: {
+        ticketId: id,
+        auteurId: userId,
+        contenu: dto.contenu,
+        pieceJointe,
+        pieceJointeNom: pieceJointe ? dto.pieceJointeNom ?? 'piece-jointe' : null,
+      },
     });
 
     // Remonte le ticket (updatedAt) et le rouvre s'il était résolu/fermé.
@@ -169,6 +200,8 @@ export class SupportService {
       contenu: message.contenu,
       interne: message.interne,
       auteurId: message.auteurId,
+      pieceJointe: message.pieceJointe ?? null,
+      pieceJointeNom: message.pieceJointeNom ?? null,
       createdAt: message.createdAt,
     };
   }

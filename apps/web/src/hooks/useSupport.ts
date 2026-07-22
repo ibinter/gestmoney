@@ -43,6 +43,8 @@ export interface ApiMessage {
   interne: boolean;
   auteurId: string | null;
   auteurNom: string | null;
+  pieceJointe?: string | null;
+  pieceJointeNom?: string | null;
   createdAt: string;
 }
 
@@ -131,8 +133,21 @@ export function useCreateTicket() {
 export function useEnvoyerMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, contenu }: { id: string; contenu: string }): Promise<ApiMessage> => {
-      const res = await api.post<ApiMessage>(`/support/tickets/${id}/messages`, { contenu });
+    mutationFn: async ({
+      id,
+      contenu,
+      pieceJointe,
+      pieceJointeNom,
+    }: {
+      id: string;
+      contenu: string;
+      pieceJointe?: string;
+      pieceJointeNom?: string;
+    }): Promise<ApiMessage> => {
+      const res = await api.post<ApiMessage>(`/support/tickets/${id}/messages`, {
+        contenu,
+        ...(pieceJointe ? { pieceJointe, pieceJointeNom } : {}),
+      });
       return res.data;
     },
     onSuccess: (_data, { id }) => {

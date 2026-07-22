@@ -43,6 +43,17 @@ export class CreateTicketMessageDto {
   @IsString()
   @IsNotEmpty()
   contenu: string;
+
+  @ApiPropertyOptional({ description: 'Pièce jointe en data URL base64' })
+  @IsOptional()
+  @IsString()
+  pieceJointe?: string;
+
+  @ApiPropertyOptional({ description: 'Nom du fichier joint' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  pieceJointeNom?: string;
 }
 
 export class ChangerStatutTicketDto {
