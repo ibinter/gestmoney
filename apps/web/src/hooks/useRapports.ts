@@ -26,8 +26,9 @@ export interface RapportsData {
   nouveauxClients: number;
   ticketMoyen: number;
   variationCa: number;
-  variationTx: number;
-  variationClients: number;
+  /** Non fourni par l'API — laissé indéfini pour masquer la tendance. */
+  variationTx?: number;
+  variationClients?: number;
   progression: number;
   objectif: number;
   parOperateur: { key: string; label: string; logo: string; couleur: string; montant: number; pct: number }[];
@@ -36,66 +37,140 @@ export interface RapportsData {
   historique: RapportHistorique[];
 }
 
-const MOCK: RapportsData = {
-  ca: 145_200_000,
-  nbTransactions: 7432,
-  nouveauxClients: 127,
-  ticketMoyen: 19_539,
-  variationCa: 12.5,
-  variationTx: 8.3,
-  variationClients: 22.1,
-  progression: 72,
-  objectif: 200_000_000,
-  parOperateur: [
-    { key: 'orange_money', label: 'Orange Money', logo: '🟠', couleur: '#F97316', montant: 45_200_000, pct: 31 },
-    { key: 'mtn_momo',    label: 'MTN MoMo',     logo: '🟡', couleur: '#EAB308', montant: 38_100_000, pct: 26 },
-    { key: 'wave',        label: 'Wave',          logo: '🔵', couleur: '#3B82F6', montant: 29_800_000, pct: 21 },
-    { key: 'moov',        label: 'Moov',          logo: '🟢', couleur: '#22C55E', montant: 18_600_000, pct: 13 },
-    { key: 'airtel',      label: 'Airtel',        logo: '🔴', couleur: '#EF4444', montant: 13_500_000, pct: 9  },
-  ],
-  topAgents: [
-    { nom: 'Kofi Mensah',    agence: 'Plateau',   montant: 8_500_000, nbTx: 42, badge: '🥇' },
-    { nom: 'Ama Diallo',     agence: 'Plateau',   montant: 6_200_000, nbTx: 35, badge: '🥈' },
-    { nom: 'Adja Sow',       agence: 'Yopougon', montant: 5_400_000, nbTx: 31, badge: '🥉' },
-    { nom: 'Sekou Toure',    agence: 'Cocody',    montant: 4_800_000, nbTx: 28, badge: ''   },
-    { nom: 'Abou Kone',      agence: 'Cocody',    montant: 3_100_000, nbTx: 19, badge: ''   },
-  ],
-  alertes: [
-    { id: 'a1', type: 'danger',  message: 'Float Moov en zone critique (420K / seuil 1M FCFA)' },
-    { id: 'a2', type: 'warning', message: "Float MTN MoMo sous le seuil d'alerte (1,8M / seuil 2M FCFA)" },
-    { id: 'a3', type: 'info',    message: 'Objectif mensuel atteint à 72% — 8 jours restants' },
-  ],
-  historique: [
-    { id: 'r1', titre: 'Rapport mensuel Décembre 2023',    type: 'mensuel',       statut: 'disponible', date: '2024-01-02', taille: '2.4 MB'  },
-    { id: 'r2', titre: 'Rapport hebdomadaire S02-2024',    type: 'hebdomadaire',  statut: 'disponible', date: '2024-01-14', taille: '842 KB'  },
-    { id: 'r3', titre: 'Rapport journalier 14 jan 2024',   type: 'journalier',    statut: 'disponible', date: '2024-01-14', taille: '156 KB'  },
-    { id: 'r4', titre: 'Rapport mensuel Janvier 2024',     type: 'mensuel',       statut: 'generation', date: '2024-01-15', taille: '—'       },
-  ],
+/**
+ * Objectif de CA (présentation) : cible de progression, PAS une donnée de CA
+ * fabriquée. Le pourcentage de progression est calculé sur le CA réel.
+ */
+const OBJECTIF_CA = 200_000_000;
+
+/** Métadonnées d'affichage des opérateurs (label/couleur uniquement). Les
+ * montants proviennent toujours de l'API. */
+const OPERATEUR_META: Record<string, { label: string; logo: string; couleur: string }> = {
+  ORANGE_MONEY: { label: 'Orange Money', logo: '🟠', couleur: '#F97316' },
+  MTN_MOMO:     { label: 'MTN MoMo',     logo: '🟡', couleur: '#EAB308' },
+  WAVE:         { label: 'Wave',          logo: '🔵', couleur: '#3B82F6' },
+  MOOV:         { label: 'Moov',          logo: '🟢', couleur: '#22C55E' },
+  AIRTEL:       { label: 'Airtel',        logo: '🔴', couleur: '#EF4444' },
 };
+
+function metaOperateur(code?: string): { label: string; logo: string; couleur: string } {
+  const key = (code ?? '').toUpperCase();
+  return OPERATEUR_META[key] ?? { label: code || '—', logo: '⚪', couleur: '#94A3B8' };
+}
+
+/**
+ * Convertit la période choisie dans l'UI en bornes ISO (startDate/endDate),
+ * qui sont les query params réellement attendus par `GET /reports/*`.
+ */
+function bornesPeriode(periode?: string): { startDate: string; endDate: string } {
+  const iso = (d: Date) => d.toISOString();
+  switch (periode) {
+    case 'decembre_2023':
+      return { startDate: iso(new Date(Date.UTC(2023, 11, 1))), endDate: iso(new Date(Date.UTC(2023, 11, 31, 23, 59, 59))) };
+    case 'trimestre_4_2023':
+      return { startDate: iso(new Date(Date.UTC(2023, 9, 1))), endDate: iso(new Date(Date.UTC(2023, 11, 31, 23, 59, 59))) };
+    case 'janvier_2024':
+      return { startDate: iso(new Date(Date.UTC(2024, 0, 1))), endDate: iso(new Date(Date.UTC(2024, 0, 31, 23, 59, 59))) };
+    default:
+      // 30 derniers jours
+      return { startDate: iso(new Date(Date.now() - 30 * 86400000)), endDate: iso(new Date()) };
+  }
+}
+
+function toArray(payload: unknown): Record<string, unknown>[] {
+  const body = (payload as { data?: unknown })?.data ?? payload;
+  return Array.isArray(body) ? (body as Record<string, unknown>[]) : [];
+}
+
+function versTypeFr(type?: string): RapportHistorique['type'] {
+  switch (type) {
+    case 'DAILY':
+      return 'journalier';
+    case 'MONTHLY':
+      return 'mensuel';
+    default:
+      return 'hebdomadaire';
+  }
+}
 
 export function useRapports(periode?: string) {
   return useQuery({
-    queryKey: ['rapports', periode ?? 'janvier_2024'],
+    queryKey: ['rapports', periode ?? 'default'],
     queryFn: async (): Promise<RapportsData> => {
-      try {
-        const res = await api.get('/reports/kpi', { params: { period: periode } });
-        const raw = res.data?.data ?? res.data ?? {};
-        if (!raw.ca && !raw.chiffreAffaires && !raw.totalRevenue) return MOCK;
-        return {
-          ...MOCK,
-          ca:              Number(raw.ca ?? raw.chiffreAffaires ?? raw.totalRevenue ?? MOCK.ca),
-          nbTransactions:  Number(raw.nbTransactions ?? MOCK.nbTransactions),
-          nouveauxClients: Number(raw.nouveauxClients ?? MOCK.nouveauxClients),
-          ticketMoyen:     Number(raw.ticketMoyen ?? MOCK.ticketMoyen),
-          variationCa:     Number(raw.variationCa ?? MOCK.variationCa),
-          variationTx:     Number(raw.variationTx ?? MOCK.variationTx),
-          variationClients:Number(raw.variationClients ?? MOCK.variationClients),
-          alertes:         raw.alertes ?? MOCK.alertes,
-          historique:      raw.historique ?? MOCK.historique,
-        };
-      } catch {
-        return MOCK;
-      }
+      const params = bornesPeriode(periode);
+
+      // Appels réels en parallèle. Toute erreur réseau/serveur remonte à React
+      // Query (isError) — plus aucun fallback mock. L'historique est optionnel :
+      // s'il échoue on garde une liste vide sans casser la page.
+      const [kpiRes, opsRes, agentsRes, histoRes] = await Promise.all([
+        api.get('/reports/kpi', { params }),
+        api.get('/reports/operators-comparison', { params }),
+        api.get('/reports/agents-performance', { params }),
+        api.get('/reports').catch(() => ({ data: [] })),
+      ]);
+
+      const kpi = (kpiRes.data?.data ?? kpiRes.data ?? {}) as Record<string, unknown>;
+      const ca = Number(kpi.chiffreAffaires ?? 0);
+      const nbTransactions = Number(kpi.totalTransactions ?? 0);
+      const nouveauxClients = Number(kpi.nouveauxClients ?? 0);
+      const ticketMoyen = nbTransactions > 0 ? Math.round(ca / nbTransactions) : 0;
+
+      // ─── Répartition réelle par opérateur ───────────────────────────────
+      const opsRaw = toArray(opsRes.data);
+      const montantOp = (o: Record<string, unknown>) =>
+        Number((o._sum as { amount?: unknown } | undefined)?.amount ?? 0);
+      const totalOps = opsRaw.reduce((s, o) => s + montantOp(o), 0);
+      const parOperateur = opsRaw
+        .map((o) => {
+          const code = String(o.operatorCode ?? '');
+          const meta = metaOperateur(code);
+          const montant = montantOp(o);
+          return {
+            key: code.toLowerCase() || 'inconnu',
+            label: meta.label,
+            logo: meta.logo,
+            couleur: meta.couleur,
+            montant,
+            pct: totalOps > 0 ? Math.round((montant / totalOps) * 100) : 0,
+          };
+        })
+        .sort((a, b) => b.montant - a.montant);
+
+      // ─── Top agents réels ───────────────────────────────────────────────
+      const agentsRaw = toArray(agentsRes.data);
+      const topAgents = agentsRaw.slice(0, 5).map((a, i) => ({
+        nom: String(a.agentId ?? '—'),
+        agence: '—',
+        montant: Number(a.montant ?? 0),
+        nbTx: Number(a.transactions ?? 0),
+        badge: ['🥇', '🥈', '🥉'][i] ?? '',
+      }));
+
+      // ─── Historique réel des rapports générés ───────────────────────────
+      const historique: RapportHistorique[] = toArray(histoRes.data).map((r) => ({
+        id: String(r.id ?? ''),
+        titre: `Rapport ${versTypeFr(String(r.type))} ${new Date(String(r.generatedAt ?? Date.now())).toLocaleDateString('fr-FR')}`,
+        type: versTypeFr(String(r.type)),
+        statut: r.status === 'COMPLETED' ? 'disponible' : 'generation',
+        date: new Date(String(r.generatedAt ?? Date.now())).toISOString().slice(0, 10),
+        taille: '—',
+      }));
+
+      const progression = OBJECTIF_CA > 0 ? Math.min(Math.round((ca / OBJECTIF_CA) * 100), 100) : 0;
+
+      return {
+        ca,
+        nbTransactions,
+        nouveauxClients,
+        ticketMoyen,
+        variationCa: Number(kpi.croissance ?? 0),
+        progression,
+        objectif: OBJECTIF_CA,
+        parOperateur,
+        topAgents,
+        alertes: [],
+        historique,
+      };
     },
     staleTime: 60_000,
   });

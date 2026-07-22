@@ -10,6 +10,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge, badgeStatutTransaction } from '@/components/ui/Badge';
 import { GmPageHeader, GmButton, GmTableWrap } from '@/components/gm';
 import { useTransactions, useCreateTransaction, useValiderTransaction } from '@/hooks/useTransactions';
+import { useAgents } from '@/hooks/useAgents';
+import { useAuthStore } from '@/store/authStore';
 import { Transaction, TypeTransaction, StatutTransaction, Operateur, OPERATEURS } from '@/types';
 import { formatMontant, formatDate, formatDateTime } from '@/lib/formatters';
 import { GmExportMenu } from '@/components/gm/GmExportMenu';
@@ -68,7 +70,7 @@ export default function TransactionsPage() {
   const [dateFin, setDateFin] = useState('');
   const [selectionnees, setSelectionnees] = useState<string[]>([]);
   const [modalOuvert, setModalOuvert] = useState<TypeTransaction | null>(null);
-  const [formTx, setFormTx] = useState({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '' });
+  const [formTx, setFormTx] = useState({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '', agentId: '' });
   const [erreurTx, setErreurTx] = useState('');
   const [succesTx, setSuccesTx] = useState('');
   const [page, setPage] = useState(1);
@@ -82,11 +84,23 @@ export default function TransactionsPage() {
   const creerTransaction = useCreateTransaction();
   const validerTransaction = useValiderTransaction();
 
+  // Liste des agents pour le sélecteur du formulaire (un non-agent, ex. admin,
+  // peut ainsi créer une transaction au nom d'un agent précis).
+  const { data: agents = [] } = useAgents();
+  const aDesAgents = agents.length > 0;
+  // L'utilisateur connecté est-il lui-même un agent ? Si oui, l'API déduit
+  // l'agent : le champ reste optionnel. Sinon (admin…), on l'exige dès qu'il
+  // existe au moins un agent, pour ne pas rattacher la transaction au mauvais compte.
+  const utilisateur = useAuthStore((s) => s.user);
+  const estAgent = (utilisateur?.role ?? '').toUpperCase() === 'AGENT';
+  const agentRequis = aDesAgents && !estAgent;
+
   const handleSubmitTx = async (e: React.FormEvent) => {
     e.preventDefault();
     setErreurTx('');
     const montant = Number(formTx.montant);
     if (!montant || montant <= 0) { setErreurTx(t.common.invalidAmount); return; }
+    if (agentRequis && !formTx.agentId) { setErreurTx(`${t.common.agent} : ${t.common.required}`); return; }
     if (!modalOuvert) return;
     try {
       await creerTransaction.mutateAsync({
@@ -95,9 +109,10 @@ export default function TransactionsPage() {
         montant,
         clientNom: formTx.clientNom || undefined,
         clientTel: formTx.clientTel || undefined,
+        agentId: formTx.agentId || undefined,
       });
       setSuccesTx(t.transactions.form.success);
-      setFormTx({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '' });
+      setFormTx({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '', agentId: '' });
       setTimeout(() => { setModalOuvert(null); setSuccesTx(''); }, 1500);
     } catch {
       setErreurTx(t.common.createError);
@@ -501,6 +516,25 @@ export default function TransactionsPage() {
         taille="md"
       >
         <form className="space-y-4" onSubmit={handleSubmitTx}>
+          {aDesAgents ? (
+            <Select
+              label={agentRequis ? `${t.common.agent} *` : t.common.agent}
+              value={formTx.agentId}
+              onChange={(e) => setFormTx((f) => ({ ...f, agentId: e.target.value }))}
+              placeholder={t.common.all}
+              options={agents.map((a) => ({
+                value: a.id,
+                label: `${a.prenom} ${a.nom}${a.agenceNom ? ` — ${a.agenceNom}` : ''}`.trim(),
+              }))}
+            />
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">{t.common.agent}</label>
+              <p className="text-xs text-gray-400 bg-surface rounded-xl p-3">
+                Aucun agent — créez-en un dans le module Agents.
+              </p>
+            </div>
+          )}
           <Select
             label={t.transactions.form.operatorRequired}
             value={formTx.operateur}

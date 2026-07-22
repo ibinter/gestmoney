@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Plus, Lock, Unlock } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -9,7 +9,7 @@ import { Table, Colonne } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select } from '@/components/ui/Input';
 import { formatMontant, formatDateTime } from '@/lib/formatters';
-import { useEcritures, useCaisseStats, useAddEcriture } from '@/hooks/useCaisse';
+import { useEcritures, useCaisseStats, useAddEcriture, useOuvrirCaisse, useFermerCaisse } from '@/hooks/useCaisse';
 import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { EcritureCaisse } from '@/types';
 import { clsx } from 'clsx';
@@ -39,9 +39,66 @@ export default function CaissePage() {
   const [erreurEcriture, setErreurEcriture] = useState('');
   const [succesEcriture, setSuccesEcriture] = useState('');
 
+  const [modalOuverture, setModalOuverture] = useState(false);
+  const [soldeInitial, setSoldeInitial] = useState('');
+  const [notesOuverture, setNotesOuverture] = useState('');
+  const [erreurOuverture, setErreurOuverture] = useState('');
+
+  const [modalCloture, setModalCloture] = useState(false);
+  const [soldeFinal, setSoldeFinal] = useState('');
+  const [notesCloture, setNotesCloture] = useState('');
+  const [erreurCloture, setErreurCloture] = useState('');
+
   const { data: ecritures = [], isLoading, refetch } = useEcritures();
   const { data: stats } = useCaisseStats();
   const ajouterEcriture = useAddEcriture();
+  const ouvrirCaisse = useOuvrirCaisse();
+  const fermerCaisse = useFermerCaisse();
+
+  const apiErrorMessage = (err: unknown, fallback: string): string => {
+    const e = err as { response?: { data?: { message?: string | string[] } } };
+    const msg = e?.response?.data?.message;
+    if (Array.isArray(msg)) return msg.join(', ');
+    return msg || fallback;
+  };
+
+  const handleOuvrirCaisse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErreurOuverture('');
+    const montant = Number(soldeInitial);
+    if (soldeInitial === '' || Number.isNaN(montant) || montant < 0) {
+      setErreurOuverture('Solde initial invalide.');
+      return;
+    }
+    try {
+      await ouvrirCaisse.mutateAsync({ soldInitial: montant, notes: notesOuverture || undefined });
+      setModalOuverture(false);
+      setSoldeInitial('');
+      setNotesOuverture('');
+      refetch();
+    } catch (err) {
+      setErreurOuverture(apiErrorMessage(err, "Erreur lors de l'ouverture de la caisse."));
+    }
+  };
+
+  const handleFermerCaisse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErreurCloture('');
+    const montant = Number(soldeFinal);
+    if (soldeFinal === '' || Number.isNaN(montant) || montant < 0) {
+      setErreurCloture('Solde final invalide.');
+      return;
+    }
+    try {
+      await fermerCaisse.mutateAsync({ soldeFinal: montant, notes: notesCloture || undefined });
+      setModalCloture(false);
+      setSoldeFinal('');
+      setNotesCloture('');
+      refetch();
+    } catch (err) {
+      setErreurCloture(apiErrorMessage(err, 'Erreur lors de la clôture de la caisse.'));
+    }
+  };
 
   const handleSubmitEcriture = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +204,15 @@ export default function CaissePage() {
             label={t.common.export}
           />
           <Button variante="ghost" taille="sm" icone={<RefreshCw size={15} />} onClick={() => refetch()}>{t.common.refresh}</Button>
+          {stats?.statut === 'OUVERTE' ? (
+            <Button variante="danger" taille="sm" icone={<Lock size={15} />} onClick={() => { setErreurCloture(''); setSoldeFinal(''); setNotesCloture(''); setModalCloture(true); }}>
+              Clôturer la caisse
+            </Button>
+          ) : (
+            <Button variante="secondary" taille="sm" icone={<Unlock size={15} />} onClick={() => { setErreurOuverture(''); setSoldeInitial(''); setNotesOuverture(''); setModalOuverture(true); }}>
+              Ouvrir la caisse
+            </Button>
+          )}
           <Button variante="primary" taille="sm" icone={<Plus size={15} />} onClick={() => setModalAjout(true)}>
             {t.caisse.manualEntry}
           </Button>
@@ -233,6 +299,79 @@ export default function CaissePage() {
           <div className="flex gap-3 pt-2">
             <Button type="submit" variante="primary" fullWidth loading={ajouterEcriture.isPending}>{t.common.save}</Button>
             <Button type="button" variante="ghost" onClick={() => { setModalAjout(false); setFormEcriture(FORM_ECRITURE_INIT); setErreurEcriture(''); }}>{t.common.cancel}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Ouverture de caisse */}
+      <Modal ouvert={modalOuverture} onFermer={() => { setModalOuverture(false); setErreurOuverture(''); }} titre="Ouvrir la caisse" taille="sm">
+        <form className="space-y-4" onSubmit={handleOuvrirCaisse}>
+          <p className="text-sm text-gray-500">
+            Saisissez le montant en espèces présent dans la caisse à l&apos;ouverture.
+          </p>
+          <Input
+            label="Solde initial (FCFA) *"
+            type="number"
+            placeholder="0"
+            value={soldeInitial}
+            onChange={(e) => setSoldeInitial(e.target.value)}
+            required
+          />
+          <Input
+            label="Notes"
+            placeholder="Remarque (optionnel)"
+            value={notesOuverture}
+            onChange={(e) => setNotesOuverture(e.target.value)}
+          />
+
+          {erreurOuverture && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">{erreurOuverture}</div>}
+
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" variante="primary" fullWidth loading={ouvrirCaisse.isPending}>Ouvrir la caisse</Button>
+            <Button type="button" variante="ghost" onClick={() => { setModalOuverture(false); setErreurOuverture(''); }}>{t.common.cancel}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Clôture de caisse */}
+      <Modal ouvert={modalCloture} onFermer={() => { setModalCloture(false); setErreurCloture(''); }} titre="Clôturer la caisse" taille="sm">
+        <form className="space-y-4" onSubmit={handleFermerCaisse}>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between">
+            <span className="text-sm text-gray-500">Solde calculé (théorique)</span>
+            <span className="text-sm font-bold text-text-main">{formatMontant(soldeActuel)}</span>
+          </div>
+          <Input
+            label="Solde final compté (FCFA) *"
+            type="number"
+            placeholder="0"
+            value={soldeFinal}
+            onChange={(e) => setSoldeFinal(e.target.value)}
+            required
+          />
+          {soldeFinal !== '' && !Number.isNaN(Number(soldeFinal)) && (
+            (() => {
+              const ecartCloture = Number(soldeFinal) - soldeActuel;
+              return (
+                <div className={clsx('rounded-xl p-3 flex items-center justify-between text-sm border',
+                  ecartCloture === 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700')}>
+                  <span>Écart {ecartCloture === 0 ? '(équilibrée)' : ecartCloture > 0 ? '(excédent)' : '(déficit)'}</span>
+                  <span className="font-bold">{ecartCloture > 0 ? '+' : ''}{formatMontant(ecartCloture)}</span>
+                </div>
+              );
+            })()
+          )}
+          <Input
+            label="Notes"
+            placeholder="Remarque (optionnel)"
+            value={notesCloture}
+            onChange={(e) => setNotesCloture(e.target.value)}
+          />
+
+          {erreurCloture && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">{erreurCloture}</div>}
+
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" variante="danger" fullWidth loading={fermerCaisse.isPending}>Clôturer la caisse</Button>
+            <Button type="button" variante="ghost" onClick={() => { setModalCloture(false); setErreurCloture(''); }}>{t.common.cancel}</Button>
           </div>
         </form>
       </Modal>

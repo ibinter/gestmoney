@@ -171,6 +171,9 @@ export function useCreateTransaction() {
           montant: data.montant,
           clientNom: data.clientNom || undefined,
           clientPhone: data.clientTel || undefined,
+          // agentId optionnel : si fourni (ex. admin choisissant l'agent),
+          // sinon le backend le déduit de l'utilisateur connecté.
+          agentId: data.agentId || undefined,
         });
         return mapTransaction(res.data);
       } catch {

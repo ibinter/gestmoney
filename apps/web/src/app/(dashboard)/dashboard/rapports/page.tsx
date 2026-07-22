@@ -36,7 +36,7 @@ const DONUT_C = 2 * Math.PI * DONUT_R;
 
 export default function RapportsPage() {
   const [periode, setPeriode] = useState('janvier_2024');
-  const { data, isLoading } = useRapports(periode);
+  const { data, isLoading, isError, refetch } = useRapports(periode);
   const genererRapport = useGenererRapport();
   const t = useT();
   const PERIODES = periodes(t);
@@ -209,6 +209,31 @@ export default function RapportsPage() {
             <div key={i} className="gm-chart-card" style={{ height: 200, opacity: 0.5 }} />
           ))}
         </div>
+      </>
+    );
+  }
+
+  if (isError) {
+    return (
+      <>
+        <div className="gm-page-header">
+          <div>
+            <h1 className="gm-page-title">{t.rapports.title}</h1>
+            <p className="gm-page-sub">{t.rapports.subtitle}</p>
+          </div>
+        </div>
+        <div className="gm-alert-banner" style={{ marginBottom: 20 }}>
+          <div className="gm-alert-icon">🔴</div>
+          <div className="gm-alert-content">
+            <div className="gm-alert-title">{t.common.error}</div>
+            <div className="gm-alert-desc">
+              Impossible de charger les rapports. Vérifiez votre connexion ou réessayez.
+            </div>
+          </div>
+        </div>
+        <GmButton variante="outline" petit onClick={() => refetch()}>
+          🔄 {t.common.refresh}
+        </GmButton>
       </>
     );
   }

@@ -69,6 +69,34 @@ export function useCaisseStats() {
   });
 }
 
+export function useOuvrirCaisse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { soldInitial: number; notes?: string }) =>
+      api.post('/caisse/open', {
+        soldInitial: Number(data.soldInitial ?? 0),
+        ...(data.notes ? { notes: data.notes } : {}),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['caisse'] });
+    },
+  });
+}
+
+export function useFermerCaisse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { soldeFinal: number; notes?: string }) =>
+      api.post('/caisse/close', {
+        soldeFinal: Number(data.soldeFinal ?? 0),
+        ...(data.notes ? { notes: data.notes } : {}),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['caisse'] });
+    },
+  });
+}
+
 export function useAddEcriture() {
   const qc = useQueryClient();
   return useMutation({
