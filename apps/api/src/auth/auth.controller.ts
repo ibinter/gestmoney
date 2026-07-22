@@ -105,7 +105,7 @@ export class AuthController {
     @Body() registerDto: RegisterDto,
     @TenantId() tenantId: string,
   ) {
-    return this.authService.register(registerDto, tenantId || registerDto.tenantId || 'default');
+    return this.authService.register(registerDto, tenantId || registerDto.tenantId);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -134,7 +134,14 @@ export class AuthService {
 
   async register(registerDto: RegisterDto, tenantId: string) {
     const { email, password, firstName, lastName, phone, role } = registerDto;
-    const resolvedTenantId = tenantId || registerDto.tenantId || 'default';
+    // JAMAIS de repli vers un tenant littéral 'default' : risque de fuite
+    // inter-établissement. Le tenant doit être fourni explicitement.
+    const resolvedTenantId = tenantId || registerDto.tenantId;
+    if (!resolvedTenantId) {
+      throw new BadRequestException(
+        "L'établissement (tenant) est requis pour l'inscription.",
+      );
+    }
 
     const existingUser = await this.prisma.user.findFirst({
       where: { email, tenantId: resolvedTenantId },

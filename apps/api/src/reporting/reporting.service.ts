@@ -11,21 +11,129 @@ import {
 } from './interfaces/report.interface';
 import { GenerateReportDto } from './dto/generate-report.dto';
 import { ScheduleReportDto } from './dto/schedule-report.dto';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ReportingService {
   private readonly logger = new Logger(ReportingService.name);
 
-  // Stockage en mémoire (à remplacer par Prisma si modèles ajoutés)
-  private readonly reports: GeneratedReport[] = [];
-  private readonly scheduledReports: ScheduledReport[] = [];
-
   constructor(private readonly prisma: PrismaService) {}
+
+  // ─── Persistance / mapping ────────────────────────────────────────────────────
+
+  /** Construit un nom lisible pour le rapport persisté. */
+  private buildReportName(type: ReportType, period: { start: Date; end: Date }): string {
+    const s = period.start.toISOString().slice(0, 10);
+    const e = period.end.toISOString().slice(0, 10);
+    return `Rapport ${type} (${s} → ${e})`;
+  }
+
+  /**
+   * Persiste un rapport généré dans la table `generated_reports` puis renvoie un
+   * objet `GeneratedReport` (forme attendue par le contrôleur/front) qui combine
+   * les métadonnées persistées (id, createdAt, status) avec les données calculées
+   * (`data`, `period`) qui ne sont pas stockées en base.
+   */
+  private async persistGeneratedReport(params: {
+    tenantId: string;
+    type: ReportType;
+    format: ReportFormat;
+    period: { start: Date; end: Date };
+    data: any;
+    generatedBy: string | null;
+    status?: 'PENDING' | 'COMPLETED' | 'FAILED';
+  }): Promise<GeneratedReport> {
+    const record = await this.prisma.generatedReport.create({
+      data: {
+        tenantId: params.tenantId,
+        name: this.buildReportName(params.type, params.period),
+        reportType: params.type,
+        format: params.format,
+        status: params.status ?? 'COMPLETED',
+        generatedBy: params.generatedBy ?? null,
+        startDate: params.period.start,
+        endDate: params.period.end,
+      },
+    });
+
+    return {
+      id: record.id,
+      tenantId: record.tenantId,
+      type: params.type,
+      format: params.format,
+      period: params.period,
+      data: params.data,
+      generatedAt: record.createdAt,
+      generatedBy: record.generatedBy ?? 'system',
+      status: record.status as GeneratedReport['status'],
+    };
+  }
+
+  /** Mappe un enregistrement Prisma `generated_reports` vers l'interface locale. */
+  private mapGeneratedRecord(record: {
+    id: string;
+    tenantId: string;
+    reportType: string;
+    format: string;
+    fileUrl: string | null;
+    status: string;
+    generatedBy: string | null;
+    startDate: Date | null;
+    endDate: Date | null;
+    createdAt: Date;
+  }): GeneratedReport {
+    return {
+      id: record.id,
+      tenantId: record.tenantId,
+      type: record.reportType as ReportType,
+      format: record.format as ReportFormat,
+      period: {
+        start: record.startDate ?? record.createdAt,
+        end: record.endDate ?? record.createdAt,
+      },
+      filePath: record.fileUrl ?? undefined,
+      // `data` n'est pas persisté (le modèle ne stocke que les métadonnées).
+      data: null,
+      generatedAt: record.createdAt,
+      generatedBy: record.generatedBy ?? 'system',
+      status: record.status as GeneratedReport['status'],
+    };
+  }
+
+  /** Mappe un enregistrement Prisma `scheduled_reports` vers l'interface locale. */
+  private mapScheduledRecord(record: {
+    id: string;
+    tenantId: string;
+    reportType: string;
+    frequency: string;
+    format: string;
+    recipients: string[];
+    isActive: boolean;
+    lastRunAt: Date | null;
+    nextRunAt: Date | null;
+    createdAt: Date;
+  }): ScheduledReport {
+    return {
+      id: record.id,
+      tenantId: record.tenantId,
+      reportType: record.reportType as ReportType,
+      frequency: record.frequency as ReportFrequency,
+      sendTo: record.recipients,
+      format: record.format as ReportFormat,
+      isActive: record.isActive,
+      lastRun: record.lastRunAt ?? undefined,
+      nextRun: record.nextRunAt ?? record.createdAt,
+      createdAt: record.createdAt,
+    };
+  }
 
   // ─── Rapport journalier ───────────────────────────────────────────────────────
 
-  async generateDailyReport(tenantId: string, date: Date = new Date()): Promise<GeneratedReport> {
+  async generateDailyReport(
+    tenantId: string,
+    date: Date = new Date(),
+    generatedBy: string = 'system',
+    format: ReportFormat = ReportFormat.PDF,
+  ): Promise<GeneratedReport> {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
     const end = new Date(date);
@@ -42,26 +150,28 @@ export class ReportingService {
       commissions,
     };
 
-    const report: GeneratedReport = {
-      id: uuidv4(),
+    const report = await this.persistGeneratedReport({
       tenantId,
       type: ReportType.DAILY,
-      format: ReportFormat.PDF,
+      format,
       period: { start, end },
       data: reportData,
-      generatedAt: new Date(),
-      generatedBy: 'system',
-      status: 'COMPLETED',
-    };
+      generatedBy,
+    });
 
-    this.reports.push(report);
     this.logger.log(`Rapport journalier généré pour tenant ${tenantId}`);
     return report;
   }
 
   // ─── Rapport mensuel ──────────────────────────────────────────────────────────
 
-  async generateMonthlyReport(tenantId: string, month: number, year: number): Promise<GeneratedReport> {
+  async generateMonthlyReport(
+    tenantId: string,
+    month: number,
+    year: number,
+    generatedBy: string = 'system',
+    format: ReportFormat = ReportFormat.PDF,
+  ): Promise<GeneratedReport> {
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59, 999);
 
@@ -73,20 +183,14 @@ export class ReportingService {
 
     const reportData = { month, year, transactions: txStats, commissions, topAgents };
 
-    const report: GeneratedReport = {
-      id: uuidv4(),
+    return this.persistGeneratedReport({
       tenantId,
       type: ReportType.MONTHLY,
-      format: ReportFormat.PDF,
+      format,
       period: { start, end },
       data: reportData,
-      generatedAt: new Date(),
-      generatedBy: 'system',
-      status: 'COMPLETED',
-    };
-
-    this.reports.push(report);
-    return report;
+      generatedBy,
+    });
   }
 
   // ─── Rapport performance agent ────────────────────────────────────────────────
@@ -95,6 +199,8 @@ export class ReportingService {
     agentId: string,
     period: { start: Date; end: Date },
     tenantId: string,
+    generatedBy: string = 'system',
+    format: ReportFormat = ReportFormat.PDF,
   ): Promise<GeneratedReport> {
     const where = {
       tenantId,
@@ -130,20 +236,14 @@ export class ReportingService {
       })),
     };
 
-    const report: GeneratedReport = {
-      id: uuidv4(),
+    return this.persistGeneratedReport({
       tenantId,
       type: ReportType.AGENT_PERFORMANCE,
-      format: ReportFormat.PDF,
+      format,
       period,
       data: reportData,
-      generatedAt: new Date(),
-      generatedBy: 'system',
-      status: 'COMPLETED',
-    };
-
-    this.reports.push(report);
-    return report;
+      generatedBy,
+    });
   }
 
   // ─── Dashboard data ───────────────────────────────────────────────────────────
@@ -241,26 +341,23 @@ export class ReportingService {
     const start = dto.startDate ? new Date(dto.startDate) : new Date(Date.now() - 30 * 86400000);
     const end = dto.endDate ? new Date(dto.endDate) : new Date();
 
-    let report: GeneratedReport;
-
     switch (dto.type) {
       case ReportType.DAILY:
-        report = await this.generateDailyReport(tenantId, start);
-        break;
+        return this.generateDailyReport(tenantId, start, userId, dto.format);
       case ReportType.MONTHLY:
-        report = await this.generateMonthlyReport(tenantId, start.getMonth() + 1, start.getFullYear());
-        break;
+        return this.generateMonthlyReport(
+          tenantId,
+          start.getMonth() + 1,
+          start.getFullYear(),
+          userId,
+          dto.format,
+        );
       case ReportType.AGENT_PERFORMANCE:
         if (!dto.agentId) throw new Error('agentId requis pour ce type de rapport');
-        report = await this.generateAgentPerformanceReport(dto.agentId, { start, end }, tenantId);
-        break;
+        return this.generateAgentPerformanceReport(dto.agentId, { start, end }, tenantId, userId, dto.format);
       default:
-        report = await this.generateCustomReport(tenantId, start, end, dto.type, userId);
+        return this.generateCustomReport(tenantId, start, end, dto.type, userId, dto.format);
     }
-
-    report.format = dto.format;
-    report.generatedBy = userId;
-    return report;
   }
 
   private async generateCustomReport(
@@ -269,33 +366,33 @@ export class ReportingService {
     end: Date,
     type: ReportType,
     userId: string,
+    format: ReportFormat = ReportFormat.PDF,
   ): Promise<GeneratedReport> {
     const data = await this.buildTransactionStats(tenantId, start, end);
-    const report: GeneratedReport = {
-      id: uuidv4(),
+    return this.persistGeneratedReport({
       tenantId,
       type,
-      format: ReportFormat.PDF,
+      format,
       period: { start, end },
       data,
-      generatedAt: new Date(),
       generatedBy: userId,
-      status: 'COMPLETED',
-    };
-    this.reports.push(report);
-    return report;
+    });
   }
 
   // ─── Liste et récupération ────────────────────────────────────────────────────
 
-  listReports(tenantId: string): GeneratedReport[] {
-    return this.reports.filter((r) => r.tenantId === tenantId);
+  async listReports(tenantId: string): Promise<GeneratedReport[]> {
+    const records = await this.prisma.generatedReport.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return records.map((r) => this.mapGeneratedRecord(r));
   }
 
-  getReportById(id: string, tenantId: string): GeneratedReport {
-    const report = this.reports.find((r) => r.id === id && r.tenantId === tenantId);
-    if (!report) throw new NotFoundException(`Rapport ${id} introuvable`);
-    return report;
+  async getReportById(id: string, tenantId: string): Promise<GeneratedReport> {
+    const record = await this.prisma.generatedReport.findFirst({ where: { id, tenantId } });
+    if (!record) throw new NotFoundException(`Rapport ${id} introuvable`);
+    return this.mapGeneratedRecord(record);
   }
 
   getTemplates() {
@@ -311,31 +408,35 @@ export class ReportingService {
 
   // ─── Planification ────────────────────────────────────────────────────────────
 
-  scheduleReport(dto: ScheduleReportDto, tenantId: string): ScheduledReport {
+  async scheduleReport(dto: ScheduleReportDto, tenantId: string): Promise<ScheduledReport> {
     const nextRun = this.computeNextRun(dto.frequency);
-    const scheduled: ScheduledReport = {
-      id: uuidv4(),
-      tenantId,
-      reportType: dto.reportType,
-      frequency: dto.frequency,
-      sendTo: dto.sendTo,
-      format: dto.format,
-      isActive: true,
-      nextRun,
-      createdAt: new Date(),
-    };
-    this.scheduledReports.push(scheduled);
-    return scheduled;
+    const record = await this.prisma.scheduledReport.create({
+      data: {
+        tenantId,
+        name: `Planification ${dto.reportType} (${dto.frequency})`,
+        reportType: dto.reportType,
+        frequency: dto.frequency,
+        format: dto.format,
+        recipients: dto.sendTo,
+        isActive: true,
+        nextRunAt: nextRun,
+      },
+    });
+    return this.mapScheduledRecord(record);
   }
 
-  listScheduled(tenantId: string): ScheduledReport[] {
-    return this.scheduledReports.filter((s) => s.tenantId === tenantId);
+  async listScheduled(tenantId: string): Promise<ScheduledReport[]> {
+    const records = await this.prisma.scheduledReport.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return records.map((s) => this.mapScheduledRecord(s));
   }
 
-  deleteScheduled(id: string, tenantId: string): void {
-    const idx = this.scheduledReports.findIndex((s) => s.id === id && s.tenantId === tenantId);
-    if (idx === -1) throw new NotFoundException(`Planification ${id} introuvable`);
-    this.scheduledReports.splice(idx, 1);
+  async deleteScheduled(id: string, tenantId: string): Promise<void> {
+    const record = await this.prisma.scheduledReport.findFirst({ where: { id, tenantId } });
+    if (!record) throw new NotFoundException(`Planification ${id} introuvable`);
+    await this.prisma.scheduledReport.delete({ where: { id: record.id } });
   }
 
   // ─── Export CSV ───────────────────────────────────────────────────────────────

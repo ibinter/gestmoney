@@ -63,7 +63,7 @@ export class ReportingController {
   @Get()
   @ApiOperation({ summary: 'Liste des rapports générés (historique)' })
   @ApiResponse({ status: 200, description: 'Liste des rapports' })
-  listReports(@CurrentUser() user: CurrentUserData) {
+  async listReports(@CurrentUser() user: CurrentUserData) {
     return this.reportingService.listReports(user.tenantId);
   }
 
@@ -206,21 +206,21 @@ export class ReportingController {
   @Post('schedule')
   @ApiOperation({ summary: 'Planifier un rapport récurrent' })
   @HttpCode(HttpStatus.CREATED)
-  scheduleReport(@Body() dto: ScheduleReportDto, @CurrentUser() user: CurrentUserData) {
+  async scheduleReport(@Body() dto: ScheduleReportDto, @CurrentUser() user: CurrentUserData) {
     return this.reportingService.scheduleReport(dto, user.tenantId);
   }
 
   @Get('schedule')
   @ApiOperation({ summary: 'Liste des rapports planifiés' })
-  listScheduled(@CurrentUser() user: CurrentUserData) {
+  async listScheduled(@CurrentUser() user: CurrentUserData) {
     return this.reportingService.listScheduled(user.tenantId);
   }
 
   @Delete('schedule/:id')
   @ApiOperation({ summary: 'Supprimer une planification' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteScheduled(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
-    this.reportingService.deleteScheduled(id, user.tenantId);
+  async deleteScheduled(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    await this.reportingService.deleteScheduled(id, user.tenantId);
   }
 
   @Get(':id')
@@ -231,7 +231,7 @@ export class ReportingController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const report = this.reportingService.getReportById(id, user.tenantId);
+    const report = await this.reportingService.getReportById(id, user.tenantId);
     this.tracerExport(user, req, 'reports', { reportId: id, format: 'PDF' });
     const pdfBuffer = this.reportingService.generatePDFReport(report);
     res.setHeader('Content-Type', 'text/html');

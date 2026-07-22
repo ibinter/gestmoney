@@ -416,7 +416,12 @@ export class TransactionsService {
     return updatedTx;
   }
 
-  async reverse(id: string, tenantId: string, userId: string): Promise<ITransaction> {
+  async reverse(
+    id: string,
+    tenantId: string,
+    userId: string,
+    reason = 'TECHNICAL_ERROR',
+  ): Promise<ITransaction> {
     const transaction = await this.findOne(id, tenantId);
 
     if (transaction.status !== 'COMPLETED') {
@@ -424,12 +429,38 @@ export class TransactionsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.transaction.update({
-        where: { id },
-        data: { status: 'REVERSED', updatedAt: new Date() },
+      // 1. Enregistrement Reversal (traçabilité + lien 1:1 avec l'original).
+      const reversal = await tx.reversal.create({
+        data: {
+          tenantId,
+          originalTransactionId: id,
+          reference: this.generateReference(),
+          reason: reason as any,
+          description: `Annulation de ${transaction.reference}`,
+          amount:
+            (transaction as any).amount ?? (transaction as any).montant ?? 0,
+          status: 'COMPLETED',
+          requestedById: userId,
+          approvedById: userId,
+          approvedAt: new Date(),
+        },
       });
 
-      // Créer transaction de reversal
+      // 2. Transaction d'origine → REVERSED, liée au reversal, commission annulée.
+      const result = await tx.transaction.update({
+        where: { id },
+        data: {
+          status: 'REVERSED',
+          reversalId: reversal.id,
+          commission: 0,
+          updatedAt: new Date(),
+        },
+      });
+
+      // 3. Annuler la commission générée par la transaction d'origine.
+      await tx.commissionEarning.deleteMany({ where: { transactionId: id } });
+
+      // 4. Transaction compensatoire (mouvement inverse)
       const reversalData: any = {
         tenantId,
         reference: this.generateReference(),
