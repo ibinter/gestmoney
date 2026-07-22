@@ -39,7 +39,10 @@ const UI = {
   },
 };
 
-export function CasPratiques() {
+export function CasPratiques({
+  basePath = '/guide',
+  homeHref = '/',
+}: { basePath?: string; homeHref?: string } = {}) {
   const { lang } = useI18n();
   const ui = lang === 'en' ? UI.en : UI.fr;
 
@@ -62,8 +65,8 @@ export function CasPratiques() {
         {/* En-tête */}
         <div className="mb-10">
           <div className="flex flex-wrap items-center gap-4">
-            <Link href="/guide" className="text-sm text-green-600 hover:underline">{ui.backGuide}</Link>
-            <Link href="/" className="text-sm text-gray-400 hover:underline">{ui.home}</Link>
+            <Link href={basePath} className="text-sm text-green-600 hover:underline">{ui.backGuide}</Link>
+            <Link href={homeHref} className="text-sm text-gray-400 hover:underline">{ui.home}</Link>
           </div>
           <p className="mt-6 text-xs font-bold uppercase tracking-widest text-green-600">{ui.kicker}</p>
           <h1 className="text-4xl font-black mt-2 text-gray-900 dark:text-white">{ui.title}</h1>

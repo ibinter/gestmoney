@@ -47,7 +47,10 @@ const UI = {
   },
 };
 
-export function GuideView() {
+export function GuideView({
+  basePath = '/guide',
+  homeHref = '/',
+}: { basePath?: string; homeHref?: string } = {}) {
   const { lang } = useI18n();
   const ui = lang === 'en' ? UI.en : UI.fr;
 
@@ -69,7 +72,7 @@ export function GuideView() {
       <div className="max-w-3xl mx-auto">
         {/* En-tête */}
         <div className="mb-10">
-          <Link href="/" className="text-sm text-green-600 hover:underline">{ui.back}</Link>
+          <Link href={homeHref} className="text-sm text-green-600 hover:underline">{ui.back}</Link>
           <p className="mt-6 text-xs font-bold uppercase tracking-widest text-green-600">{ui.kicker}</p>
           <h1 className="text-4xl font-black mt-2 text-gray-900 dark:text-white">{ui.title}</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-3 text-lg">{ui.subtitle}</p>
@@ -83,13 +86,13 @@ export function GuideView() {
               <span aria-hidden>⬇</span> {ui.downloadPdf}
             </button>
             <Link
-              href="/guide/lexique"
+              href={`${basePath}/lexique`}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 px-5 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400 transition-colors"
             >
               <span aria-hidden>📖</span> {ui.lexique}
             </Link>
             <Link
-              href="/guide/cas-pratiques"
+              href={`${basePath}/cas-pratiques`}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-gray-700 px-5 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400 transition-colors"
             >
               {ui.casLink}
@@ -147,7 +150,7 @@ export function GuideView() {
         <div className="mt-16 rounded-2xl border border-green-200 dark:border-green-900/50 bg-green-50 dark:bg-green-950/20 p-6">
           <h2 className="text-lg font-bold text-green-800 dark:text-green-300">{ui.casTitle}</h2>
           <p className="mt-1 text-sm text-green-700 dark:text-green-400/90">{ui.casText}</p>
-          <Link href="/guide/cas-pratiques" className="mt-3 inline-block text-sm font-semibold text-green-700 dark:text-green-400 hover:underline">
+          <Link href={`${basePath}/cas-pratiques`} className="mt-3 inline-block text-sm font-semibold text-green-700 dark:text-green-400 hover:underline">
             {ui.casLink}
           </Link>
         </div>

@@ -112,7 +112,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/dashboard/abonnement',    label: 'Abonnement',    icone: CreditCard,  badgeKey: null },
       { href: '/dashboard/profile',       label: 'Mon profil',    icone: User,        badgeKey: null },
       { href: '/dashboard/support',       label: 'Support',       icone: MessageSquare, badgeKey: null },
-      { href: '/guide',                    label: 'Guide',         icone: BookOpen,    badgeKey: null },
+      { href: '/dashboard/guide',          label: 'Guide',         icone: BookOpen,    badgeKey: null },
       { href: '/dashboard/aide',          label: "Centre d'aide", icone: HelpCircle,  badgeKey: null },
     ],
   },

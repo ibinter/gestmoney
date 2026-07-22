@@ -43,7 +43,9 @@ function normalize(s: string): string {
     .replace(/[̀-ͯ]/g, '');
 }
 
-export function LexiqueView() {
+export function LexiqueView({
+  basePath = '/guide',
+}: { basePath?: string } = {}) {
   const { lang } = useI18n();
   const ui = lang === 'en' ? UI.en : UI.fr;
   const [query, setQuery] = useState('');
@@ -79,7 +81,7 @@ export function LexiqueView() {
       <div className="max-w-3xl mx-auto">
         {/* En-tête */}
         <div className="mb-10">
-          <Link href="/guide" className="text-sm text-green-600 hover:underline">{ui.back}</Link>
+          <Link href={basePath} className="text-sm text-green-600 hover:underline">{ui.back}</Link>
           <p className="mt-6 text-xs font-bold uppercase tracking-widest text-green-600">{ui.kicker}</p>
           <h1 className="text-4xl font-black mt-2 text-gray-900 dark:text-white">{ui.title}</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-3 text-lg">{ui.subtitle}</p>
