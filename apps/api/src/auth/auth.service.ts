@@ -336,25 +336,26 @@ export class AuthService {
   // ─── Profil ──────────────────────────────────────────────────────────────────
 
   /**
-   * Met à jour la photo de profil. L'image est stockée en data URL base64 dans
-   * `User.avatar` (petit fichier — évite tout service de fichiers statiques et
-   * toute modification nginx). `file = null` supprime la photo.
+   * Met à jour la photo de profil. L'image arrive en data URL base64 (JSON, pas
+   * multipart — cf. UpdateAvatarDto) et est stockée telle quelle dans
+   * `User.avatar` (petit fichier — évite tout service statique / modif nginx).
+   * `image = null` supprime la photo.
    */
-  async updateAvatar(userId: string, file: Express.Multer.File | null) {
+  async updateAvatar(userId: string, image: string | null) {
     let avatar: string | null = null;
-    if (file) {
-      if (!file.mimetype?.startsWith('image/')) {
-        throw new BadRequestException('Le fichier doit être une image.');
+    if (image) {
+      const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(image.trim());
+      if (!m) {
+        throw new BadRequestException(
+          'Image invalide : une data URL base64 (data:image/…;base64,…) est attendue.',
+        );
       }
-      const MAX_OCTETS = 1_500_000; // 1,5 Mo
-      const taille = file.size ?? file.buffer?.length ?? 0;
-      if (taille > MAX_OCTETS || (file.buffer?.length ?? 0) > MAX_OCTETS) {
+      const octets = Buffer.byteLength(m[2], 'base64');
+      if (octets === 0) throw new BadRequestException('Image vide.');
+      if (octets > 1_500_000) {
         throw new BadRequestException('Image trop volumineuse (max 1,5 Mo).');
       }
-      if (!file.buffer || file.buffer.length === 0) {
-        throw new BadRequestException('Fichier vide.');
-      }
-      avatar = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      avatar = image.trim();
     }
     const user = await this.prisma.user.update({
       where: { id: userId },

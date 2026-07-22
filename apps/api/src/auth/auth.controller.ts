@@ -5,15 +5,22 @@ import {
   Delete,
   Body,
   UseGuards,
-  UseInterceptors,
-  UploadedFile,
   HttpCode,
   HttpStatus,
   Request,
   Res,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { IsOptional, IsString } from 'class-validator';
 import { Response } from 'express';
+
+// Payload JSON de mise à jour d'avatar. On envoie l'image en data URL base64
+// (et NON en multipart) : le multipart vers cet endpoint est réinitialisé par
+// Cloudflare, alors qu'un POST JSON passe sans problème (comme le login).
+class UpdateAvatarDto {
+  @IsOptional()
+  @IsString()
+  image?: string;
+}
 import {
   ApiTags,
   ApiOperation,
@@ -203,15 +210,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('avatar')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Mettre à jour la photo de profil' })
+  @ApiOperation({ summary: 'Mettre à jour la photo de profil (data URL base64)' })
   @ApiResponse({ status: 200, description: 'Avatar mis à jour (data URL)' })
   async updateAvatar(
     @CurrentUser('id') userId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @Body() body: UpdateAvatarDto,
   ) {
-    return this.authService.updateAvatar(userId, file ?? null);
+    return this.authService.updateAvatar(userId, body.image ?? null);
   }
 
   @UseGuards(JwtAuthGuard)

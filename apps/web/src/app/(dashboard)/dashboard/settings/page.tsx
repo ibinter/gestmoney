@@ -36,34 +36,38 @@ function OngletProfil() {
 
   const choisirPhoto = () => fileInputRef.current?.click();
 
-  const changerPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const changerPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setPhotoErr('Veuillez choisir une image.');
-      e.target.value = '';
       return;
     }
     if (file.size > 1_500_000) {
       setPhotoErr('Image trop volumineuse (max 1,5 Mo).');
-      e.target.value = '';
       return;
     }
     setPhotoErr('');
     setUploadPhoto(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await api.post('/auth/avatar', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      updateUser({ avatar: res.data.avatar });
-    } catch {
-      setPhotoErr("Échec de l'envoi de la photo.");
-    } finally {
+    // Lecture en data URL puis envoi en JSON (pas de multipart — bloqué par
+    // Cloudflare). La même valeur base64 est stockée côté serveur.
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const res = await api.post('/auth/avatar', { image: reader.result });
+        updateUser({ avatar: res.data.avatar });
+      } catch {
+        setPhotoErr("Échec de l'envoi de la photo.");
+      } finally {
+        setUploadPhoto(false);
+      }
+    };
+    reader.onerror = () => {
+      setPhotoErr('Lecture du fichier impossible.');
       setUploadPhoto(false);
-      e.target.value = '';
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleChange = (field: string, value: string) => {
