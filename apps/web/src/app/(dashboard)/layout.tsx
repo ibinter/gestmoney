@@ -9,6 +9,7 @@ import { Topbar } from '@/components/ui/Topbar';
 import { Sidebar } from '@/components/ui/Sidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { BandeauLicence } from '@/components/layout/BandeauLicence';
+import { DashboardFooter } from '@/components/layout/DashboardFooter';
 import { CommandPalette } from '@/components/ui/CommandPalette';
 import { Onboarding } from '@/components/ui/Onboarding';
 import { AssistantIA } from '@/components/ui/AssistantIA';
@@ -90,17 +91,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <AssistantIA />
 
         {/* Contenu des pages */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto flex flex-col">
           {/*
             pb-16 md:pb-0 → espace pour la BottomNav sur mobile
             max-w-[1600px] → largeur max pour les grands écrans
           */}
-          <div className="max-w-[1600px] mx-auto px-3 sm:px-5 lg:px-6 py-4 sm:py-6 pb-20 md:pb-6">
+          <div className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-5 lg:px-6 py-4 sm:py-6 pb-20 md:pb-6">
             {/* Avertissement non bloquant : ne s'affiche qu'en ESSAI finissant
                 ou en période de grâce, et se retire de lui-même sinon. */}
             <BandeauLicence />
             {children}
           </div>
+
+          {/* Footer interne (bas de la zone de contenu) */}
+          <DashboardFooter />
         </main>
       </div>
 
