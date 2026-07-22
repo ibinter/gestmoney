@@ -41,7 +41,6 @@ export interface ICustomer {
 }
 
 // Stockage en mémoire (remplacer par modèle Prisma si disponible)
-const inMemoryCustomers: ICustomer[] = [];
 
 @Injectable()
 export class CustomersService {
@@ -266,10 +265,13 @@ export class CustomersService {
   ) {
     const customer = await this.findOne(id, tenantId);
     const skip = (page - 1) * limit;
+    // Les transactions ne portent pas de customerId : on rattache par le
+    // numéro de téléphone du destinataire (receiverPhone), PAS par agentId.
+    const where = { tenantId, receiverPhone: (customer as any).phone };
 
     const [data, total] = await Promise.all([
-      this.prisma.transaction.findMany({ where: { tenantId, agentId: id }, skip, take: limit, orderBy: { createdAt: 'desc' } }),
-      this.prisma.transaction.count({ where: { tenantId, agentId: id } }),
+      this.prisma.transaction.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      this.prisma.transaction.count({ where }),
     ]);
 
     return { data, total, page, limit };
@@ -328,23 +330,31 @@ export class CustomersService {
 
   // ─── Statistiques ─────────────────────────────────────────────────────────────
 
-  getStats(tenantId: string) {
-    const all = inMemoryCustomers.filter((c) => c.tenantId === tenantId);
+  async getStats(tenantId: string) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    const [total, actifs, inactifs, bloques, nouveauxCeMois, kycVerifies] =
+      await Promise.all([
+        this.prisma.customer.count({ where: { tenantId } }),
+        this.prisma.customer.count({ where: { tenantId, status: 'ACTIVE' } }),
+        this.prisma.customer.count({ where: { tenantId, status: 'INACTIVE' } }),
+        this.prisma.customer.count({ where: { tenantId, status: 'BLACKLISTED' } }),
+        this.prisma.customer.count({
+          where: { tenantId, createdAt: { gte: monthStart } },
+        }),
+        this.prisma.customer.count({ where: { tenantId, kycVerified: true } }),
+      ]);
+
     return {
-      total: all.length,
-      actifs: all.filter((c) => c.status === 'ACTIVE').length,
-      inactifs: all.filter((c) => c.status === 'INACTIVE').length,
-      bloqués: all.filter((c) => c.status === 'BLOCKED').length,
-      nouveauxCeMois: all.filter((c) => c.createdAt >= monthStart).length,
-      parNiveau: {
-        BRONZE: all.filter((c) => c.loyaltyLevel === 'BRONZE').length,
-        SILVER: all.filter((c) => c.loyaltyLevel === 'SILVER').length,
-        GOLD: all.filter((c) => c.loyaltyLevel === 'GOLD').length,
-        PLATINUM: all.filter((c) => c.loyaltyLevel === 'PLATINUM').length,
-      },
+      total,
+      actifs,
+      inactifs,
+      bloqués: bloques,
+      nouveauxCeMois,
+      kycVerifies,
+      // Le niveau de fidélité n'est pas persisté ; tous rattachés à BRONZE.
+      parNiveau: { BRONZE: total, SILVER: 0, GOLD: 0, PLATINUM: 0 },
     };
   }
 

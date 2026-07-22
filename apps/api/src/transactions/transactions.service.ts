@@ -20,7 +20,10 @@ import {
   ITransaction,
   ITransactionStats,
   ITransactionSummary,
+  MobileMoneyOperator,
+  TransactionType,
   toPrismaTransactionType,
+  fromPrismaTransactionType,
 } from './interfaces/transaction.interface';
 import {
   AgentNotFoundException,
@@ -125,6 +128,37 @@ export class TransactionsService {
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
+  /**
+   * Normalise un enregistrement Prisma (champs EN : operatorCode/amount/
+   * agencyId/receiverPhone/type=enum) vers l'interface ITransaction (champs FR)
+   * attendue par les listeners (float, notifications, gateway, comptabilité).
+   * Sans ça, `x as unknown as ITransaction` fait lire `undefined` aux listeners.
+   */
+  private toEventPayload(r: any): ITransaction {
+    const uiType = (r.metadata && (r.metadata as any).uiType) as
+      | string
+      | undefined;
+    return {
+      id: r.id,
+      tenantId: r.tenantId,
+      reference: r.reference,
+      type: (uiType as TransactionType) ?? fromPrismaTransactionType(String(r.type)),
+      status: r.status,
+      operateur: r.operatorCode as MobileMoneyOperator,
+      montant: Number(r.amount ?? 0),
+      frais: Number(r.fee ?? 0),
+      commission: Number(r.commission ?? 0),
+      agentId: r.agentId,
+      agenceId: r.agencyId,
+      clientPhone: r.receiverPhone ?? '',
+      description: r.description ?? undefined,
+      metadata: (r.metadata as Record<string, unknown>) ?? undefined,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      completedAt: r.completedAt ?? undefined,
+    };
+  }
+
   async create(dto: CreateTransactionDto, tenantId: string, userId: string): Promise<ITransaction> {
     // 1. Résoudre l'agent (fourni ou déduit de l'utilisateur courant).
     const agentId = await this.resolveAgentId(dto, tenantId, userId);
@@ -195,7 +229,7 @@ export class TransactionsService {
       return created;
     });
 
-    const txResult = transaction as unknown as ITransaction;
+    const txResult = this.toEventPayload(transaction);
     this.eventEmitter.emit(
       TRANSACTION_EVENTS.CREATED,
       new TransactionCreatedEvent(txResult),
@@ -237,10 +271,27 @@ export class TransactionsService {
         },
       });
 
+      // Cohérence inter-modules : marquer l'agent actif et propager les agrégats
+      // au client concerné (rattachement par numéro de téléphone).
+      await tx.agent.update({
+        where: { id: result.agentId },
+        data: { lastActivityAt: new Date() },
+      });
+      if (result.receiverPhone) {
+        await tx.customer.updateMany({
+          where: { tenantId, phoneNumber: result.receiverPhone },
+          data: {
+            totalTransactions: { increment: 1 },
+            totalVolume: { increment: Number(result.amount) },
+            lastTransactionAt: new Date(),
+          },
+        });
+      }
+
       return result;
     });
 
-    const completedTx = updated as unknown as ITransaction;
+    const completedTx = this.toEventPayload(updated);
     this.eventEmitter.emit(
       TRANSACTION_EVENTS.COMPLETED,
       new TransactionCompletedEvent(completedTx),
@@ -356,7 +407,7 @@ export class TransactionsService {
       return result;
     });
 
-    const updatedTx = updated as unknown as ITransaction;
+    const updatedTx = this.toEventPayload(updated);
     this.eventEmitter.emit(
       TRANSACTION_EVENTS.CANCELLED,
       new TransactionCancelledEvent(updatedTx, userId),
@@ -414,7 +465,7 @@ export class TransactionsService {
       return result;
     });
 
-    const updatedTx = updated as unknown as ITransaction;
+    const updatedTx = this.toEventPayload(updated);
     this.eventEmitter.emit(
       TRANSACTION_EVENTS.REVERSED,
       new TransactionReversedEvent(updatedTx, userId),

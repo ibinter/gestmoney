@@ -12,8 +12,17 @@ import {
 } from '@/components/gm';
 import { GmExportMenu } from '@/components/gm/GmExportMenu';
 import { formatMontant, formatDate } from '@/lib/formatters';
-import { useClients, useCreateClient } from '@/hooks/useClients';
+import {
+  useClients,
+  useCreateClient,
+  useSoumettreKyc,
+  useApprouverKyc,
+  useRejeterKyc,
+  useVoirDocumentKyc,
+  type ClientKyc,
+} from '@/hooks/useClients';
 import { Client } from '@/types';
+import { useAuthStore } from '@/store/authStore';
 import { useT } from '@/lib/i18n';
 
 const FORM_INIT_CLIENT = { prenom: '', nom: '', telephone: '', email: '', ville: '' };
@@ -38,6 +47,15 @@ function couleurAvatar(id: string): string {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
+/** Extrait un message lisible d'une erreur Axios/API, avec repli générique. */
+function messageErreurApi(err: unknown): string {
+  const e = err as { response?: { data?: { message?: unknown } } };
+  const m = e?.response?.data?.message;
+  if (Array.isArray(m)) return m.join(', ');
+  if (typeof m === 'string' && m) return m;
+  return 'Une erreur est survenue. Réessayez.';
+}
+
 /** Classe de badge opérateur si l'opérateur réel est reconnu, sinon aucune. */
 function classeOperateur(op: string): string {
   const v = (op || '').toLowerCase();
@@ -58,13 +76,116 @@ export default function ClientsPage() {
   const [page, setPage] = useState(1);
   const LIMIT = 15;
   const [modalOuvert, setModalOuvert] = useState(false);
-  const [clientVu, setClientVu] = useState<Client | null>(null);
+  const [clientVu, setClientVu] = useState<ClientKyc | null>(null);
   const [formClient, setFormClient] = useState(FORM_INIT_CLIENT);
   const [erreurClient, setErreurClient] = useState('');
   const [succesClient, setSuccesClient] = useState('');
 
+  // --- État du flux KYC (modale détail) ---
+  const [kycFichier, setKycFichier] = useState<{ dataUrl: string; type: string; name: string } | null>(null);
+  const [kycErreur, setKycErreur] = useState('');
+  const [kycSucces, setKycSucces] = useState('');
+  const [motifRejet, setMotifRejet] = useState('');
+  const [afficheRejet, setAfficheRejet] = useState(false);
+
   const { data: allClients = [], isLoading } = useClients();
   const creerClient = useCreateClient();
+  const soumettreKyc = useSoumettreKyc();
+  const approuverKyc = useApprouverKyc();
+  const rejeterKyc = useRejeterKyc();
+  const voirDocument = useVoirDocumentKyc();
+
+  const roleUser = String(useAuthStore((s) => s.user?.role) ?? '').toUpperCase();
+  const estAdmin = roleUser === 'SUPER_ADMIN' || roleUser === 'NETWORK_ADMIN';
+
+  // Réinitialise l'état KYC à chaque ouverture/fermeture de la modale détail.
+  const fermerDetail = () => {
+    setClientVu(null);
+    setKycFichier(null);
+    setKycErreur('');
+    setKycSucces('');
+    setMotifRejet('');
+    setAfficheRejet(false);
+  };
+
+  const onFichierKyc = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setKycErreur('');
+    setKycSucces('');
+    const file = e.target.files?.[0];
+    if (!file) { setKycFichier(null); return; }
+    if (file.size > 4 * 1024 * 1024) {
+      setKycErreur('Le fichier ne doit pas dépasser 4 Mo.');
+      setKycFichier(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setKycFichier({ dataUrl: String(reader.result), type: file.type, name: file.name });
+    reader.onerror = () => setKycErreur('Lecture du fichier impossible.');
+    reader.readAsDataURL(file);
+  };
+
+  const soumettreDossierKyc = async () => {
+    if (!clientVu || !kycFichier) { setKycErreur('Sélectionnez une pièce d’identité.'); return; }
+    setKycErreur('');
+    try {
+      await soumettreKyc.mutateAsync({
+        id: clientVu.id,
+        documentUrl: kycFichier.dataUrl,
+        documentType: kycFichier.type || undefined,
+      });
+      setKycSucces('Dossier déposé — KYC en attente de vérification.');
+      setKycFichier(null);
+      setClientVu((c) => (c ? { ...c, kycStatut: 'en_attente', kycADocument: true } : c));
+    } catch (err) {
+      setKycErreur(messageErreurApi(err));
+    }
+  };
+
+  const approuverDossierKyc = async () => {
+    if (!clientVu) return;
+    setKycErreur('');
+    try {
+      await approuverKyc.mutateAsync({ id: clientVu.id });
+      setKycSucces('KYC approuvé — client vérifié.');
+      setClientVu((c) => (c ? { ...c, kycStatut: 'verifie', kycMotifRejet: null } : c));
+    } catch (err) {
+      setKycErreur(messageErreurApi(err));
+    }
+  };
+
+  const rejeterDossierKyc = async () => {
+    if (!clientVu) return;
+    setKycErreur('');
+    try {
+      await rejeterKyc.mutateAsync({ id: clientVu.id, reason: motifRejet || undefined });
+      setKycSucces('KYC rejeté.');
+      setClientVu((c) => (c ? { ...c, kycStatut: 'rejete', kycMotifRejet: motifRejet || null } : c));
+      setAfficheRejet(false);
+      setMotifRejet('');
+    } catch (err) {
+      setKycErreur(messageErreurApi(err));
+    }
+  };
+
+  const ouvrirDocumentKyc = async () => {
+    if (!clientVu) return;
+    setKycErreur('');
+    try {
+      const doc = await voirDocument.mutateAsync(clientVu.id);
+      const w = window.open();
+      if (w) {
+        const isImage = (doc.documentType ?? '').startsWith('image') || doc.documentUrl.startsWith('data:image');
+        w.document.write(
+          isImage
+            ? `<img src="${doc.documentUrl}" style="max-width:100%" alt="Pièce d'identité" />`
+            : `<iframe src="${doc.documentUrl}" style="width:100%;height:100vh;border:0"></iframe>`
+        );
+        w.document.title = 'Pièce d’identité';
+      }
+    } catch (err) {
+      setKycErreur(messageErreurApi(err));
+    }
+  };
 
   const handleSubmitClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,8 +486,8 @@ export default function ClientsPage() {
         </form>
       </Modal>
 
-      {/* Modale DÉTAIL client (lecture seule) */}
-      <Modal ouvert={!!clientVu} onFermer={() => setClientVu(null)} titre={clientVu ? `${clientVu.prenom} ${clientVu.nom}` : ''} taille="md">
+      {/* Modale DÉTAIL client + FLUX KYC */}
+      <Modal ouvert={!!clientVu} onFermer={fermerDetail} titre={clientVu ? `${clientVu.prenom} ${clientVu.nom}` : ''} taille="md">
         {clientVu && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -395,6 +516,75 @@ export default function ClientsPage() {
                 <div className="text-xs uppercase tracking-wide text-text-muted mb-1">{t.clients.table.colKyc}</div>
                 <GmStatusPill statut={KYC_STATUTS[clientVu.kycStatut] ?? 'pending'}>{KYC_LABELS[clientVu.kycStatut] ?? clientVu.kycStatut}</GmStatusPill>
               </div>
+            </div>
+
+            {/* Motif de rejet éventuel */}
+            {clientVu.kycStatut === 'rejete' && clientVu.kycMotifRejet && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+                <span className="font-semibold">Motif du rejet : </span>{clientVu.kycMotifRejet}
+              </div>
+            )}
+
+            {/* Zone KYC : pièce d'identité + actions */}
+            <div className="border-t border-border-subtle pt-4 space-y-3">
+              <div className="text-xs uppercase tracking-wide text-text-muted">Pièce d’identité</div>
+
+              {clientVu.kycADocument && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-text-2">Un document est enregistré.</span>
+                  <Button type="button" variante="ghost" onClick={ouvrirDocumentKyc} loading={voirDocument.isPending}>
+                    Voir le document
+                  </Button>
+                </div>
+              )}
+
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={onFichierKyc}
+                className="block w-full text-sm text-text-2 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-gray-200"
+              />
+              {kycFichier && <div className="text-xs text-text-muted">Sélectionné : {kycFichier.name}</div>}
+
+              <Button
+                type="button"
+                variante="primary"
+                disabled={!kycFichier}
+                loading={soumettreKyc.isPending}
+                onClick={soumettreDossierKyc}
+              >
+                {clientVu.kycADocument ? 'Redéposer le dossier' : 'Soumettre le dossier'}
+              </Button>
+
+              {/* Actions ADMIN : approuver / rejeter (uniquement si en attente) */}
+              {estAdmin && clientVu.kycStatut === 'en_attente' && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex gap-3">
+                    <Button type="button" variante="primary" loading={approuverKyc.isPending} onClick={approuverDossierKyc}>
+                      Approuver
+                    </Button>
+                    <Button type="button" variante="ghost" onClick={() => setAfficheRejet((v) => !v)}>
+                      Rejeter
+                    </Button>
+                  </div>
+                  {afficheRejet && (
+                    <div className="space-y-2">
+                      <Input
+                        label="Motif du rejet"
+                        placeholder="Ex. document illisible"
+                        value={motifRejet}
+                        onChange={(e) => setMotifRejet(e.target.value)}
+                      />
+                      <Button type="button" variante="primary" loading={rejeterKyc.isPending} onClick={rejeterDossierKyc}>
+                        Confirmer le rejet
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {kycErreur && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">{kycErreur}</div>}
+              {kycSucces && <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">{kycSucces}</div>}
             </div>
           </div>
         )}

@@ -27,20 +27,21 @@ export class GatewayListener {
 
   @OnEvent('transaction.completed', { async: true })
   handleTransactionCompleted(payload: {
-    tenantId: string;
     transaction: any;
     floatBalance?: any;
   }) {
-    this.logger.debug(
-      `transaction.completed → WebSocket (tenant: ${payload.tenantId})`,
-    );
+    // L'événement émis est TransactionCompletedEvent { transaction } : le
+    // tenantId se trouve DANS la transaction (pas au premier niveau).
+    const tenantId = payload.transaction?.tenantId;
+    if (!tenantId) return;
+    this.logger.debug(`transaction.completed → WebSocket (tenant: ${tenantId})`);
 
     // Nouvelle transaction visible dans le feed
-    this.gatewayService.emitTransactionNew(payload.tenantId, payload.transaction);
+    this.gatewayService.emitTransactionNew(tenantId, payload.transaction);
 
     // Si le float a été mis à jour avec la transaction
     if (payload.floatBalance) {
-      this.gatewayService.emitFloatUpdated(payload.tenantId, payload.floatBalance);
+      this.gatewayService.emitFloatUpdated(tenantId, payload.floatBalance);
     }
   }
 
@@ -65,22 +66,25 @@ export class GatewayListener {
 
   // ─── Float ────────────────────────────────────────────────────────────────
 
-  @OnEvent('float.low_balance', { async: true })
+  // Le service float émet `float.low_balance_alert` avec les champs FR
+  // { agentId, operateur, solde, seuilMin, tenantId } — on les mappe ici.
+  @OnEvent('float.low_balance_alert', { async: true })
   handleFloatLowBalance(payload: {
     tenantId: string;
-    operatorCode: string;
-    currentBalance: number;
-    threshold: number;
-    currency: string;
+    agentId?: string;
+    operateur: string;
+    solde: number;
+    seuilMin: number;
   }) {
+    if (!payload.tenantId) return;
     this.logger.warn(
-      `float.low_balance → float:alert (tenant: ${payload.tenantId}, opérateur: ${payload.operatorCode})`,
+      `float.low_balance_alert → float:alert (tenant: ${payload.tenantId}, opérateur: ${payload.operateur})`,
     );
     this.gatewayService.emitFloatAlert(payload.tenantId, {
-      operatorCode: payload.operatorCode,
-      currentBalance: payload.currentBalance,
-      threshold: payload.threshold,
-      currency: payload.currency,
+      operatorCode: payload.operateur,
+      currentBalance: payload.solde,
+      threshold: payload.seuilMin,
+      currency: 'XOF',
     });
   }
 

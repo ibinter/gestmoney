@@ -2,6 +2,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Client } from '@/types';
 
+// `Client` vit dans `@/types` (non modifiable ici) : on l'étend localement pour
+// porter les champs KYC additionnels renvoyés par l'API. Les composants qui ont
+// besoin du dossier KYC importent `ClientKyc` depuis ce hook.
+export interface ClientKyc extends Client {
+  /** Statut brut renvoyé par l'API (VERIFIED / PENDING / REJECTED…). */
+  kycStatus?: string | null;
+  /** Motif fourni lors d'un rejet KYC. */
+  kycMotifRejet?: string | null;
+  /** Type de pièce déposée (CNI, passeport…). */
+  kycDocumentType?: string | null;
+  /** Vrai si une pièce d'identité est déjà enregistrée. */
+  kycADocument?: boolean;
+}
+
 const mockClients: Client[] = [
   { id: 'c1', nom: 'Kouassi', prenom: 'Yao', telephone: '0701234567', email: 'yao.k@email.ci', ville: 'Abidjan', operateur: 'Orange Money', soldeWallet: 125_000, nbTransactions: 48, montantTotal: 2_400_000, statut: 'actif', kycStatut: 'verifie', createdAt: '2023-03-10' },
   { id: 'c2', nom: 'Bah', prenom: 'Fatoumata', telephone: '0707654321', ville: 'Abidjan', operateur: 'MTN MoMo', soldeWallet: 45_000, nbTransactions: 23, montantTotal: 980_000, statut: 'actif', kycStatut: 'verifie', createdAt: '2023-05-22' },
@@ -34,7 +48,7 @@ function mapKyc(c: Record<string, unknown>): Client['kycStatut'] {
   return k === 'VERIFIED' ? 'verifie' : k === 'REJECTED' ? 'rejete' : 'en_attente';
 }
 
-function mapClient(c: Record<string, unknown>): Client {
+function mapClient(c: Record<string, unknown>): ClientKyc {
   return {
     id: String(c.id ?? ''),
     nom: String(c.lastName ?? c.nom ?? ''),
@@ -48,12 +62,16 @@ function mapClient(c: Record<string, unknown>): Client {
     montantTotal: Number(c.totalAmount ?? c.montantTotal ?? 0),
     statut: mapStatut(c),
     kycStatut: mapKyc(c),
+    kycStatus: c.kycStatus != null ? String(c.kycStatus) : null,
+    kycMotifRejet: c.kycMotifRejet != null ? String(c.kycMotifRejet) : null,
+    kycDocumentType: c.kycDocumentType != null ? String(c.kycDocumentType) : null,
+    kycADocument: Boolean(c.kycADocument),
     createdAt: String(c.createdAt ?? ''),
   };
 }
 
 export function useClients(params?: Record<string, string>) {
-  return useQuery<Client[]>({
+  return useQuery<ClientKyc[]>({
     queryKey: ['clients', params],
     queryFn: async () => {
       try {
@@ -94,5 +112,61 @@ export function useToggleClientStatus() {
     mutationFn: ({ id, statut }: { id: string; statut: Client['statut'] }) =>
       api.patch(`/customers/${id}`, { status: statut === 'actif' ? 'ACTIVE' : statut === 'bloque' ? 'BLACKLISTED' : 'INACTIVE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
+
+// ============================================================
+// FLUX KYC — dépôt du dossier, approbation / rejet (ADMIN)
+// N'envoie QUE les champs du contrat (forbidNonWhitelisted côté API).
+// ============================================================
+
+/** Dépose (ou redépose) le dossier KYC → passe le client « en attente ». */
+export function useSoumettreKyc() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, documentUrl, documentType, nationalId }: {
+      id: string;
+      documentUrl: string;
+      documentType?: string;
+      nationalId?: string;
+    }) =>
+      api.patch(`/customers/${id}/kyc/submit`, {
+        documentUrl,
+        ...(documentType ? { documentType } : {}),
+        ...(nationalId ? { nationalId } : {}),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
+
+/** Approuve le KYC (ADMIN uniquement) → passe le client « vérifié ». */
+export function useApprouverKyc() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      api.patch(`/customers/${id}/kyc/approve`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
+
+/** Rejette le KYC (ADMIN uniquement) → passe le client « rejeté » + motif. */
+export function useRejeterKyc() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      api.patch(`/customers/${id}/kyc/reject`, {
+        ...(reason ? { reason } : {}),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
+
+/** Récupère la pièce d'identité déposée (data URL + type) pour l'afficher. */
+export function useVoirDocumentKyc() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.get(`/customers/${id}/kyc/document`);
+      return res.data as { documentUrl: string; documentType?: string | null };
+    },
   });
 }
