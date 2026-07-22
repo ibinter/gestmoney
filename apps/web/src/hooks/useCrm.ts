@@ -163,6 +163,71 @@ export function useChangerStatutProspect() {
   });
 }
 
+// Payload de création aligné sur CreateProspectDto (champs autorisés uniquement —
+// l'API rejette les champs inconnus via forbidNonWhitelisted).
+export interface CreateProspectInput {
+  nom: string;
+  prenom?: string;
+  entreprise?: string;
+  fonction?: string;
+  email?: string;
+  telephone?: string;
+  whatsapp?: string;
+  pays?: string;
+  secteur?: string;
+  logiciel?: string;
+  besoin?: string;
+  budgetIndicatif?: string;
+  origine?: string;
+  priorite?: string;
+  statut?: string;
+  notes?: string;
+}
+
+export function useCreateProspect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: CreateProspectInput) => {
+      const res = await api.post('/superadmin/crm/prospects', data);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm'] }),
+  });
+}
+
+export function useConvertirProspect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...data
+    }: {
+      id: string;
+      formule?: string;
+      prixHT?: number;
+      remise?: number;
+      taxes?: number;
+      devise?: string;
+      validiteJours?: number;
+    }) => {
+      const res = await api.post(`/superadmin/crm/prospects/${id}/convertir`, data);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm'] }),
+  });
+}
+
+export function useSupprimerProspect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/superadmin/crm/prospects/${id}`);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'prospects'] }),
+  });
+}
+
 // ─── DÉMONSTRATIONS ──────────────────────────────────────────────────────────
 export function useDemonstrations(params?: Record<string, string>) {
   return useQuery({
@@ -189,6 +254,64 @@ export function useDemoStats() {
   });
 }
 
+// Payload de création aligné sur CreateDemonstrationDto.
+export interface CreateDemonstrationInput {
+  entreprise: string;
+  date: string; // ISO
+  prospectId?: string;
+  logiciel?: string;
+  fuseau?: string;
+  mode?: string;
+  lienVisio?: string;
+  besoins?: string;
+  notes?: string;
+  statut?: string;
+}
+
+export function useCreateDemonstration() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: CreateDemonstrationInput) => {
+      const res = await api.post('/superadmin/crm/demonstrations', data);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm'] }),
+  });
+}
+
+export function useChangerStatutDemo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      statut,
+      compteRendu,
+    }: {
+      id: string;
+      statut: string;
+      compteRendu?: string;
+    }) => {
+      const res = await api.patch(`/superadmin/crm/demonstrations/${id}/statut`, {
+        statut,
+        ...(compteRendu ? { compteRendu } : {}),
+      });
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'demonstrations'] }),
+  });
+}
+
+export function useSupprimerDemonstration() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/superadmin/crm/demonstrations/${id}`);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'demonstrations'] }),
+  });
+}
+
 // ─── OFFRES ──────────────────────────────────────────────────────────────────
 export function useOffres(params?: Record<string, string>) {
   return useQuery({
@@ -211,5 +334,56 @@ export function useOffreStats() {
       return res.data;
     },
     staleTime: 30_000,
+  });
+}
+
+// Payload de création aligné sur CreateOffreDto (entreprise + prixHT requis).
+export interface CreateOffreInput {
+  entreprise: string;
+  prixHT: number;
+  prospectId?: string;
+  demonstrationId?: string;
+  logiciel?: string;
+  formule?: string;
+  modules?: string[];
+  nbUtilisateurs?: number;
+  devise?: string;
+  remise?: number;
+  taxes?: number;
+  validiteJours?: number;
+  conditions?: string;
+  statut?: string;
+}
+
+export function useCreateOffre() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: CreateOffreInput) => {
+      const res = await api.post('/superadmin/crm/offres', data);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm'] }),
+  });
+}
+
+export function useChangerStatutOffre() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, statut }: { id: string; statut: string }) => {
+      const res = await api.patch(`/superadmin/crm/offres/${id}/statut`, { statut });
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'offres'] }),
+  });
+}
+
+export function useSupprimerOffre() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/superadmin/crm/offres/${id}`);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'offres'] }),
   });
 }

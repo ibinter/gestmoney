@@ -3,7 +3,13 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
-import { useDemonstrations, useDemoStats } from '@/hooks/useCrm';
+import {
+  useDemonstrations,
+  useDemoStats,
+  useChangerStatutDemo,
+  useCreateDemonstration,
+  useCreateOffre,
+} from '@/hooks/useCrm';
 
 type CouleurStatut = 'info' | 'warning' | 'success' | 'danger' | 'neutral';
 
@@ -52,13 +58,29 @@ export default function DemonstrationsPage() {
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [selected, setSelected] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  // Aucun hook de mutation CRM démonstrations n'existe encore (useCrm n'expose que des lectures) :
-  // les actions d'écriture affichent un message honnête au lieu de simuler un succès.
   const [toast, setToast] = useState<string | null>(null);
-  const notifyComingSoon = () => {
-    setToast(t.common.comingSoon);
+  const notify = (msg: string) => {
+    setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
+
+  // Formulaire de planification (contrôlé). L'entreprise est requise par l'API ;
+  // le champ « prospect (email) » reste informatif (l'API attend un prospectId, pas un email).
+  const [form, setForm] = useState({
+    entreprise: '',
+    prospect: '',
+    date: '',
+    heure: '',
+    mode: 'VISIO',
+  });
+
+  // Petite modale « Créer une offre » à partir d'une démo réalisée.
+  const [offreDemo, setOffreDemo] = useState<{ id: string; prospectId: string | null } | null>(null);
+  const [offreForm, setOffreForm] = useState({ entreprise: '', prixHT: '', devise: 'XOF' });
+
+  const changerStatut = useChangerStatutDemo();
+  const createDemo = useCreateDemonstration();
+  const createOffre = useCreateOffre();
 
   const params: Record<string, string> = { limit: '100' };
   if (filtreStatut !== 'Tous') params.statut = filtreStatut;
@@ -67,6 +89,65 @@ export default function DemonstrationsPage() {
   const { data: stats } = useDemoStats();
 
   const detail = demos.find((d) => d.id === selected);
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+  const handleChangerStatut = async (id: string, statut: string) => {
+    try {
+      await changerStatut.mutateAsync({ id, statut });
+      notify(t.common?.success ?? 'OK');
+      setSelected(null);
+    } catch {
+      notify(t.common?.error ?? 'Erreur');
+    }
+  };
+
+  const handleCreateDemo = async () => {
+    if (!form.entreprise.trim() || !form.date) {
+      notify(t.common?.error ?? 'Champs requis manquants');
+      return;
+    }
+    const iso = new Date(`${form.date}T${form.heure || '00:00'}`).toISOString();
+    try {
+      await createDemo.mutateAsync({
+        entreprise: form.entreprise.trim(),
+        date: iso,
+        mode: form.mode,
+      });
+      notify(t.common?.success ?? 'OK');
+      setShowForm(false);
+      setForm({ entreprise: '', prospect: '', date: '', heure: '', mode: 'VISIO' });
+    } catch {
+      notify(t.common?.error ?? 'Erreur');
+    }
+  };
+
+  const openOffre = (d: { id: string; entreprise: string; prospectId: string | null }) => {
+    setOffreDemo({ id: d.id, prospectId: d.prospectId });
+    setOffreForm({ entreprise: d.entreprise, prixHT: '', devise: 'XOF' });
+  };
+
+  const handleCreateOffre = async () => {
+    if (!offreDemo) return;
+    const prix = Number(offreForm.prixHT);
+    if (!offreForm.entreprise.trim() || !offreForm.prixHT || Number.isNaN(prix)) {
+      notify(t.common?.error ?? 'Champs requis manquants');
+      return;
+    }
+    try {
+      await createOffre.mutateAsync({
+        entreprise: offreForm.entreprise.trim(),
+        prixHT: prix,
+        devise: offreForm.devise,
+        demonstrationId: offreDemo.id,
+        ...(offreDemo.prospectId ? { prospectId: offreDemo.prospectId } : {}),
+      });
+      notify(t.common?.success ?? 'OK');
+      setOffreDemo(null);
+      setSelected(null);
+    } catch {
+      notify(t.common?.error ?? 'Erreur');
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -184,12 +265,29 @@ export default function DemonstrationsPage() {
             <div className="flex gap-2 flex-wrap">
               {detail.statut === 'PLANIFIEE' && (
                 <>
-                  <button onClick={notifyComingSoon} title={t.common.comingSoon} className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.demos.detail.markDone}</button>
-                  <button onClick={notifyComingSoon} title={t.common.comingSoon} className="px-4 py-2.5 rounded-xl border border-red-300 text-red-600 text-sm font-bold">{t.superadmin.demos.detail.cancel}</button>
+                  <button
+                    onClick={() => handleChangerStatut(detail.id, 'REALISEE')}
+                    disabled={changerStatut.isPending}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold disabled:opacity-60"
+                  >
+                    {changerStatut.isPending ? (t.common?.loading ?? '…') : t.superadmin.demos.detail.markDone}
+                  </button>
+                  <button
+                    onClick={() => handleChangerStatut(detail.id, 'ANNULEE')}
+                    disabled={changerStatut.isPending}
+                    className="px-4 py-2.5 rounded-xl border border-red-300 text-red-600 text-sm font-bold disabled:opacity-60"
+                  >
+                    {t.superadmin.demos.detail.cancel}
+                  </button>
                 </>
               )}
               {detail.statut === 'REALISEE' && (
-                <button onClick={notifyComingSoon} title={t.common.comingSoon} className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.demos.detail.createOffer}</button>
+                <button
+                  onClick={() => openOffre(detail)}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold"
+                >
+                  {t.superadmin.demos.detail.createOffer}
+                </button>
               )}
             </div>
           </div>
@@ -206,27 +304,115 @@ export default function DemonstrationsPage() {
               <button onClick={() => setShowForm(false)} className="text-text-muted hover:text-text-main text-xl" aria-label={t.superadmin.demos.close}>✕</button>
             </div>
             <div className="space-y-3">
-              {[
-                { label: t.superadmin.demos.form.prospect, type: 'email', placeholder: t.superadmin.demos.form.prospectPlaceholder },
-                { label: t.superadmin.demos.form.date, type: 'date', placeholder: '' },
-                { label: t.superadmin.demos.form.heure, type: 'time', placeholder: '' },
-              ].map(f => (
-                <div key={f.label}>
-                  <label className="text-xs font-bold text-text-muted block mb-1">{f.label}</label>
-                  <input type={f.type} placeholder={f.placeholder}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green" />
-                </div>
-              ))}
+              <div>
+                <label className="text-xs font-bold text-text-muted block mb-1">{t.superadmin.prospects.columns.entreprise}</label>
+                <input
+                  type="text"
+                  value={form.entreprise}
+                  onChange={(e) => setForm((s) => ({ ...s, entreprise: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-muted block mb-1">{t.superadmin.demos.form.prospect}</label>
+                <input
+                  type="email"
+                  placeholder={t.superadmin.demos.form.prospectPlaceholder}
+                  value={form.prospect}
+                  onChange={(e) => setForm((s) => ({ ...s, prospect: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-muted block mb-1">{t.superadmin.demos.form.date}</label>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-muted block mb-1">{t.superadmin.demos.form.heure}</label>
+                <input
+                  type="time"
+                  value={form.heure}
+                  onChange={(e) => setForm((s) => ({ ...s, heure: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                />
+              </div>
               <div>
                 <label className="text-xs font-bold text-text-muted block mb-1">{t.superadmin.demos.form.mode}</label>
-                <select className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green">
+                <select
+                  value={form.mode}
+                  onChange={(e) => setForm((s) => ({ ...s, mode: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                >
                   <option value="VISIO">{t.superadmin.demos.form.visio}</option>
                   <option value="PRESENTIEL">{t.superadmin.demos.form.presentiel}</option>
                   <option value="TELEPHONE">{t.superadmin.demos.form.telephone}</option>
                 </select>
               </div>
-              <button onClick={notifyComingSoon} title={t.common.comingSoon} className="w-full py-3 rounded-xl bg-brand-green text-white font-bold text-sm hover:bg-green-700 transition-colors">
-                {t.superadmin.demos.form.confirm}
+              <button
+                onClick={handleCreateDemo}
+                disabled={createDemo.isPending}
+                className="w-full py-3 rounded-xl bg-brand-green text-white font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-60"
+              >
+                {createDemo.isPending ? (t.common?.loading ?? '…') : t.superadmin.demos.form.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal création d'offre depuis une démo réalisée */}
+      {offreDemo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setOffreDemo(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-5">
+              <h2 className="text-xl font-black text-text-main">{t.superadmin.demos.detail.createOffer}</h2>
+              <button onClick={() => setOffreDemo(null)} className="text-text-muted hover:text-text-main text-xl" aria-label={t.superadmin.demos.close}>✕</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-text-muted block mb-1">{t.superadmin.prospects.columns.entreprise}</label>
+                <input
+                  type="text"
+                  value={offreForm.entreprise}
+                  onChange={(e) => setOffreForm((s) => ({ ...s, entreprise: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-muted block mb-1">{t.superadmin.offres.detail.prixHT}</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={offreForm.prixHT}
+                  onChange={(e) => setOffreForm((s) => ({ ...s, prixHT: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-muted block mb-1">{t.common.currency}</label>
+                <select
+                  value={offreForm.devise}
+                  onChange={(e) => setOffreForm((s) => ({ ...s, devise: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green"
+                >
+                  <option value="XOF">XOF</option>
+                  <option value="XAF">XAF</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+              <button
+                onClick={handleCreateOffre}
+                disabled={createOffre.isPending}
+                className="w-full py-3 rounded-xl bg-brand-green text-white font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-60"
+              >
+                {createOffre.isPending ? (t.common?.loading ?? '…') : t.common.create}
               </button>
             </div>
           </div>

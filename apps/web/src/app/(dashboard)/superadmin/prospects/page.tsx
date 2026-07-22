@@ -4,7 +4,49 @@ import { Badge } from '@/components/ui/Badge';
 import { formatRelativeTime } from '@/lib/formatters';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
-import { useProspects, useProspectStats } from '@/hooks/useCrm';
+import {
+  useProspects,
+  useProspectStats,
+  useCreateProspect,
+  useChangerStatutProspect,
+  useConvertirProspect,
+  type CreateProspectInput,
+} from '@/hooks/useCrm';
+
+const PRIORITE_OPTIONS = ['BASSE', 'NORMALE', 'HAUTE', 'CRITIQUE'];
+const ORIGINE_OPTIONS = [
+  'SITE_WEB',
+  'SARA',
+  'WHATSAPP',
+  'REFERRAL',
+  'IBIG_PARTNERS',
+  'SALON',
+  'COLD_CALL',
+  'EMAIL_CAMPAGNE',
+  'AUTRE',
+];
+
+type CreateForm = {
+  nom: string;
+  entreprise: string;
+  email: string;
+  telephone: string;
+  pays: string;
+  besoin: string;
+  priorite: string;
+  origine: string;
+};
+
+const EMPTY_FORM: CreateForm = {
+  nom: '',
+  entreprise: '',
+  email: '',
+  telephone: '',
+  pays: '',
+  besoin: '',
+  priorite: 'NORMALE',
+  origine: 'SITE_WEB',
+};
 
 type CouleurStatut = 'info' | 'warning' | 'success' | 'danger' | 'neutral';
 
@@ -60,11 +102,78 @@ export default function ProspectsPage() {
   const [filtreStatut, setFiltreStatut] = useState('Tous');
   const [recherche, setRecherche] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
-  // Aucun hook de mutation CRM n'existe encore : les actions d'écriture affichent un message honnête.
   const [toast, setToast] = useState<string | null>(null);
-  const notifyComingSoon = () => {
-    setToast(t.common.comingSoon);
+  const showToast = (msg: string) => {
+    setToast(msg);
     setTimeout(() => setToast(null), 2500);
+  };
+
+  // ── Mutations CRM réelles (API NestJS) ────────────────────────────────────
+  const createProspect = useCreateProspect();
+  const changerStatut = useChangerStatutProspect();
+  const convertir = useConvertirProspect();
+
+  // Modale de création
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const setField = (k: keyof CreateForm, v: string) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const openCreate = () => {
+    setForm(EMPTY_FORM);
+    setCreateError(null);
+    setShowCreate(true);
+  };
+
+  const submitCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nom.trim()) {
+      setCreateError('Le nom est requis.');
+      return;
+    }
+    setCreateError(null);
+    // On n'envoie QUE les champs autorisés et non vides du DTO (forbidNonWhitelisted).
+    const input: CreateProspectInput = { nom: form.nom.trim() };
+    if (form.entreprise.trim()) input.entreprise = form.entreprise.trim();
+    if (form.email.trim()) input.email = form.email.trim();
+    if (form.telephone.trim()) input.telephone = form.telephone.trim();
+    if (form.pays.trim()) input.pays = form.pays.trim();
+    if (form.besoin.trim()) input.besoin = form.besoin.trim();
+    if (form.priorite) input.priorite = form.priorite;
+    if (form.origine) input.origine = form.origine;
+    try {
+      await createProspect.mutateAsync(input);
+      setShowCreate(false);
+      showToast('Prospect créé');
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ??
+        err?.message ??
+        'Erreur lors de la création du prospect.';
+      setCreateError(Array.isArray(msg) ? msg.join(', ') : String(msg));
+    }
+  };
+
+  const changerStatutProspect = async (id: string, statut: string, ok: string) => {
+    try {
+      await changerStatut.mutateAsync({ id, statut });
+      setSelected(null);
+      showToast(ok);
+    } catch (err: any) {
+      showToast(err?.response?.data?.message ?? err?.message ?? 'Erreur');
+    }
+  };
+
+  const creerOffre = async (id: string) => {
+    try {
+      await convertir.mutateAsync({ id });
+      setSelected(null);
+      showToast('Offre créée');
+    } catch (err: any) {
+      showToast(err?.response?.data?.message ?? err?.message ?? 'Erreur');
+    }
   };
 
   const params: Record<string, string> = { limit: '100' };
@@ -83,7 +192,7 @@ export default function ProspectsPage() {
           <h1 className="text-2xl font-black text-text-main">{t.superadmin.prospects.title}</h1>
           <p className="text-sm text-text-muted">{t.superadmin.prospects.subtitle}</p>
         </div>
-        <button onClick={notifyComingSoon} title={t.common.comingSoon}
+        <button onClick={openCreate}
           className="btn-primary text-sm px-4 py-2 rounded-xl font-bold bg-brand-green text-white hover:bg-green-700 transition-colors">
           {t.superadmin.prospects.newProspect}
         </button>
@@ -227,20 +336,110 @@ export default function ProspectsPage() {
               <p className="text-sm text-text-muted mb-4 bg-gray-50 dark:bg-white/5 rounded-xl p-3">{detail.notes}</p>
             )}
             <div className="flex gap-2 flex-wrap">
-              <button onClick={notifyComingSoon} title={t.common.comingSoon}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold hover:bg-green-700 transition-colors">
+              <button
+                onClick={() => changerStatutProspect(detail.id, 'DEMO_PREVUE', 'Statut mis à jour')}
+                disabled={changerStatut.isPending || convertir.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-60">
                 {t.superadmin.prospects.detail.planDemo}
               </button>
-              <button onClick={notifyComingSoon} title={t.common.comingSoon}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-main hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+              <button
+                onClick={() => creerOffre(detail.id)}
+                disabled={changerStatut.isPending || convertir.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-main hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-60">
                 {t.superadmin.prospects.detail.creerOffre}
               </button>
-              <button onClick={notifyComingSoon} title={t.common.comingSoon}
-                className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted hover:text-red-500 transition-colors">
+              <button
+                onClick={() => changerStatutProspect(detail.id, 'PERDU', 'Statut mis à jour')}
+                disabled={changerStatut.isPending || convertir.isPending}
+                className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted hover:text-red-500 transition-colors disabled:opacity-60">
                 {t.superadmin.prospects.detail.perdu}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Modale de création de prospect */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          onClick={() => !createProspect.isPending && setShowCreate(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <form
+            onSubmit={submitCreate}
+            className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-black text-text-main">{t.superadmin.prospects.newProspect}</h2>
+              <button type="button" onClick={() => setShowCreate(false)}
+                className="text-text-muted hover:text-text-main text-xl" aria-label={t.superadmin.prospects.close}>✕</button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-text-muted mb-1">Nom *</label>
+                <input value={form.nom} onChange={(e) => setField('nom', e.target.value)} required
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-text-muted mb-1">Entreprise</label>
+                <input value={form.entreprise} onChange={(e) => setField('entreprise', e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-muted mb-1">Email</label>
+                <input type="email" value={form.email} onChange={(e) => setField('email', e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-muted mb-1">Téléphone</label>
+                <input value={form.telephone} onChange={(e) => setField('telephone', e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-muted mb-1">Pays</label>
+                <input value={form.pays} onChange={(e) => setField('pays', e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-muted mb-1">Priorité</label>
+                <select value={form.priorite} onChange={(e) => setField('priorite', e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green">
+                  {PRIORITE_OPTIONS.map((o) => (
+                    <option key={o} value={o}>{humanize(o)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-text-muted mb-1">Origine</label>
+                <select value={form.origine} onChange={(e) => setField('origine', e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green">
+                  {ORIGINE_OPTIONS.map((o) => (
+                    <option key={o} value={o}>{labelOrigine(t, o)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-text-muted mb-1">Besoin</label>
+                <textarea value={form.besoin} onChange={(e) => setField('besoin', e.target.value)} rows={3}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-white dark:bg-white/5 text-text-main text-sm outline-none focus:border-brand-green resize-none" />
+              </div>
+            </div>
+
+            {createError && (
+              <p className="mt-3 text-sm text-red-500 font-semibold">{createError}</p>
+            )}
+
+            <div className="flex gap-2 mt-5">
+              <button type="submit" disabled={createProspect.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-60">
+                {createProspect.isPending ? '…' : t.superadmin.prospects.newProspect}
+              </button>
+              <button type="button" onClick={() => setShowCreate(false)} disabled={createProspect.isPending}
+                className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-60">
+                {t.superadmin.prospects.close}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

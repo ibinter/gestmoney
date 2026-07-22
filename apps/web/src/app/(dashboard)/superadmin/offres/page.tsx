@@ -4,7 +4,9 @@ import { Badge } from '@/components/ui/Badge';
 import { formatMontant } from '@/lib/formatters';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
-import { useOffres, useOffreStats } from '@/hooks/useCrm';
+import { useOffres, useOffreStats, useChangerStatutOffre, useCreateOffre } from '@/hooks/useCrm';
+import type { Offre } from '@/hooks/useCrm';
+import { exporterPdf } from '@/lib/exportPdf';
 
 type CouleurStatut = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
 
@@ -52,7 +54,65 @@ export default function OffresPage() {
   const { data: offres = [], isLoading, isError } = useOffres(params);
   const { data: stats } = useOffreStats();
 
+  const changerStatut = useChangerStatutOffre();
+  const createOffre = useCreateOffre();
+
   const detail = offres.find((o) => o.id === selected);
+
+  // Formulaire de création (champs whitelistés côté DTO).
+  const [form, setForm] = useState({ entreprise: '', prixHT: '', formule: '', nbUtilisateurs: '', remise: '', devise: 'XOF' });
+
+  async function handleChangerStatut(id: string, statut: string) {
+    try {
+      await changerStatut.mutateAsync({ id, statut });
+    } catch {
+      alert(t.common?.error ?? 'Erreur');
+    }
+  }
+
+  function handlePdf(offre: Offre) {
+    const rows: Record<string, unknown>[] = [
+      { champ: 'Entreprise', valeur: offre.entreprise },
+      { champ: 'Prospect', valeur: nomProspect(offre) },
+      { champ: 'Formule', valeur: offre.formule ?? '—' },
+      { champ: 'Nb utilisateurs', valeur: offre.nbUtilisateurs },
+      { champ: 'Prix HT', valeur: `${formatMontant(offre.prixHT)} ${offre.devise}` },
+      { champ: 'Remise', valeur: offre.remise > 0 ? `-${offre.remise}%` : '—' },
+      { champ: 'Taxes', valeur: `${offre.taxes}%` },
+      { champ: 'Prix TTC', valeur: `${formatMontant(offre.prixTTC)} ${offre.devise}` },
+      { champ: 'Devise', valeur: offre.devise },
+      { champ: 'Statut', valeur: labelStatut(t, offre.statut) },
+      { champ: 'Validité', valeur: `${offre.validiteJours} jours` },
+      { champ: 'Expiration', valeur: datePart(offre.dateExpiration) },
+    ];
+    exporterPdf(
+      rows,
+      [
+        { titre: 'Champ', valeur: (r) => String(r.champ) },
+        { titre: 'Valeur', valeur: (r) => String(r.valeur), align: 'right' },
+      ],
+      { titre: `Offre ${offre.reference}`, nomFichier: `offre_${offre.reference}` },
+    );
+  }
+
+  async function handleCreate() {
+    if (!form.entreprise.trim() || !form.prixHT) return;
+    const input: Parameters<typeof createOffre.mutateAsync>[0] = {
+      entreprise: form.entreprise.trim(),
+      prixHT: Number(form.prixHT),
+      devise: form.devise,
+    };
+    if (form.formule.trim()) input.formule = form.formule.trim();
+    if (form.nbUtilisateurs) input.nbUtilisateurs = Number(form.nbUtilisateurs);
+    if (form.remise) input.remise = Number(form.remise);
+    try {
+      await createOffre.mutateAsync(input);
+      setShowForm(false);
+      setForm({ entreprise: '', prixHT: '', formule: '', nbUtilisateurs: '', remise: '', devise: 'XOF' });
+    } catch {
+      alert(t.common?.error ?? 'Erreur');
+    }
+  }
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -182,9 +242,50 @@ export default function OffresPage() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {detail.statut === 'BROUILLON' && <button onClick={() => alert(t.common.comingSoon)} className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.send}</button>}
-              {['ENVOYEE', 'CONSULTEE'].includes(detail.statut) && <button onClick={() => alert(t.common.comingSoon)} className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold">{t.superadmin.offres.detail.markConverted}</button>}
-              <button onClick={() => alert(t.common.comingSoon)} className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">{t.superadmin.offres.detail.pdf}</button>
+              {detail.statut === 'BROUILLON' && <button disabled={changerStatut.isPending} onClick={() => handleChangerStatut(detail.id, 'ENVOYEE')} className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold disabled:opacity-50">{t.superadmin.offres.detail.send}</button>}
+              {['ENVOYEE', 'CONSULTEE'].includes(detail.statut) && <button disabled={changerStatut.isPending} onClick={() => handleChangerStatut(detail.id, 'CONVERTIE')} className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold disabled:opacity-50">{t.superadmin.offres.detail.markConverted}</button>}
+              <button onClick={() => handlePdf(detail)} className="px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">{t.superadmin.offres.detail.pdf}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal création */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-5">
+              <h2 className="text-xl font-black text-text-main">{t.superadmin.offres.newOffer}</h2>
+              <button onClick={() => setShowForm(false)} className="text-text-muted text-xl" aria-label={t.superadmin.offres.close}>✕</button>
+            </div>
+            <div className="space-y-3">
+              <label className="block">
+                <span className="text-xs font-semibold text-text-muted">{t.superadmin.offres.detail.plan}</span>
+                <input value={form.formule} onChange={e => setForm(f => ({ ...f, formule: e.target.value }))} className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-transparent text-sm" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-text-muted">Entreprise *</span>
+                <input value={form.entreprise} onChange={e => setForm(f => ({ ...f, entreprise: e.target.value }))} className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-transparent text-sm" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-text-muted">{t.superadmin.offres.detail.prixHT} *</span>
+                  <input type="number" value={form.prixHT} onChange={e => setForm(f => ({ ...f, prixHT: e.target.value }))} className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-transparent text-sm" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-text-muted">{t.superadmin.offres.detail.remise} (%)</span>
+                  <input type="number" value={form.remise} onChange={e => setForm(f => ({ ...f, remise: e.target.value }))} className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-transparent text-sm" />
+                </label>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-text-muted">Nb utilisateurs</span>
+                <input type="number" value={form.nbUtilisateurs} onChange={e => setForm(f => ({ ...f, nbUtilisateurs: e.target.value }))} className="mt-1 w-full px-3 py-2 rounded-xl border border-border bg-transparent text-sm" />
+              </label>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-bold text-text-muted">{t.superadmin.offres.close}</button>
+              <button disabled={createOffre.isPending || !form.entreprise.trim() || !form.prixHT} onClick={handleCreate} className="flex-1 py-2.5 rounded-xl bg-brand-green text-white text-sm font-bold disabled:opacity-50">{t.superadmin.offres.newOffer}</button>
             </div>
           </div>
         </div>
