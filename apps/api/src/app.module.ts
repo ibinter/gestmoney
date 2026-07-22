@@ -30,6 +30,7 @@ import { AiModule } from "./ai/ai.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { LicencesModule } from "./licences/licences.module";
 import { CashierModule } from "./cashier/cashier.module";
+import { NetworksModule } from "./networks/networks.module";
 import { SupportModule } from "./support/support.module";
 import { CrmModule } from "./superadmin/crm/crm.module";
 import { OpsModule } from "./superadmin/ops/ops.module";
@@ -82,6 +83,7 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     PaymentsModule,
     LicencesModule,
     CashierModule,
+    NetworksModule,
     SupportModule,
     CrmModule,
     OpsModule,

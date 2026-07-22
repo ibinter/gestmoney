@@ -35,6 +35,7 @@ import {
   SlidersHorizontal,
   ShieldAlert,
   CreditCard,
+  Radio,
 } from 'lucide-react';
 import { useNotificationCount } from '@/hooks/useNotifications';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -88,6 +89,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/dashboard/agents',   label: 'Agents',        icone: Users,      badgeKey: null },
       { href: '/dashboard/clients',  label: 'Clients',       icone: UserRound,  badgeKey: null },
       { href: '/dashboard/stock',    label: 'Stock',         icone: Package,    badgeKey: null },
+      { href: '/dashboard/operateurs', label: 'Opérateurs',  icone: Radio,      badgeKey: null, roles: ROLES_BACKOFFICE },
     ],
   },
   {
