@@ -16,7 +16,6 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState('');
   const [heure, setHeure] = useState('');
-  const [loadingDemo, setLoadingDemo] = useState(false);
 
   const [modalMdpOublie, setModalMdpOublie] = useState(false);
   const [emailReset, setEmailReset] = useState('');
@@ -73,35 +72,6 @@ function LoginContent() {
     } catch (err) {
       setErreur(err instanceof Error ? err.message : 'Connexion impossible. Vérifiez votre réseau.');
       setLoading(false);
-    }
-  };
-
-  const handleDemoAccess = async () => {
-    setLoadingDemo(true);
-    setErreur('');
-    // Les credentials démo sont dans l'environnement serveur, jamais dans le code client
-    try {
-      const res = await fetch('/api/demo-access', {
-        method: 'POST',
-        credentials: 'include',
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) throw new Error('Démo indisponible');
-      const { user } = await res.json();
-      login({
-        id: user.id ?? 'demo-user',
-        nom: user.lastName ?? 'Demo',
-        prenom: user.firstName ?? 'Admin',
-        email: user.email ?? 'demo@gestmoney.ibigsoft.com',
-        role: (Array.isArray(user.roles) ? user.roles[0] : user.role) ?? 'MANAGER',
-        actif: true,
-        createdAt: user.createdAt ?? new Date().toISOString(),
-      });
-      router.replace('/dashboard');
-    } catch {
-      setErreur('Accès démo temporairement indisponible. Contactez IBIG Soft.');
-    } finally {
-      setLoadingDemo(false);
     }
   };
 
@@ -281,37 +251,6 @@ function LoginContent() {
                 )}
               </button>
             </form>
-
-            {/* Séparateur */}
-            <div className="flex items-center gap-3 my-5">
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>ou</span>
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
-            </div>
-
-            {/* Accès démo */}
-            <div style={{ background: 'rgba(0,158,0,0.08)', border: '1px solid rgba(0,158,0,0.2)', borderRadius: 14, padding: '14px 16px' }}>
-              <div className="flex items-center justify-between mb-3">
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#009E00', letterSpacing: '0.05em' }}>ESPACE DÉMO</span>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Accès immédiat</span>
-              </div>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 12, lineHeight: 1.5 }}>
-                Explorez GESTMONEY avec des données fictives, sans engagement.
-              </p>
-              <button
-                onClick={handleDemoAccess}
-                disabled={loadingDemo}
-                style={{
-                  width: '100%', padding: '10px', borderRadius: 10, border: '1px solid rgba(0,158,0,0.4)',
-                  background: 'rgba(0,158,0,0.15)', color: '#fff', fontSize: 13, fontWeight: 700,
-                  cursor: loadingDemo ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  opacity: loadingDemo ? 0.6 : 1,
-                }}
-              >
-                {loadingDemo ? 'Connexion...' : '⚡ Accéder à la démo'}
-              </button>
-            </div>
           </div>
 
           {/* Bande opérateurs + heure */}
