@@ -112,16 +112,11 @@ export function FooterGestmoney() {
       }}
     >
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
-            gap: 'clamp(28px,4vw,44px)',
-            marginBottom: 40,
-          }}
-        >
-          {/* Marque + réseaux */}
-          <div style={{ minWidth: 210 }}>
+        {/* Grille principale : marque + 4 colonnes de liens, sur une seule
+            rangée en grand écran (colonnes explicites — un auto-fit faisait
+            retomber la 5e colonne à la ligne et étirait le footer). */}
+        <div className="gm-foot-grid">
+          <div>
             <Logo variante="compact" theme="sombre" />
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '14px 0 0', lineHeight: 1.65, maxWidth: '32ch' }}>
               La plateforme intelligente de gestion des réseaux Mobile Money en Afrique :
@@ -130,28 +125,6 @@ export function FooterGestmoney() {
             <p style={{ fontSize: 12, color: VERT, marginTop: 10, fontStyle: 'italic' }}>
               L&apos;excellence est notre passion
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 18 }}>
-              {RESEAUX.map((r) => (
-                <a
-                  key={r.nom}
-                  href={r.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="gm-footer-reseau"
-                  style={{
-                    fontSize: 11.5,
-                    color: 'rgba(255,255,255,0.5)',
-                    textDecoration: 'none',
-                    padding: '5px 10px',
-                    borderRadius: 999,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    transition: 'color .15s ease, border-color .15s ease',
-                  }}
-                >
-                  {r.nom}
-                </a>
-              ))}
-            </div>
           </div>
 
           {COLONNES.map((col) => (
@@ -170,41 +143,42 @@ export function FooterGestmoney() {
               ))}
             </nav>
           ))}
+        </div>
 
-          {/* Nous joindre — repris du footer universel IBIG SOFT */}
-          <div>
-            <p style={titreColonne}>Nous joindre</p>
-            <a href={`tel:${CONTACT.tel1.replace(/\s/g, '')}`} className="gm-footer-lien" style={styleLien}>
-              {CONTACT.tel1}
-            </a>
-            <a href={`tel:${CONTACT.tel2.replace(/\s/g, '')}`} className="gm-footer-lien" style={styleLien}>
-              {CONTACT.tel2}
-            </a>
-            <a href={CONTACT.whatsappLien} target="_blank" rel="noopener noreferrer" className="gm-footer-lien" style={styleLien}>
+        {/* Bande contacts + réseaux : en ligne plutôt qu'en colonne, pour ne pas
+            allonger le footer. Reprend les coordonnées du groupe IBIG SOFT. */}
+        <div className="gm-foot-bande">
+          <div className="gm-foot-contacts">
+            <a href={`tel:${CONTACT.tel1.replace(/\s/g, '')}`} className="gm-footer-lien gm-inline">{CONTACT.tel1}</a>
+            <a href={`tel:${CONTACT.tel2.replace(/\s/g, '')}`} className="gm-footer-lien gm-inline">{CONTACT.tel2}</a>
+            <a href={CONTACT.whatsappLien} target="_blank" rel="noopener noreferrer" className="gm-footer-lien gm-inline">
               WhatsApp {CONTACT.whatsapp}
             </a>
-            <a href="mailto:gestmoney@ibigsoft.com" className="gm-footer-lien" style={styleLien}>
-              gestmoney@ibigsoft.com
-            </a>
-            <a href="mailto:support@ibigsoft.com" className="gm-footer-lien" style={styleLien}>
-              support@ibigsoft.com
-            </a>
-            <a href="mailto:legal@ibigsoft.com" className="gm-footer-lien" style={styleLien}>
-              legal@ibigsoft.com
-            </a>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: '14px 0 4px', lineHeight: 1.5 }}>
-              {CONTACT.ville}
-            </p>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: 0, lineHeight: 1.5 }}>
-              {CONTACT.horaires}
-            </p>
+            <a href="mailto:gestmoney@ibigsoft.com" className="gm-footer-lien gm-inline">gestmoney@ibigsoft.com</a>
+            <a href="mailto:support@ibigsoft.com" className="gm-footer-lien gm-inline">support@ibigsoft.com</a>
+            <a href="mailto:legal@ibigsoft.com" className="gm-footer-lien gm-inline">legal@ibigsoft.com</a>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{CONTACT.ville}</span>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{CONTACT.horaires}</span>
+          </div>
+          <div className="gm-foot-reseaux">
+            {RESEAUX.map((r) => (
+              <a
+                key={r.nom}
+                href={r.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="gm-footer-reseau"
+              >
+                {r.nom}
+              </a>
+            ))}
           </div>
         </div>
 
         <div
           style={{
-            borderTop: '1px solid rgba(255,255,255,0.07)',
-            paddingTop: 20,
+            /* Pas de filet ici : la bande contacts juste au-dessus en porte déjà un. */
+            paddingTop: 4,
             display: 'flex',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
@@ -231,10 +205,51 @@ export function FooterGestmoney() {
       </div>
 
       <style>{`
+        .gm-foot-grid {
+          display: grid;
+          grid-template-columns: 1.5fr repeat(4, minmax(0, 1fr));
+          gap: clamp(24px, 3vw, 40px);
+          margin-bottom: 32px;
+        }
+        .gm-foot-bande {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px 28px;
+          padding: 20px 0;
+          border-top: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          margin-bottom: 18px;
+        }
+        .gm-foot-contacts { display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: center; }
+        .gm-foot-reseaux  { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        /* Liens de la bande : en ligne, sans la marge basse des colonnes. */
+        .gm-footer-lien.gm-inline { display: inline; margin-bottom: 0; font-size: 13px; }
+
+        .gm-footer-reseau {
+          font-size: 11.5px;
+          color: rgba(255,255,255,0.5);
+          text-decoration: none;
+          padding: 5px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.12);
+          transition: color .15s ease, border-color .15s ease;
+        }
+
         .gm-footer-lien:hover { color: ${OR} !important; }
         .gm-footer-reseau:hover { color: ${OR}; border-color: ${OR}; }
         .gm-footer-lien:focus-visible,
         .gm-footer-reseau:focus-visible { outline: 2px solid ${VERT}; outline-offset: 3px; border-radius: 3px; }
+
+        @media (max-width: 1024px) {
+          .gm-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) {
+          .gm-foot-grid { grid-template-columns: 1fr; gap: 28px; }
+          .gm-foot-bande { justify-content: flex-start; }
+        }
       `}</style>
     </footer>
   );
