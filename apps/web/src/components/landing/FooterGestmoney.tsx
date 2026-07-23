@@ -246,9 +246,13 @@ export function FooterGestmoney() {
         @media (max-width: 1024px) {
           .gm-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
+        /* Mobile : les listes restent sur 2 colonnes (une seule doublait la
+           hauteur du footer), la marque occupe toute la largeur. */
         @media (max-width: 560px) {
-          .gm-foot-grid { grid-template-columns: 1fr; gap: 28px; }
+          .gm-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 20px; }
+          .gm-foot-grid > div:first-child { grid-column: 1 / -1; }
           .gm-foot-bande { justify-content: flex-start; }
+          .gm-foot-contacts { gap: 6px 16px; }
         }
       `}</style>
     </footer>
