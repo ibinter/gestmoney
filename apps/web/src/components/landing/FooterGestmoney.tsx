@@ -39,15 +39,16 @@ const COLONNES: { titre: string; liens: Lien[] }[] = [
       { label: 'Cas pratiques', href: '/guide/cas-pratiques' },
       { label: 'Lexique Mobile Money', href: '/guide/lexique' },
       { label: 'Questions fréquentes', href: '#faq' },
-      { label: 'Support & assistance', href: '/dashboard/support' },
     ],
   },
   {
+    // Ces liens mènent à l'application : un visiteur non connecté est renvoyé
+    // vers /login, ce qui est le comportement attendu pour un espace client.
     titre: 'Espace client',
     liens: [
       { label: 'Se connecter', href: '/login' },
       { label: 'Créer un compte', href: '/register' },
-      { label: 'Mot de passe oublié', href: '/forgot-password' },
+      { label: 'Support & assistance', href: '/dashboard/support' },
       { label: 'Mon abonnement', href: '/dashboard/abonnement' },
     ],
   },
