@@ -43,6 +43,11 @@ function isPublic(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true;
   if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r + '/'))) return true;
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+  // Fichiers statiques servis depuis public/ (.js, .css, .png, .svg, .json…) :
+  // ils sont publics par nature. Les routes applicatives et l'API n'ont pas
+  // d'extension, la règle ne les touche donc pas. Évite d'avoir à lister
+  // chaque nouvel asset (ex. /ibigsoft-universal.js renvoyait un 307).
+  if (/\.[a-zA-Z0-9]{2,5}$/.test(pathname)) return true;
   return false;
 }
 
