@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { SaraBubble } from '@/components/landing/SaraBubble';
 import { WhatsAppBubble } from '@/components/landing/WhatsAppBubble';
 import { Logo } from '@/components/ui/Logo';
@@ -910,41 +911,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ background: '#0a2e15', borderTop: '1px solid rgba(255,255,255,0.06)', padding: 'clamp(40px,6vh,64px) clamp(16px,4vw,48px) 32px', color: '#fff' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 40, marginBottom: 48 }}>
-            <div>
-              <Logo variante="compact" theme="sombre" />
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 12, lineHeight: 1.6 }}>
-                La plateforme intelligente de gestion des réseaux Mobile Money en Afrique.
-              </p>
-              <p style={{ fontSize: 12, color: '#009E00', marginTop: 8, fontStyle: 'italic' }}>L&apos;excellence est notre passion</p>
-            </div>
-            {[
-              { titre: 'Navigation', liens: [['Fonctionnalités','#fonctionnalites'],['Modules','#modules'],['Tarifs','#tarifs'],['Moyens de paiement','#paiement'],['Démonstration','#contact'],['Connexion','/login'],['Créer un compte','/register']] },
-              { titre: 'Ressources', liens: [['Guide utilisateur','/guide'],['Cas pratiques','/guide/cas-pratiques'],['FAQ','#faq'],['Support','/dashboard/support']] },
-              { titre: 'IBIG Soft', liens: [['À propos','https://ibigsoft.com'],['IBIG PARTNERS','https://ibigpartners.com/'],['Devenir partenaire','https://ibigpartners.com/'],['Contact','mailto:contact@ibigsoft.com']] },
-            ].map(col => (
-              <div key={col.titre}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', color: 'rgba(255,255,255,0.3)', marginBottom: 16, textTransform: 'uppercase' }}>{col.titre}</p>
-                {col.liens.map(([label, href]) => (
-                  <a key={label} href={href} target={href.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer"
-                    style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.5)', textDecoration: 'none', marginBottom: 10 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#FFD000')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
-                    {label}
-                  </a>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 24, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>© {new Date().getFullYear()} GESTMONEY · IBIG Soft — Intermark Business International Group</p>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Made with ❤️ pour l&apos;Afrique</p>
-          </div>
-        </div>
-      </footer>
+      {/* ── Écosystème IBIG SOFT (« Nos solutions ») + footer universel ── */}
+      {/* Injectés par /ibigsoft-universal.js (détection auto = gestmoney).   */}
+      <div data-ibig="solutions" />
+      <div data-ibig="footer" />
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
@@ -982,6 +952,15 @@ export default function LandingPage() {
       <SaraBubble />
       {/* Bulle WhatsApp — contact humain (bas gauche, si numéro configuré) */}
       <WhatsAppBubble />
+
+      {/* Script universel IBIG SOFT : section « Nos solutions » + footer commun.
+          Détecte gestmoney via le domaine ; remplit les <div data-ibig> ci-dessus. */}
+      <Script
+        src="/ibigsoft-universal.js"
+        strategy="afterInteractive"
+        data-solution="gestmoney"
+        data-accent="#059669"
+      />
     </div>
   );
 }
