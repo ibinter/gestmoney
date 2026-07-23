@@ -912,14 +912,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Écosystème IBIG SOFT (« Nos solutions ») + footer universel ── */}
-      {/* Injectés par /ibigsoft-universal.js (détection auto = gestmoney).   */}
+      {/* ── Écosystème IBIG SOFT (« Nos solutions ») ── */}
+      {/* Injecté par /ibigsoft-universal.js (détection auto = gestmoney).    */}
       <div data-ibig="solutions" />
-      {/* Bandeau propre au produit : le footer universel ne porte que les infos
-          du groupe, ce bloc réintègre la navigation, les ressources, l'espace
-          client et les documents légaux GESTMONEY. */}
+      {/* Footer unique : celui de GESTMONEY. Le footer universel du script est
+          désactivé (data-render="solutions") pour ne pas faire doublon ; ses
+          informations utiles sont reprises dans FooterGestmoney. */}
       <FooterGestmoney />
-      <div data-ibig="footer" />
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
@@ -958,13 +957,15 @@ export default function LandingPage() {
       {/* Bulle WhatsApp — contact humain (bas gauche, si numéro configuré) */}
       <WhatsAppBubble />
 
-      {/* Script universel IBIG SOFT : section « Nos solutions » + footer commun.
-          Détecte gestmoney via le domaine ; remplit les <div data-ibig> ci-dessus. */}
+      {/* Script universel IBIG SOFT, limité à la section « Nos solutions ».
+          data-render="solutions" : on n'injecte PAS le footer universel, le
+          footer GESTMONEY est le seul de la page. */}
       <Script
         src="/ibigsoft-universal.js"
         strategy="afterInteractive"
         data-solution="gestmoney"
         data-accent="#059669"
+        data-render="solutions"
       />
     </div>
   );
