@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Script from 'next/script';
 import { SaraBubble } from '@/components/landing/SaraBubble';
 import { WhatsAppBubble } from '@/components/landing/WhatsAppBubble';
+import { FooterGestmoney } from '@/components/landing/FooterGestmoney';
 import { Logo } from '@/components/ui/Logo';
 
 // ─── Données ───────────────────────────────────────────────────
@@ -914,6 +915,10 @@ export default function LandingPage() {
       {/* ── Écosystème IBIG SOFT (« Nos solutions ») + footer universel ── */}
       {/* Injectés par /ibigsoft-universal.js (détection auto = gestmoney).   */}
       <div data-ibig="solutions" />
+      {/* Bandeau propre au produit : le footer universel ne porte que les infos
+          du groupe, ce bloc réintègre la navigation, les ressources, l'espace
+          client et les documents légaux GESTMONEY. */}
+      <FooterGestmoney />
       <div data-ibig="footer" />
 
       <style>{`
