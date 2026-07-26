@@ -10,9 +10,10 @@ export interface User {
   email: string;
   role: 'super_admin' | 'SUPER_ADMIN' | 'admin' | 'ADMIN' | 'superviseur' | 'SUPERVISEUR' | 'agent' | 'AGENT' | 'caissier' | 'CAISSIER' | 'VIEWER';
   agenceId?: string;
+  tenantId?: string;
   avatar?: string;
   actif: boolean;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface AuthState {
