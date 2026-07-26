@@ -1,17 +1,42 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { FloatService } from '../float.service';
+import { FloatService, FLOAT_EVENTS } from '../float.service';
 import {
   TRANSACTION_EVENTS,
   TransactionCompletedEvent,
   TransactionReversedEvent,
 } from '../../transactions/events/transaction.events';
+import { AlertesService } from '../../alertes/alertes.service';
 
 @Injectable()
 export class FloatListener {
   private readonly logger = new Logger(FloatListener.name);
 
-  constructor(private readonly floatService: FloatService) {}
+  constructor(
+    private readonly floatService: FloatService,
+    private readonly alertesService: AlertesService,
+  ) {}
+
+  @OnEvent(FLOAT_EVENTS.REPLENISHMENT_REQUESTED)
+  async handleReplenishmentRequested(event: { request: any; tenantId: string }): Promise<void> {
+    const { request, tenantId } = event;
+    const operateur = (request.operateur ?? '').toUpperCase();
+    const montant = Number(request.montantDemande ?? 0).toLocaleString('fr-CI');
+    const demandeur = request.demandeurNom ?? 'Un agent';
+
+    try {
+      await this.alertesService.emettreAlerte(
+        tenantId,
+        'RECHARGE_FLOAT',
+        `Demande de recharge float — ${operateur}`,
+        `${demandeur} demande un rechargement de ${montant} FCFA sur ${operateur}. À approuver dans Float > Demandes en attente.`,
+        'WARNING',
+      );
+      this.logger.log(`Alerte recharge float émise pour tenant ${tenantId}`);
+    } catch (error: any) {
+      this.logger.error(`Erreur émission alerte recharge : ${error.message}`);
+    }
+  }
 
   @OnEvent(TRANSACTION_EVENTS.COMPLETED)
   async handleTransactionCompleted(event: TransactionCompletedEvent): Promise<void> {

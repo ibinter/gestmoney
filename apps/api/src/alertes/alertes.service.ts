@@ -6,7 +6,7 @@ import { PushService } from '../push/push.service';
 import { UpdateConfigAlertesDto } from './dto/alertes.dto';
 import { normaliserPagination } from '../common/utils/pagination';
 
-export type TypeAlerte = 'FLOAT_BAS' | 'TRANSACTION_SUSPECTE' | 'EXPIRATION' | 'AUDIT_QUOTIDIEN';
+export type TypeAlerte = 'FLOAT_BAS' | 'TRANSACTION_SUSPECTE' | 'EXPIRATION' | 'AUDIT_QUOTIDIEN' | 'RECHARGE_FLOAT';
 export type SeveriteAlerte = 'INFO' | 'WARNING' | 'CRITICAL';
 
 @Injectable()
