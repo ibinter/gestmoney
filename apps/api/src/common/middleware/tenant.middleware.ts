@@ -23,16 +23,18 @@ export class TenantMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const headerTenantId = req.headers['x-tenant-id'] as string | undefined;
 
-    // Si un JWT est présent, il fait autorité sur l'identité du tenant.
+    // Si un JWT est présent (cookie httpOnly ou Bearer), il fait autorité.
     // Le header X-Tenant-ID n'est accepté que s'il correspond EXACTEMENT
     // au tenantId du JWT — toute divergence est rejetée pour prévenir
-    // les attaques de fuite inter-tenant (un client forgé son propre header).
+    // les attaques de fuite inter-tenant.
+    const cookieToken = (req.cookies as Record<string, string> | undefined)?.['gestmoney_token'];
     const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+    const token = cookieToken ?? bearerToken;
+    if (token) {
       try {
         const payload = this.jwtService.verify<any>(token, {
-          secret: this.configService.get('jwt.secret'),
+          secret: this.configService.get<string>('JWT_SECRET', 'gestmoney-super-secret-jwt-key-for-dev-32chars!'),
         });
         if (payload?.tenantId) {
           if (headerTenantId && headerTenantId !== payload.tenantId) {
