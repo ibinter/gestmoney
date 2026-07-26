@@ -116,16 +116,12 @@ export function useCreerDemandeReappro() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: Partial<DemandeReapprovisionnement>) => {
-      try {
-        const res = await api.post('/float/replenish', {
-          operateur: toOperateurApi(data.operateur),
-          montantDemande: data.montant,
-          justification: data.commentaire,
-        });
-        return res.data;
-      } catch {
-        return { ...data, id: Date.now().toString(), statut: 'en_attente' } as DemandeReapprovisionnement;
-      }
+      const res = await api.post('/float/replenish', {
+        operateur: toOperateurApi(data.operateur),
+        montantDemande: data.montant,
+        justification: data.commentaire,
+      });
+      return res.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: FLOAT_KEYS.all }),
   });
