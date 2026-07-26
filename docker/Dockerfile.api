@@ -1,42 +1,41 @@
 # ==============================================================================
 # Dockerfile pour l'API NestJS - GESTMONEY
+# Approche: installation + build dans un seul stage, runner minimaliste
 # ==============================================================================
 
-# ---- Stage 1: Base ----
 FROM node:20-alpine AS base
 RUN npm install -g pnpm@9
 WORKDIR /app
 
-# ---- Stage 2: Dependencies ----
-FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+# ---- Stage Builder : install + build dans le même contexte ----
+FROM base AS builder
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* .npmrc* ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/database/package.json ./packages/database/
-
-RUN pnpm install --no-frozen-lockfile --filter @gestmoney/api... --filter @gestmoney/shared --filter @gestmoney/database
-
-# ---- Stage 3: Builder ----
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/database/node_modules ./packages/database/node_modules
 
 COPY turbo.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
+# Installation avec shamefully-hoist pour éviter les symlinks pnpm cassés
+RUN pnpm install --no-frozen-lockfile \
+    --filter @gestmoney/api... \
+    --filter @gestmoney/shared \
+    --filter @gestmoney/database \
+    --shamefully-hoist
+
 # Générer le client Prisma
 RUN pnpm --filter @gestmoney/database db:generate
 
-# Build TypeScript via nest-cli (webpack bundle → dist/main.js)
-# Fallback: tsc direct avec rootDir=src pour garantir dist/main.js
-RUN ls apps/api/ && \
-    (cd apps/api && node_modules/.bin/nest build 2>&1 || node_modules/.bin/tsc -p tsconfig.json --rootDir src --noEmitOnError false --skipLibCheck 2>&1 || true); \
-    test -f apps/api/dist/main.js && echo "Build OK" || echo "WARNING: dist/main.js not found"
+# Build avec nest/webpack → dist/main.js bundlé (sans dépendances externes)
+RUN cd apps/api && node_modules/.bin/nest build 2>&1; \
+    test -f /app/apps/api/dist/main.js && echo "Nest build OK" || \
+    (node_modules/.bin/tsc -p tsconfig.json --rootDir src --noEmitOnError false --skipLibCheck 2>&1 || true); \
+    test -f /app/apps/api/dist/main.js && echo "Build OK" || echo "WARNING: dist/main.js not found"
 
-# ---- Stage 4: Runner (Production) ----
+# ---- Stage Runner : image minimale de production ----
 FROM node:20-alpine AS runner
 
 WORKDIR /app
@@ -47,11 +46,14 @@ RUN apk add --no-cache openssl && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
-# Structure complète workspace pour que pnpm symlinks fonctionnent correctement
-# Le dist est dans apps/api/dist/ pour la résolution de modules
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/apps/api/node_modules ./apps/api/node_modules
+# Copier le bundle compilé
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/dist ./apps/api/dist
+
+# Copier les node_modules hoistés (plats, sans symlinks cassés)
+COPY --from=builder --chown=nestjs:nodejs /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+
+# Copier les packages partagés (Prisma client notamment)
 COPY --from=builder --chown=nestjs:nodejs /app/packages ./packages
 
 USER nestjs
@@ -61,5 +63,4 @@ EXPOSE 3010
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:3010/api/v1/health || exit 1
 
-# Lancer depuis apps/api/dist/ pour que Node.js resolve modules dans apps/api/node_modules/
 CMD ["node", "apps/api/dist/main.js"]
