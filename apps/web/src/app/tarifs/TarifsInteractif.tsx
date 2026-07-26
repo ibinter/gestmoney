@@ -8,7 +8,7 @@ import Link from 'next/link';
 const PLANS_MENSUEL = [
   {
     nom: 'STARTER',
-    prix: '29 900',
+    prix: '9 900',
     devise: 'FCFA/mois',
     badge: null,
     ideal: 'Idéal pour démarrer',
@@ -18,18 +18,42 @@ const PLANS_MENSUEL = [
     accentTxt: '#fff',
     headColor: '#009E00',
     cta: 'Commencer l\'essai gratuit',
-    href: '/register',
+    href: '/register?plan=STARTER',
     features: [
-      'Jusqu\'à 3 agences',
-      'Jusqu\'à 15 agents',
-      'Transactions illimitées',
-      'Rapports de base',
-      'Support email',
+      '1 agence — jusqu\'à 5 agents',
+      '4 opérateurs Mobile Money',
+      'Transactions & float',
+      'Commissions automatiques',
+      'Rapport mensuel PDF',
+      'Support email (48h)',
     ],
   },
   {
-    nom: 'PRO',
-    prix: '59 900',
+    nom: 'ESSENTIEL',
+    prix: '19 900',
+    devise: 'FCFA/mois',
+    badge: null,
+    ideal: 'Pour les PME en croissance',
+    accentBg: '#f0fdf4',
+    accentBorder: '#86efac',
+    accentBtn: '#16a34a',
+    accentTxt: '#fff',
+    headColor: '#16a34a',
+    cta: 'Commencer l\'essai gratuit',
+    href: '/register?plan=ESSENTIEL',
+    features: [
+      '3 agences — jusqu\'à 15 agents',
+      '6 opérateurs Mobile Money',
+      'Transactions, float & caisse',
+      'Commissions + Reporting BI',
+      'Comptabilité OHADA de base',
+      'Export PDF / XLSX',
+      'Support prioritaire (24h)',
+    ],
+  },
+  {
+    nom: 'PROFESSIONAL',
+    prix: '39 900',
     devise: 'FCFA/mois',
     badge: '⭐ Recommandé',
     ideal: 'Réseaux établis & fintech',
@@ -39,15 +63,17 @@ const PLANS_MENSUEL = [
     accentTxt: '#111',
     headColor: '#b45309',
     cta: 'Commencer l\'essai gratuit',
-    href: '/register',
+    href: '/register?plan=PROFESSIONAL',
     features: [
-      'Jusqu\'à 15 agences',
-      'Agents illimités',
-      'Analytics avancés',
-      'Export PDF / Excel',
-      'Webhooks & API',
-      'Support prioritaire 24h',
-      'Clés API partenaires',
+      '15 agences — agents illimités',
+      'Opérateurs Mobile Money illimités',
+      'Tous les modules métier',
+      'Compatibilité OHADA complète',
+      'Reporting & BI avancés',
+      'Assistant IA SARA inclus',
+      'KYC & Clients intégrés',
+      'API & intégrations',
+      'Support dédié (4h)',
     ],
   },
   {
@@ -61,15 +87,17 @@ const PLANS_MENSUEL = [
     accentBtn: '#0369a1',
     accentTxt: '#fff',
     headColor: '#0369a1',
-    cta: 'Contacter les ventes',
+    cta: 'Nous contacter',
     href: '#contact',
     features: [
-      'Agences illimitées',
-      'SLA garanti 99.9%',
-      'Intégration Mobile Money personnalisée',
-      'Formation sur site',
-      'Support dédié',
-      'Hébergement sur infrastructure propre',
+      'Agences & agents illimités',
+      'Multi-pays & multidevise',
+      'Personnalisation complète',
+      'Intégration & onboarding',
+      'SLA garanti 99,9%',
+      'CUSTOM & API dédiée',
+      'Accompagnement expert dédié',
+      'Formation & onboarding',
     ],
   },
 ];
@@ -86,56 +114,56 @@ const COMPARATIF = [
   {
     cat: 'Agences & Agents',
     lignes: [
-      { feat: 'Nombre d\'agences',    starter: '3',   pro: '15',  enterprise: 'Illimité' },
-      { feat: 'Nombre d\'agents',     starter: '15',  pro: 'Illimité', enterprise: 'Illimité' },
-      { feat: 'Super-agents',         starter: '✅',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Multi-pays',           starter: '❌',  pro: '❌',  enterprise: '✅' },
+      { feat: 'Nombre d\'agences',    starter: '1',    essentiel: '3',    pro: '15',       enterprise: 'Illimité' },
+      { feat: 'Nombre d\'agents',     starter: '5',    essentiel: '15',   pro: 'Illimité', enterprise: 'Illimité' },
+      { feat: 'Super-agents',         starter: '✅',   essentiel: '✅',   pro: '✅',       enterprise: '✅' },
+      { feat: 'Multi-pays',           starter: '❌',   essentiel: '❌',   pro: '❌',       enterprise: '✅' },
     ],
   },
   {
     cat: 'Transactions',
     lignes: [
-      { feat: 'Transactions/mois',    starter: 'Illimitées', pro: 'Illimitées', enterprise: 'Illimitées' },
-      { feat: 'Opérateurs Mobile Money', starter: '5+',  pro: '12+', enterprise: 'Illimité' },
-      { feat: 'Gestion du float',     starter: '✅',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Caisse & coffre',      starter: '✅',  pro: '✅',  enterprise: '✅' },
+      { feat: 'Transactions/mois',       starter: 'Illimitées', essentiel: 'Illimitées', pro: 'Illimitées', enterprise: 'Illimitées' },
+      { feat: 'Opérateurs Mobile Money', starter: '4',          essentiel: '6',          pro: 'Illimité',   enterprise: 'Illimité' },
+      { feat: 'Gestion du float',        starter: '✅',         essentiel: '✅',         pro: '✅',         enterprise: '✅' },
+      { feat: 'Caisse & coffre',         starter: '✅',         essentiel: '✅',         pro: '✅',         enterprise: '✅' },
     ],
   },
   {
     cat: 'Rapports',
     lignes: [
-      { feat: 'Tableaux de bord',     starter: 'Basique', pro: 'Avancé', enterprise: 'Personnalisé' },
-      { feat: 'Export PDF',           starter: '✅',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Export Excel',         starter: '❌',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Analytics temps réel', starter: '❌',  pro: '✅',  enterprise: '✅' },
-      { feat: 'BI & Recharts',        starter: '❌',  pro: '✅',  enterprise: '✅' },
+      { feat: 'Tableaux de bord',     starter: 'Basique', essentiel: 'Avancé',    pro: 'Avancé',      enterprise: 'Personnalisé' },
+      { feat: 'Export PDF',           starter: '✅',      essentiel: '✅',        pro: '✅',           enterprise: '✅' },
+      { feat: 'Export Excel',         starter: '❌',      essentiel: '✅',        pro: '✅',           enterprise: '✅' },
+      { feat: 'Analytics temps réel', starter: '❌',      essentiel: '❌',        pro: '✅',           enterprise: '✅' },
+      { feat: 'BI & Recharts',        starter: '❌',      essentiel: '❌',        pro: '✅',           enterprise: '✅' },
     ],
   },
   {
     cat: 'Sécurité',
     lignes: [
-      { feat: 'Chiffrement TLS/AES',  starter: '✅',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Journal d\'audit',     starter: '✅',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Détection de fraudes', starter: '❌',  pro: '✅',  enterprise: '✅' },
-      { feat: 'SLA garanti 99.9%',    starter: '❌',  pro: '❌',  enterprise: '✅' },
+      { feat: 'Chiffrement TLS/AES',  starter: '✅', essentiel: '✅', pro: '✅', enterprise: '✅' },
+      { feat: 'Journal d\'audit',     starter: '✅', essentiel: '✅', pro: '✅', enterprise: '✅' },
+      { feat: 'Détection de fraudes', starter: '❌', essentiel: '❌', pro: '✅', enterprise: '✅' },
+      { feat: 'SLA garanti 99.9%',    starter: '❌', essentiel: '❌', pro: '❌', enterprise: '✅' },
     ],
   },
   {
     cat: 'Intégrations',
     lignes: [
-      { feat: 'API REST',             starter: '❌',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Webhooks',             starter: '❌',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Clés API partenaires', starter: '❌',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Intégration dédiée',   starter: '❌',  pro: '❌',  enterprise: '✅' },
+      { feat: 'API REST',             starter: '❌', essentiel: '❌', pro: '✅', enterprise: '✅' },
+      { feat: 'Webhooks',             starter: '❌', essentiel: '❌', pro: '✅', enterprise: '✅' },
+      { feat: 'Clés API partenaires', starter: '❌', essentiel: '❌', pro: '✅', enterprise: '✅' },
+      { feat: 'Intégration dédiée',   starter: '❌', essentiel: '❌', pro: '❌', enterprise: '✅' },
     ],
   },
   {
     cat: 'Support',
     lignes: [
-      { feat: 'Support email',        starter: '✅',  pro: '✅',  enterprise: '✅' },
-      { feat: 'Support prioritaire',  starter: '❌',  pro: '24h', enterprise: 'Dédié' },
-      { feat: 'Formation sur site',   starter: '❌',  pro: '❌',  enterprise: '✅' },
-      { feat: 'Assistant IA SARA',    starter: '❌',  pro: '✅',  enterprise: '✅' },
+      { feat: 'Support email',      starter: '✅', essentiel: '✅',  pro: '✅',     enterprise: '✅' },
+      { feat: 'Délai de réponse',   starter: '48h', essentiel: '24h', pro: '4h',   enterprise: 'Dédié' },
+      { feat: 'Formation sur site', starter: '❌', essentiel: '❌',  pro: '❌',     enterprise: '✅' },
+      { feat: 'Assistant IA SARA',  starter: '❌', essentiel: '❌',  pro: '✅',     enterprise: '✅' },
     ],
   },
 ];
@@ -302,9 +330,9 @@ export function TarifsInteractif() {
             <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', minWidth: 600 }}>
               <thead>
                 <tr style={{ background: '#0a2e15' }}>
-                  <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.6)', width: '40%' }}>Fonctionnalité</th>
-                  {['STARTER', 'PRO', 'ENTERPRISE'].map(n => (
-                    <th key={n} style={{ padding: '16px 20px', textAlign: 'center', fontSize: 13, fontWeight: 900, color: '#FFD000' }}>{n}</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.6)', width: '30%' }}>Fonctionnalité</th>
+                  {['STARTER', 'ESSENTIEL', 'PROFESSIONAL', 'ENTERPRISE'].map((n, i) => (
+                    <th key={n} style={{ padding: '16px 20px', textAlign: 'center', fontSize: 13, fontWeight: 900, color: i === 2 ? '#FFD000' : 'rgba(255,255,255,0.85)' }}>{n}</th>
                   ))}
                 </tr>
               </thead>
@@ -312,14 +340,15 @@ export function TarifsInteractif() {
                 {COMPARATIF.map((cat, ci) => (
                   <React.Fragment key={ci}>
                     <tr>
-                      <td colSpan={4} style={{ padding: '12px 20px', fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#009E00', background: '#f0fdf4', borderTop: ci > 0 ? '1px solid #d1fae5' : 'none' }}>
+                      <td colSpan={5} style={{ padding: '12px 20px', fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#009E00', background: '#f0fdf4', borderTop: ci > 0 ? '1px solid #d1fae5' : 'none' }}>
                         {cat.cat}
                       </td>
                     </tr>
-                    {cat.lignes.map((l, li) => (
+                    {cat.lignes.map((l: any, li) => (
                       <tr key={li} style={{ borderBottom: '1px solid #f0f0f0', background: li % 2 === 0 ? '#fff' : '#fafafa' }}>
                         <td style={{ padding: '13px 20px', fontSize: 14, color: '#374151' }}>{l.feat}</td>
                         <td style={{ padding: '13px 20px', textAlign: 'center', fontSize: 14, color: l.starter === '❌' ? '#d1d5db' : '#111', fontWeight: l.starter === '✅' || l.starter === '❌' ? 700 : 600 }}>{l.starter}</td>
+                        <td style={{ padding: '13px 20px', textAlign: 'center', fontSize: 14, color: l.essentiel === '❌' ? '#d1d5db' : '#111', fontWeight: l.essentiel === '✅' || l.essentiel === '❌' ? 700 : 600 }}>{l.essentiel}</td>
                         <td style={{ padding: '13px 20px', textAlign: 'center', fontSize: 14, color: l.pro === '❌' ? '#d1d5db' : '#111', fontWeight: l.pro === '✅' || l.pro === '❌' ? 700 : 600, background: 'rgba(255,208,0,0.04)' }}>{l.pro}</td>
                         <td style={{ padding: '13px 20px', textAlign: 'center', fontSize: 14, color: l.enterprise === '❌' ? '#d1d5db' : '#111', fontWeight: l.enterprise === '✅' || l.enterprise === '❌' ? 700 : 600 }}>{l.enterprise}</td>
                       </tr>

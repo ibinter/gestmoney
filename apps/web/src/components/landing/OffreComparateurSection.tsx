@@ -27,25 +27,36 @@ const OFFRES: Offre[] = [
   {
     id: 'starter',
     nom: 'STARTER',
-    prix: '25 000 FCFA',
+    prix: '9 900 FCFA',
     prixSub: '/mois',
     utilisateurs: '5',
+    agences: '1',
+    support: 'Email',
+    cta: "S'inscrire",
+    ctaHref: '/register?plan=STARTER',
+  },
+  {
+    id: 'essentiel',
+    nom: 'ESSENTIEL',
+    prix: '19 900 FCFA',
+    prixSub: '/mois',
+    utilisateurs: '15',
     agences: '3',
     support: 'Email',
     cta: "S'inscrire",
-    ctaHref: '/register?plan=starter',
+    ctaHref: '/register?plan=ESSENTIEL',
   },
   {
-    id: 'pro',
-    nom: 'PRO',
-    prix: '60 000 FCFA',
+    id: 'professional',
+    nom: 'PROFESSIONAL',
+    prix: '39 900 FCFA',
     prixSub: '/mois',
-    utilisateurs: '20',
+    utilisateurs: 'Illimité',
     agences: '15',
     support: 'Email + Chat',
     recommande: true,
     cta: 'Commencer',
-    ctaHref: '/register?plan=pro',
+    ctaHref: '/register?plan=PROFESSIONAL',
   },
   {
     id: 'enterprise',
@@ -63,21 +74,22 @@ const OFFRES: Offre[] = [
 type Fonctionnalite = {
   label: string;
   starter: boolean;
-  pro: boolean;
+  essentiel: boolean;
+  professional: boolean;
   enterprise: boolean;
 };
 
 const FONCTIONNALITES: Fonctionnalite[] = [
-  { label: 'Agents de terrain',   starter: true,  pro: true,  enterprise: true  },
-  { label: 'Flottes',             starter: true,  pro: true,  enterprise: true  },
-  { label: 'Commissions auto',    starter: false, pro: true,  enterprise: true  },
-  { label: 'Rapports avancés',    starter: false, pro: true,  enterprise: true  },
-  { label: 'Import Excel',        starter: true,  pro: true,  enterprise: true  },
-  { label: 'API & Webhooks',      starter: false, pro: false, enterprise: true  },
-  { label: 'SARA IA',             starter: false, pro: true,  enterprise: true  },
-  { label: 'Sauvegarde cloud',    starter: true,  pro: true,  enterprise: true  },
-  { label: 'Formation',           starter: false, pro: true,  enterprise: true  },
-  { label: 'Audit log',           starter: false, pro: false, enterprise: true  },
+  { label: 'Agents de terrain',   starter: true,  essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Flottes',             starter: true,  essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Commissions auto',    starter: false, essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Rapports avancés',    starter: false, essentiel: false, professional: true,  enterprise: true  },
+  { label: 'Import Excel',        starter: false, essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'API & Webhooks',      starter: false, essentiel: false, professional: true,  enterprise: true  },
+  { label: 'SARA IA',             starter: false, essentiel: false, professional: true,  enterprise: true  },
+  { label: 'Sauvegarde cloud',    starter: true,  essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Formation',           starter: false, essentiel: false, professional: false, enterprise: true  },
+  { label: 'Audit log',           starter: false, essentiel: false, professional: true,  enterprise: true  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -140,7 +152,8 @@ function TableauComparateur() {
             <tr key={f.label} className={i % 2 === 0 ? 'oc-tr-pair' : ''}>
               <td className="oc-td oc-td-label">{f.label}</td>
               <td className="oc-td oc-td-val"><Check ok={f.starter} /></td>
-              <td className="oc-td oc-td-val oc-td--recommande"><Check ok={f.pro} /></td>
+              <td className="oc-td oc-td-val"><Check ok={f.essentiel} /></td>
+              <td className="oc-td oc-td-val oc-td--recommande"><Check ok={f.professional} /></td>
               <td className="oc-td oc-td-val"><Check ok={f.enterprise} /></td>
             </tr>
           ))}
@@ -251,7 +264,7 @@ export function OffreComparateurSection() {
         /* ---- Grille de cartes ---- */
         .oc-grille {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(4, 1fr);
           gap: 20px;
           margin-bottom: 8px;
         }

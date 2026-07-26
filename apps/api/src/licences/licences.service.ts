@@ -57,9 +57,10 @@ interface MetaLicence {
 /** Rang des plans, pour distinguer une montée en gamme d'une rétrogradation. */
 const RANG_PLAN: Record<TenantPlan, number> = {
   [TenantPlan.STARTER]: 1,
-  [TenantPlan.PROFESSIONAL]: 2,
-  [TenantPlan.ENTERPRISE]: 3,
-  [TenantPlan.CUSTOM]: 4,
+  [TenantPlan.ESSENTIEL]: 2,
+  [TenantPlan.PROFESSIONAL]: 3,
+  [TenantPlan.ENTERPRISE]: 4,
+  [TenantPlan.CUSTOM]: 5,
 };
 
 /** Statuts pour lesquels l'accès à l'application reste ouvert. */

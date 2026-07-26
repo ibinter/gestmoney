@@ -185,6 +185,7 @@ enum TenantStatus {
 
 enum TenantPlan {
   STARTER
+  ESSENTIEL
   PROFESSIONAL
   ENTERPRISE
   CUSTOM

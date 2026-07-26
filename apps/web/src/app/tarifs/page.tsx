@@ -6,9 +6,9 @@ import { FooterGestmoney } from '@/components/landing/FooterGestmoney';
 import { BandeauInfo } from '@/components/landing/BandeauInfo';
 
 export const metadata: Metadata = {
-  title: 'Tarifs GESTMONEY — Plans Starter, Pro, Enterprise',
+  title: 'Tarifs GESTMONEY — Starter, Essentiel, Professional, Enterprise',
   description:
-    'Choisissez le plan GESTMONEY adapté à votre réseau Mobile Money. Essai gratuit 14 jours, sans carte bancaire. Plans à partir de 29 900 FCFA/mois.',
+    'Choisissez le plan GESTMONEY adapté à votre réseau Mobile Money. Essai gratuit 14 jours, sans carte bancaire. Plans à partir de 9 900 FCFA/mois.',
   openGraph: {
     title: 'Tarifs GESTMONEY',
     description: 'Plans flexibles pour tous les réseaux Mobile Money',
@@ -28,7 +28,7 @@ const jsonLd = {
     {
       '@type': 'Offer',
       name: 'Starter',
-      price: '29900',
+      price: '9900',
       priceCurrency: 'XOF',
       priceValidUntil: '2027-01-01',
       availability: 'https://schema.org/InStock',
@@ -36,8 +36,17 @@ const jsonLd = {
     },
     {
       '@type': 'Offer',
-      name: 'Pro',
-      price: '59900',
+      name: 'Essentiel',
+      price: '19900',
+      priceCurrency: 'XOF',
+      priceValidUntil: '2027-01-01',
+      availability: 'https://schema.org/InStock',
+      url: 'https://gestmoney.ibigsoft.com/tarifs',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Professional',
+      price: '39900',
       priceCurrency: 'XOF',
       priceValidUntil: '2027-01-01',
       availability: 'https://schema.org/InStock',
