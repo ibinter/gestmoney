@@ -145,7 +145,7 @@ function HealthDot({ compact }: { compact: boolean }) {
     let cancelled = false;
     const check = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/health`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+        const res = await fetch(`${API_BASE}/health`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
         if (!cancelled) setOk(res.ok);
       } catch {
         if (!cancelled) setOk(false);

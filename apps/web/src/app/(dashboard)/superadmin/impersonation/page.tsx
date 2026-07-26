@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 interface User {
   id: string;
@@ -45,12 +46,8 @@ export default function ImpersonationPage() {
   const loadSessions = async () => {
     setLoadingSessions(true);
     try {
-      const res = await fetch('/api/v1/auth/impersonate/sessions', {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        setSessions(await res.json());
-      }
+      const res = await api.get('/auth/impersonate/sessions');
+      setSessions(res.data ?? []);
     } catch {
       //
     } finally {
@@ -68,19 +65,12 @@ export default function ImpersonationPage() {
     setLoadingUsers(true);
     setUsers([]);
     try {
-      // Endpoint générique de recherche d'utilisateurs (à adapter selon API)
-      const res = await fetch(
-        `/api/v1/users?search=${encodeURIComponent(search)}&limit=20`,
-        { credentials: 'include' },
+      const res = await api.get(`/users?search=${encodeURIComponent(search)}&limit=20`);
+      const data = res.data;
+      const filtered = (data.data ?? data).filter(
+        (u: User) => !u.roles?.includes('SUPER_ADMIN'),
       );
-      if (res.ok) {
-        const data = await res.json();
-        // Filtrer les SUPER_ADMIN pour ne pas les proposer
-        const filtered = (data.data ?? data).filter(
-          (u: User) => !u.roles?.includes('SUPER_ADMIN'),
-        );
-        setUsers(filtered);
-      }
+      setUsers(filtered);
     } catch {
       //
     } finally {
@@ -99,19 +89,8 @@ export default function ImpersonationPage() {
     setApiError('');
 
     try {
-      const res = await fetch('/api/v1/auth/impersonate', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: selected.id, raison: raison.trim() }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setApiError(data.message ?? 'Erreur lors du démarrage de la session');
-        return;
-      }
+      const res = await api.post('/auth/impersonate', { targetUserId: selected.id, raison: raison.trim() });
+      const data = res.data;
 
       // Stocker les infos d'impersonation pour le bandeau
       localStorage.setItem(
@@ -136,8 +115,8 @@ export default function ImpersonationPage() {
       setRaison('');
       router.push('/dashboard');
       router.refresh();
-    } catch {
-      setApiError('Erreur réseau. Réessayez.');
+    } catch (err: any) {
+      setApiError(err?.response?.data?.message ?? 'Erreur réseau. Réessayez.');
     } finally {
       setStarting(false);
     }
@@ -145,13 +124,8 @@ export default function ImpersonationPage() {
 
   const handleStop = async (sessionId: string) => {
     try {
-      const res = await fetch(`/api/v1/auth/impersonate/${sessionId}/stop`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        await loadSessions();
-      }
+      await api.post(`/auth/impersonate/${sessionId}/stop`);
+      await loadSessions();
     } catch {
       //
     }

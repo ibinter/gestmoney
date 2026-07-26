@@ -1,13 +1,9 @@
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/lib/api';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
-function authFetcher(url: string) {
-  return fetch(url, { credentials: 'include' }).then((r) => {
-    if (!r.ok) throw new Error(`${r.status}`);
-    return r.json();
-  });
+function authFetcher(path: string) {
+  return api.get(path).then((r) => r.data);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,7 +43,7 @@ export function useAlertes(opts?: { lu?: boolean; page?: number; limit?: number 
   if (opts?.page) params.set('page', String(opts.page));
   if (opts?.limit) params.set('limit', String(opts.limit));
 
-  const key = isAuthenticated ? `${API}/alertes?${params}` : null;
+  const key = isAuthenticated ? `/alertes?${params}` : null;
   return useSWR<{ alertes: AlerteEmise[]; total: number; page: number; limit: number }>(
     key,
     authFetcher,
@@ -57,34 +53,22 @@ export function useAlertes(opts?: { lu?: boolean; page?: number; limit?: number 
 
 export function useConfigAlertes() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const key = isAuthenticated ? `${API}/alertes/config` : null;
+  const key = isAuthenticated ? `/alertes/config` : null;
   return useSWR<ConfigAlertes>(key, authFetcher);
 }
 
 export async function updateConfigAlertes(data: Partial<ConfigAlertes>) {
-  const res = await fetch(`${API}/alertes/config`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  await globalMutate(`${API}/alertes/config`);
-  return res.json();
+  const res = await api.put('/alertes/config', data);
+  await globalMutate(`/alertes/config`);
+  return res.data;
 }
 
 export async function marquerAlerteLue(id: string) {
-  await fetch(`${API}/alertes/${id}/lu`, {
-    method: 'PATCH',
-    credentials: 'include',
-  });
-  await globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API}/alertes`), undefined, { revalidate: true });
+  await api.patch(`/alertes/${id}/lu`);
+  await globalMutate((key: string) => typeof key === 'string' && key.startsWith('/alertes'), undefined, { revalidate: true });
 }
 
 export async function marquerToutesLues() {
-  await fetch(`${API}/alertes/tout-lire`, {
-    method: 'PATCH',
-    credentials: 'include',
-  });
-  await globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API}/alertes`), undefined, { revalidate: true });
+  await api.patch('/alertes/tout-lire');
+  await globalMutate((key: string) => typeof key === 'string' && key.startsWith('/alertes'), undefined, { revalidate: true });
 }

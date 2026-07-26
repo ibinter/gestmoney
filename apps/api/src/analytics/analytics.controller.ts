@@ -19,7 +19,7 @@ export class AnalyticsController {
   ) {}
 
   @Get('rapport-mensuel')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Télécharger le rapport mensuel PDF' })
   @ApiQuery({ name: 'annee', required: false, type: Number, description: 'Année (défaut: année courante)' })
   @ApiQuery({ name: 'mois', required: false, type: Number, description: 'Mois 1-12 (défaut: mois courant)' })
@@ -46,6 +46,8 @@ export class AnalyticsController {
     RoleType.SUPER_ADMIN,
     RoleType.NETWORK_ADMIN,
     RoleType.AGENCY_MANAGER,
+    RoleType.AGENT,
+    RoleType.AUDITOR,
   )
   @ApiOperation({ summary: 'Données analytiques pour le dashboard (30 derniers jours)' })
   @ApiResponse({ status: 200, description: 'Transactions par jour, par type, top agents, float' })
@@ -54,7 +56,7 @@ export class AnalyticsController {
   }
 
   @Get('comparaison')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Comparaison mois M vs M-1' })
   @ApiQuery({ name: 'mois', required: false, type: Number })
   @ApiQuery({ name: 'annee', required: false, type: Number })
@@ -70,14 +72,14 @@ export class AnalyticsController {
   }
 
   @Get('evolution-6-mois')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Évolution sur 6 mois glissants' })
   getEvolution6Mois(@Req() req: any) {
     return this.analyticsService.getEvolution6Mois(req.user.tenantId);
   }
 
   @Get('par-operateur')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Répartition par opérateur' })
   @ApiQuery({ name: 'mois', required: false, type: Number })
   @ApiQuery({ name: 'annee', required: false, type: Number })
@@ -93,7 +95,7 @@ export class AnalyticsController {
   }
 
   @Get('performance-agences')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Classement des agences' })
   @ApiQuery({ name: 'mois', required: false, type: Number })
   @ApiQuery({ name: 'annee', required: false, type: Number })

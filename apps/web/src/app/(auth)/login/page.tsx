@@ -32,7 +32,7 @@ function LoginContent() {
   }, []);
 
   const doLogin = async (emailVal: string, passwordVal: string) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010/api/v1';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
     const tenantId = process.env.NEXT_PUBLIC_TENANT_ID;
     const res = await fetch(`${apiUrl}/auth/login`, {
       method: 'POST',
@@ -86,7 +86,7 @@ function LoginContent() {
     e.preventDefault();
     setLoadingReset(true);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010/api/v1'}/auth/forgot-password`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailReset }),

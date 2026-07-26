@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 interface ImpersonationInfo {
   impersonatedBy: string;
@@ -36,9 +37,8 @@ export default function ImpersonationBanner() {
     // On interroge le serveur pour savoir si la session est une impersonation.
     const check = async () => {
       try {
-        const res = await fetch('/api/v1/auth/me', { credentials: 'include' });
-        if (!res.ok) return;
-        const data = await res.json();
+        const res = await api.get('/auth/me');
+        const data = res.data;
         // Le profil retourné contient les champs d'impersonation si présents
         if (data.impersonatedBy && data.impersonationId) {
           setInfo({
@@ -73,11 +73,8 @@ export default function ImpersonationBanner() {
     if (!info) return;
     setStopping(true);
     try {
-      const res = await fetch(`/api/v1/auth/impersonate/${info.impersonationId}/stop`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (res.ok) {
+      await api.post(`/auth/impersonate/${info.impersonationId}/stop`);
+      {
         localStorage.removeItem('gestmoney_impersonation');
         setInfo(null);
         // Rediriger vers le dashboard SuperAdmin

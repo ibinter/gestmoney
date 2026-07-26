@@ -81,7 +81,7 @@ export default function StatusPage() {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/status`, { cache: 'no-store' });
+      const res = await fetch(`${API_BASE}/status`, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json: SystemStatus = await res.json();
       setData(json);

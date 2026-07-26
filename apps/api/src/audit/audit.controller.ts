@@ -19,11 +19,15 @@ import { Response } from 'express';
 import { AuditService } from './audit.service';
 import { QueryAuditDto } from './dto/query-audit.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleType } from '../common/enums/role.enum';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Audit')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AUDITOR)
 @Controller('audit')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}

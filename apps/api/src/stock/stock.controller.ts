@@ -86,72 +86,6 @@ export class StockController {
     return this.stockService.statsStock(user.tenantId);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Détail d\'un article' })
-  getArticle(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
-    return this.stockService.getArticle(id, user.tenantId);
-  }
-
-  @Put(':id')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
-  @ApiOperation({ summary: 'Modifier un article' })
-  modifierArticle(
-    @Param('id') id: string,
-    @Body() dto: ModifierArticleDto,
-    @CurrentUser() user: CurrentUserData,
-  ) {
-    return this.stockService.modifierArticle(id, user.tenantId, dto);
-  }
-
-  @Post(':id/entree')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
-  @ApiOperation({ summary: 'Entrée de stock' })
-  @HttpCode(HttpStatus.CREATED)
-  entreeStock(
-    @Param('id') id: string,
-    @Body() dto: EntreeStockDto,
-    @CurrentUser() user: CurrentUserData,
-  ) {
-    return this.stockService.entree(id, user.tenantId, dto, user.id);
-  }
-
-  @Post(':id/sortie')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
-  @ApiOperation({ summary: 'Sortie de stock' })
-  @HttpCode(HttpStatus.CREATED)
-  sortieStock(
-    @Param('id') id: string,
-    @Body() dto: SortieStockDto,
-    @CurrentUser() user: CurrentUserData,
-  ) {
-    return this.stockService.sortie(id, user.tenantId, dto, user.id);
-  }
-
-  @Post(':id/ajustement')
-  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
-  @ApiOperation({ summary: 'Ajustement d\'inventaire' })
-  @HttpCode(HttpStatus.CREATED)
-  ajustementStock(
-    @Param('id') id: string,
-    @Body() dto: AjustementStockDto,
-    @CurrentUser() user: CurrentUserData,
-  ) {
-    return this.stockService.ajustement(id, user.tenantId, dto, user.id);
-  }
-
-  @Get(':id/mouvements')
-  @ApiOperation({ summary: 'Historique des mouvements d\'un article' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  historiqueMouvements(
-    @Param('id') id: string,
-    @CurrentUser() user: CurrentUserData,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.stockService.historiqueMovements(id, user.tenantId, { page, limit });
-  }
-
   // ─── Produits ───────────────────────────────────────────────────────────────
 
   @Get('products')
@@ -282,5 +216,76 @@ export class StockController {
   @ApiOperation({ summary: 'Valorisation totale du stock' })
   getValuation(@CurrentUser() user: CurrentUserData) {
     return this.stockService.getStockValuation(user.tenantId);
+  }
+
+  // ─── Routes dynamiques /:id — APRÈS toutes les routes statiques ─────────────
+  // Important : NestJS matche en ordre de déclaration. `:id` doit être déclaré
+  // après toutes les routes avec un segment fixe pour éviter que `products`,
+  // `inventory`, `movements`, etc. soient capturés par ce paramètre générique.
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Détail d\'un article' })
+  getArticle(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.stockService.getArticle(id, user.tenantId);
+  }
+
+  @Put(':id')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
+  @ApiOperation({ summary: 'Modifier un article' })
+  modifierArticle(
+    @Param('id') id: string,
+    @Body() dto: ModifierArticleDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.stockService.modifierArticle(id, user.tenantId, dto);
+  }
+
+  @Post(':id/entree')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
+  @ApiOperation({ summary: 'Entrée de stock' })
+  @HttpCode(HttpStatus.CREATED)
+  entreeStock(
+    @Param('id') id: string,
+    @Body() dto: EntreeStockDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.stockService.entree(id, user.tenantId, dto, user.id);
+  }
+
+  @Post(':id/sortie')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
+  @ApiOperation({ summary: 'Sortie de stock' })
+  @HttpCode(HttpStatus.CREATED)
+  sortieStock(
+    @Param('id') id: string,
+    @Body() dto: SortieStockDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.stockService.sortie(id, user.tenantId, dto, user.id);
+  }
+
+  @Post(':id/ajustement')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
+  @ApiOperation({ summary: 'Ajustement d\'inventaire' })
+  @HttpCode(HttpStatus.CREATED)
+  ajustementStock(
+    @Param('id') id: string,
+    @Body() dto: AjustementStockDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.stockService.ajustement(id, user.tenantId, dto, user.id);
+  }
+
+  @Get(':id/mouvements')
+  @ApiOperation({ summary: 'Historique des mouvements d\'un article' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  historiqueMouvements(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserData,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.stockService.historiqueMovements(id, user.tenantId, { page, limit });
   }
 }

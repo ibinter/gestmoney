@@ -100,9 +100,8 @@ export function useNotificationCount() {
     queryKey: ['notifications-count'],
     queryFn: async () => {
       try {
-        const res = await api.get('/notifications/history', { params: { limit: 100 } });
-        const items = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
-        return items.filter((n: Record<string, unknown>) => !n.read && !n.readAt).length;
+        const res = await api.get('/notifications/count');
+        return res.data?.count ?? res.data?.data?.count ?? 0;
       } catch {
         return MOCK_NOTIFICATIONS.filter((n) => !n.lue).length;
       }
