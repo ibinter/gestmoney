@@ -38,7 +38,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload & { impersonatedBy?: string; impersonationId?: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: {
@@ -50,11 +50,28 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Utilisateur non trouvé ou désactivé');
     }
 
+    // Vérifier que la session d'impersonation est toujours active
+    if (payload.impersonatedBy && payload.impersonationId) {
+      const session = await this.prisma.impersonationSession.findUnique({
+        where: { id: payload.impersonationId },
+      });
+      if (!session || !session.actif) {
+        throw new UnauthorizedException('Session d\'impersonation terminée ou invalide');
+      }
+    }
+
     return {
       id: user.id,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       tenantId: user.tenantId,
       roles: user.userRoles.map((ur) => ur.role.name),
+      // Propagation du contexte d'impersonation — utilisé par ImpersonationBanner
+      ...(payload.impersonatedBy && {
+        impersonatedBy: payload.impersonatedBy,
+        impersonationId: payload.impersonationId,
+      }),
     };
   }
 }

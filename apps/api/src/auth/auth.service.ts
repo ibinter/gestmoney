@@ -25,6 +25,7 @@ import {
   Verify2FADto,
 } from './dto/reset-password.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +36,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private notifications: NotificationsService,
   ) {}
 
   // ─── Login ───────────────────────────────────────────────────────────────────
@@ -85,16 +87,13 @@ export class AuthService {
 
     // Vérification 2FA
     if (user.twoFactorEnabled) {
-      if (!twoFactorCode) {
-        return { requiresTwoFactor: true, userId: user.id };
-      }
-      const isValidCode = verifySync({
-        token: twoFactorCode,
-        secret: user.twoFactorSecret || '',
-      }).valid;
-      if (!isValidCode) {
-        throw new UnauthorizedException('Code 2FA invalide');
-      }
+      // Pas de code fourni → retourner un token temporaire (5 min, flag pending2FA)
+      const tempPayload = { sub: user.id, email: user.email, tenantId: resolvedTenantId, pending2FA: true };
+      const tempToken = await this.jwtService.signAsync(tempPayload, {
+        secret: this.configService.get('JWT_SECRET', 'gestmoney-super-secret-jwt-key-for-dev-32chars!'),
+        expiresIn: '5m',
+      });
+      return { requires2FA: true, tempToken };
     }
 
     // Réinitialiser les tentatives
@@ -182,6 +181,28 @@ export class AuthService {
 
     await this.logAudit('CREATE', user.id, resolvedTenantId, 'users', { email });
 
+    // Email de bienvenue au nouvel utilisateur
+    void this.notifications.sendEmail({
+      to: email,
+      subject: 'Bienvenue sur GESTMONEY !',
+      body: [
+        `Bonjour ${firstName},`,
+        '',
+        'Votre compte GESTMONEY a été créé avec succès.',
+        '',
+        `Email    : ${email}`,
+        `Espace   : ${resolvedTenantId}`,
+        '',
+        'Vous pouvez vous connecter dès maintenant :',
+        'https://gestmoney.ibigsoft.com/login',
+        '',
+        'Si vous avez des questions, contactez notre support.',
+        '',
+        "L'équipe GESTMONEY — IBIG Soft",
+      ].join('\n'),
+      tenantId: resolvedTenantId,
+    });
+
     return {
       ...tokens,
       user: {
@@ -262,6 +283,31 @@ export class AuthService {
 
     this.logger.log(`Token reset créé pour ${dto.email} [tenant:${tenantId}]`);
     await this.logAudit('UPDATE', user.id, tenantId, 'users', { action: 'PASSWORD_RESET_REQUESTED' });
+
+    // Envoi de l'email avec le lien de réinitialisation
+    const appUrl =
+      this.configService.get<string>('APP_URL') ?? 'https://gestmoney.ibigsoft.com';
+    const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
+
+    void this.notifications.sendEmail({
+      to: dto.email,
+      subject: 'Réinitialisation de votre mot de passe GESTMONEY',
+      body: [
+        `Bonjour ${user.firstName ?? ''},`,
+        '',
+        'Vous avez demandé la réinitialisation de votre mot de passe GESTMONEY.',
+        'Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe :',
+        '',
+        resetLink,
+        '',
+        'Ce lien est valide pendant 1 heure.',
+        '',
+        "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.",
+        '',
+        "L'équipe GESTMONEY — IBIG Soft",
+      ].join('\n'),
+      tenantId,
+    });
 
     return {
       message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
@@ -372,6 +418,47 @@ export class AuthService {
     return { avatar: user.avatar };
   }
 
+  // ─── Sessions actives ────────────────────────────────────────────────────────
+
+  async getSessions(userId: string, currentRefreshToken?: string) {
+    const sessions = await this.prisma.session.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return sessions.map((s) => ({
+      id: s.id,
+      userAgent: s.userAgent ?? null,
+      ipAddress: s.ipAddress ?? null,
+      createdAt: s.createdAt,
+      expiresAt: s.expiresAt,
+      isCurrent: currentRefreshToken ? s.refreshToken === currentRefreshToken : false,
+    }));
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    const session = await this.prisma.session.findFirst({
+      where: { id: sessionId, userId },
+    });
+    if (!session) throw new NotFoundException('Session non trouvée');
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { revokedAt: new Date() },
+    });
+    return { message: 'Session révoquée' };
+  }
+
+  async revokeAllSessions(userId: string, currentRefreshToken?: string) {
+    const where: Parameters<typeof this.prisma.session.updateMany>[0]['where'] = {
+      userId,
+      revokedAt: null,
+    };
+    if (currentRefreshToken) {
+      (where as any).NOT = { refreshToken: currentRefreshToken };
+    }
+    await this.prisma.session.updateMany({ where, data: { revokedAt: new Date() } });
+    return { message: 'Toutes les autres sessions ont été révoquées' };
+  }
+
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -434,17 +521,267 @@ export class AuthService {
     const isValid = verifySync({ token: dto.code, secret: user.twoFactorSecret }).valid;
     if (!isValid) throw new UnauthorizedException('Code 2FA invalide');
 
+    // Générer 8 codes de secours et les hacher
+    const plainCodes = Array.from({ length: 8 }, () =>
+      Math.random().toString(36).substring(2, 6).toUpperCase() + '-' +
+      Math.random().toString(36).substring(2, 6).toUpperCase(),
+    );
+    const hashedCodes = await Promise.all(
+      plainCodes.map((c) => bcrypt.hash(c, 10)),
+    );
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         twoFactorEnabled: true,
         twoFactorVerifiedAt: new Date(),
+        twoFactorBackupCodes: hashedCodes,
       },
     });
 
     await this.logAudit('UPDATE', userId, tenantId, 'users', { action: '2FA_ENABLED' });
 
-    return { message: 'Authentification 2FA activée avec succès' };
+    return { message: 'Authentification 2FA activée avec succès', backupCodes: plainCodes };
+  }
+
+  // ─── Désactivation 2FA ───────────────────────────────────────────────────────
+
+  async desactiver2FA(userId: string, tenantId: string, motDePasse: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    if (!user.twoFactorEnabled) throw new BadRequestException('La 2FA n\'est pas activée');
+
+    const isPasswordValid = await bcrypt.compare(motDePasse, user.passwordHash);
+    if (!isPasswordValid) throw new UnauthorizedException('Mot de passe incorrect');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorBackupCodes: [],
+        twoFactorVerifiedAt: null,
+      },
+    });
+
+    await this.logAudit('UPDATE', userId, tenantId, 'users', { action: '2FA_DISABLED' });
+
+    return { message: '2FA désactivée avec succès' };
+  }
+
+  // ─── Vérification 2FA lors du login (2ème étape) ────────────────────────────
+
+  async loginAvec2FA(tempToken: string, code: string) {
+    // Décoder et vérifier le token temporaire
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(tempToken, {
+        secret: this.configService.get('JWT_SECRET', 'gestmoney-super-secret-jwt-key-for-dev-32chars!'),
+      });
+    } catch {
+      throw new UnauthorizedException('Token temporaire invalide ou expiré');
+    }
+
+    if (!payload.pending2FA) {
+      throw new UnauthorizedException('Token non valide pour la vérification 2FA');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new BadRequestException('2FA non configurée pour cet utilisateur');
+    }
+
+    // Vérifier le code TOTP (window ±1)
+    const isValidTotp = verifySync({ token: code, secret: user.twoFactorSecret }).valid;
+
+    // Sinon, vérifier les codes de secours
+    if (!isValidTotp) {
+      const backupMatch = await Promise.all(
+        user.twoFactorBackupCodes.map((h) => bcrypt.compare(code, h)),
+      );
+      const matchIndex = backupMatch.findIndex((m) => m);
+      if (matchIndex === -1) {
+        throw new UnauthorizedException('Code 2FA invalide');
+      }
+      // Invalider le code de secours utilisé (one-time)
+      const updatedCodes = user.twoFactorBackupCodes.filter((_, i) => i !== matchIndex);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { twoFactorBackupCodes: updatedCodes },
+      });
+    }
+
+    // Réinitialiser les tentatives et générer les tokens complets
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+    });
+
+    const roles = user.userRoles.map((ur) => ur.role.name);
+    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, roles);
+    await this.saveSession(user.id, user.tenantId, tokens.refreshToken);
+    await this.logAudit('LOGIN', user.id, user.tenantId, 'users', { via: '2FA' });
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roles,
+        tenantId: user.tenantId,
+        status: user.status,
+      },
+    };
+  }
+
+  // ─── Impersonation ───────────────────────────────────────────────────────────
+
+  async startImpersonation(
+    superAdminId: string,
+    targetUserId: string,
+    raison: string,
+    ip: string,
+  ) {
+    // 1. Vérifier que le demandeur est SUPER_ADMIN
+    const admin = await this.prisma.user.findUnique({
+      where: { id: superAdminId },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!admin) throw new NotFoundException('Administrateur non trouvé');
+
+    const isSuperAdmin = admin.userRoles.some((ur) => ur.role.name === 'SUPER_ADMIN');
+    if (!isSuperAdmin) {
+      throw new UnauthorizedException('Seul un SUPER_ADMIN peut impersonner');
+    }
+
+    // 2. Vérifier que l'utilisateur cible existe
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!target) throw new NotFoundException('Utilisateur cible non trouvé');
+
+    // Interdire d'impersonner un autre SUPER_ADMIN
+    const targetIsSuperAdmin = target.userRoles.some((ur) => ur.role.name === 'SUPER_ADMIN');
+    if (targetIsSuperAdmin) {
+      throw new BadRequestException('Impossible d\'impersonner un SUPER_ADMIN');
+    }
+
+    // 3. Créer la session d'impersonation
+    const session = await this.prisma.impersonationSession.create({
+      data: {
+        superAdminId,
+        targetUserId,
+        targetTenantId: target.tenantId,
+        raison,
+        ipAddress: ip,
+      },
+    });
+
+    // 4. Générer un JWT court (2h) avec champs d'impersonation
+    const targetRoles = target.userRoles.map((ur) => ur.role.name);
+    const payload = {
+      sub: target.id,
+      email: target.email,
+      tenantId: target.tenantId,
+      roles: targetRoles,
+      impersonatedBy: superAdminId,
+      impersonationId: session.id,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('JWT_SECRET', 'gestmoney-super-secret-jwt-key-for-dev-32chars!'),
+      expiresIn: '2h',
+    });
+
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
+    // 5. Logger dans AuditLog
+    await this.logAudit('LOGIN', superAdminId, admin.tenantId || 'system', 'impersonation', {
+      action: 'IMPERSONATION_START',
+      targetUserId,
+      targetTenantId: target.tenantId,
+      sessionId: session.id,
+      raison,
+    });
+
+    this.logger.warn(
+      `IMPERSONATION_START: admin=${superAdminId} target=${targetUserId} session=${session.id}`,
+    );
+
+    return {
+      token: accessToken,
+      sessionId: session.id,
+      expiresAt,
+      targetUser: {
+        id: target.id,
+        email: target.email,
+        firstName: target.firstName,
+        lastName: target.lastName,
+        tenantId: target.tenantId,
+        roles: targetRoles,
+      },
+    };
+  }
+
+  async stopImpersonation(impersonationId: string, superAdminId: string) {
+    const session = await this.prisma.impersonationSession.findUnique({
+      where: { id: impersonationId },
+    });
+
+    if (!session) throw new NotFoundException('Session d\'impersonation non trouvée');
+    if (session.superAdminId !== superAdminId) {
+      throw new UnauthorizedException('Vous ne pouvez arrêter que vos propres sessions');
+    }
+    if (!session.actif) {
+      return { message: 'Session déjà terminée' };
+    }
+
+    await this.prisma.impersonationSession.update({
+      where: { id: impersonationId },
+      data: { actif: false, terminatedAt: new Date() },
+    });
+
+    const admin = await this.prisma.user.findUnique({
+      where: { id: superAdminId },
+      select: { tenantId: true },
+    });
+
+    await this.logAudit('LOGOUT', superAdminId, admin?.tenantId || 'system', 'impersonation', {
+      action: 'IMPERSONATION_END',
+      sessionId: impersonationId,
+      targetUserId: session.targetUserId,
+    });
+
+    this.logger.log(`IMPERSONATION_END: admin=${superAdminId} session=${impersonationId}`);
+
+    return { message: 'Session d\'impersonation terminée' };
+  }
+
+  async listImpersonationSessions(superAdminId: string) {
+    const sessions = await this.prisma.impersonationSession.findMany({
+      where: { superAdminId, actif: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Enrichir avec les infos des utilisateurs cibles
+    const enriched = await Promise.all(
+      sessions.map(async (s) => {
+        const target = await this.prisma.user.findUnique({
+          where: { id: s.targetUserId },
+          select: { firstName: true, lastName: true, email: true },
+        });
+        return { ...s, targetUser: target };
+      }),
+    );
+
+    return enriched;
   }
 
   // ─── Privé ───────────────────────────────────────────────────────────────────

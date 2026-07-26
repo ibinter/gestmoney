@@ -68,6 +68,7 @@ export class AccountingService {
     return this.prisma.accountChart.findMany({
       where: { tenantId, isActive: true },
       orderBy: { code: 'asc' },
+      take: 2000, // un plan comptable SYSCOHADA ne dépasse pas quelques centaines de comptes
     });
   }
 
@@ -161,6 +162,7 @@ export class AccountingService {
     const years = await this.prisma.fiscalYear.findMany({
       where: { tenantId },
       orderBy: { startDate: 'desc' },
+      take: 100,
     });
     return years.map(this._mapFiscalYear);
   }
@@ -500,6 +502,7 @@ export class AccountingService {
         },
       },
       orderBy: { journalEntry: { entryDate: 'asc' } },
+      take: 50_000, // plafond de sécurité — le grand livre d'un compte sur un exercice reste borné
     });
 
     let totalDebit = '0.00';
@@ -530,6 +533,7 @@ export class AccountingService {
     const lines = await this.prisma.journalLine.findMany({
       where: { journalEntry: journalWhere },
       include: { account: true },
+      take: 50_000, // plafond de sécurité — toutes les lignes sont nécessaires pour équilibrer la balance
     });
 
     const accountMap = new Map<string, {
@@ -614,6 +618,7 @@ export class AccountingService {
         ],
       },
       include: { account: true },
+      take: 50_000, // plafond de sécurité — toutes les lignes charges/produits nécessaires au résultat
     });
 
     const chargeMap = new Map<string, { name: string; amount: number }>();
@@ -686,6 +691,7 @@ export class AccountingService {
     const lines = await this.prisma.journalLine.findMany({
       where: { journalEntry: journalWhere },
       include: { account: true },
+      take: 50_000, // plafond de sécurité — toutes les lignes sont nécessaires pour le bilan exact
     });
 
     const balances = new Map<string, { code: string; name: string; type: string; net: number }>();
@@ -776,6 +782,7 @@ export class AccountingService {
           OR: codePrefixes.map((p) => ({ account: { code: { startsWith: p } } })),
         },
         include: { account: true },
+        take: 50_000, // plafond de sécurité — toutes les lignes nécessaires pour le tableau des flux
       });
 
       let totalDebit = 0;
@@ -1067,6 +1074,198 @@ export class AccountingService {
       MPESA: 'M_PESA',
     };
     return map[operatorCode] ?? operatorCode;
+  }
+
+  // ─── Clôture par année OHADA ─────────────────────────────────────────────────
+
+  /**
+   * Retrouve un exercice fiscal par son année calendaire (startDate.getFullYear()).
+   */
+  private async _findFiscalYearByAnnee(tenantId: string, annee: number) {
+    // On cherche d'abord par nom (convention "Exercice YYYY" ou "YYYY")
+    const byName = await this.prisma.fiscalYear.findFirst({
+      where: { tenantId, name: { contains: String(annee) } },
+      orderBy: { startDate: 'desc' },
+    });
+    if (byName) return byName;
+
+    // Sinon par l'année de démarrage
+    const start = new Date(annee, 0, 1);
+    const end = new Date(annee, 11, 31, 23, 59, 59);
+    return this.prisma.fiscalYear.findFirst({
+      where: { tenantId, startDate: { gte: start, lte: end } },
+      orderBy: { startDate: 'desc' },
+    });
+  }
+
+  /**
+   * Clôture l'exercice de l'année `annee` après vérifications OHADA.
+   */
+  async cloturerExerciceParAnnee(
+    tenantId: string,
+    annee: number,
+    userId: string,
+  ): Promise<IFiscalYear> {
+    const fy = await this._findFiscalYearByAnnee(tenantId, annee);
+    if (!fy) throw new NotFoundException(`Aucun exercice trouvé pour l'année ${annee}`);
+    if ((fy as any).isClosed) {
+      throw new BadRequestException(`L'exercice ${annee} est déjà clôturé`);
+    }
+
+    // Vérifier qu'il n'y a pas de transactions EN_ATTENTE sur la période
+    const transactionsPendantes = await this.prisma.transaction.count({
+      where: {
+        tenantId,
+        status: 'PENDING',
+        createdAt: { gte: (fy as any).startDate, lte: (fy as any).endDate },
+      },
+    });
+    if (transactionsPendantes > 0) {
+      throw new BadRequestException(
+        `Impossible de clôturer : ${transactionsPendantes} transaction(s) en attente sur la période`,
+      );
+    }
+
+    // Déléguer à la méthode existante
+    return this.closeFiscalYear(fy.id, tenantId, userId);
+  }
+
+  /**
+   * Bilan annuel OHADA par année calendaire.
+   */
+  async getBilanAnnuel(tenantId: string, annee: number): Promise<IBalanceSheet & { annee: number }> {
+    const fy = await this._findFiscalYearByAnnee(tenantId, annee);
+    if (!fy) throw new NotFoundException(`Aucun exercice trouvé pour l'année ${annee}`);
+
+    const bilan = await this.getBalanceSheet(tenantId, (fy as any).endDate.toISOString().slice(0, 10), fy.id);
+    return { ...bilan, annee };
+  }
+
+  /**
+   * Compte de résultat OHADA détaillé par classe, pour une année donnée.
+   */
+  async getCompteResultatOhada(tenantId: string, annee: number): Promise<{
+    annee: number;
+    periode: { debut: string; fin: string };
+    chargesExploitation: Array<{ compte: string; libelle: string; montant: string }>;
+    produitsExploitation: Array<{ compte: string; libelle: string; montant: string }>;
+    chargesFinancieres: Array<{ compte: string; libelle: string; montant: string }>;
+    produitsFinanciers: Array<{ compte: string; libelle: string; montant: string }>;
+    chargesExceptionnelles: Array<{ compte: string; libelle: string; montant: string }>;
+    produitsExceptionnels: Array<{ compte: string; libelle: string; montant: string }>;
+    totalChargesExploitation: string;
+    totalProduitsExploitation: string;
+    totalChargesFinancieres: string;
+    totalProduitsFinanciers: string;
+    totalChargesExceptionnelles: string;
+    totalProduitsExceptionnels: string;
+    resultatExploitation: string;
+    resultatFinancier: string;
+    resultatExceptionnel: string;
+    resultatAvantImpot: string;
+    impotBenefices: string;
+    resultatNet: string;
+  }> {
+    const fy = await this._findFiscalYearByAnnee(tenantId, annee);
+    if (!fy) throw new NotFoundException(`Aucun exercice trouvé pour l'année ${annee}`);
+
+    const journalWhere: any = { tenantId, fiscalYearId: fy.id };
+
+    // Récupérer toutes les lignes charges (6xxx) et produits (7xxx)
+    const lines = await this.prisma.journalLine.findMany({
+      where: {
+        journalEntry: journalWhere,
+        OR: [
+          { account: { code: { startsWith: '6' } } },
+          { account: { code: { startsWith: '7' } } },
+        ],
+      },
+      include: { account: true },
+      take: 50_000,
+    });
+
+    // Accumuler par compte
+    const chargeMap = new Map<string, { name: string; amount: number }>();
+    const produitMap = new Map<string, { name: string; amount: number }>();
+
+    for (const line of lines) {
+      const acct = (line as any).account;
+      if (acct.code.startsWith('6')) {
+        const cur = chargeMap.get(acct.code) ?? { name: acct.name, amount: 0 };
+        cur.amount += toF((line as any).debit) - toF((line as any).credit);
+        chargeMap.set(acct.code, cur);
+      } else if (acct.code.startsWith('7')) {
+        const cur = produitMap.get(acct.code) ?? { name: acct.name, amount: 0 };
+        cur.amount += toF((line as any).credit) - toF((line as any).debit);
+        produitMap.set(acct.code, cur);
+      }
+    }
+
+    const filterByPrefix = (
+      map: Map<string, { name: string; amount: number }>,
+      prefixes: string[],
+    ) =>
+      Array.from(map.entries())
+        .filter(([code]) => prefixes.some((p) => code.startsWith(p)))
+        .filter(([, v]) => v.amount > 0.005)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([code, { name, amount }]) => ({
+          compte: code,
+          libelle: name,
+          montant: amount.toFixed(2),
+        }));
+
+    const somme = (arr: Array<{ montant: string }>) =>
+      arr.reduce((s, i) => s + toF(i.montant), 0).toFixed(2);
+
+    // Classes OHADA SYSCOHADA
+    const chargesExploitation = filterByPrefix(chargeMap, ['60', '61', '62', '63', '64', '65']);
+    const produitsExploitation = filterByPrefix(produitMap, ['70', '71', '72', '73', '74', '75']);
+    const chargesFinancieres = filterByPrefix(chargeMap, ['66']);
+    const produitsFinanciers = filterByPrefix(produitMap, ['76']);
+    const chargesExceptionnelles = filterByPrefix(chargeMap, ['67', '68']);
+    const produitsExceptionnels = filterByPrefix(produitMap, ['77', '78']);
+    const impotLines = filterByPrefix(chargeMap, ['69']);
+
+    const totChEx = somme(chargesExploitation);
+    const totPrEx = somme(produitsExploitation);
+    const totChFin = somme(chargesFinancieres);
+    const totPrFin = somme(produitsFinanciers);
+    const totChExc = somme(chargesExceptionnelles);
+    const totPrExc = somme(produitsExceptionnels);
+    const impot = somme(impotLines);
+
+    const reEx = (toF(totPrEx) - toF(totChEx)).toFixed(2);
+    const reFin = (toF(totPrFin) - toF(totChFin)).toFixed(2);
+    const reExc = (toF(totPrExc) - toF(totChExc)).toFixed(2);
+    const rAvtImpot = (toF(reEx) + toF(reFin) + toF(reExc)).toFixed(2);
+    const rNet = (toF(rAvtImpot) - toF(impot)).toFixed(2);
+
+    return {
+      annee,
+      periode: {
+        debut: (fy as any).startDate.toISOString().slice(0, 10),
+        fin: (fy as any).endDate.toISOString().slice(0, 10),
+      },
+      chargesExploitation,
+      produitsExploitation,
+      chargesFinancieres,
+      produitsFinanciers,
+      chargesExceptionnelles,
+      produitsExceptionnels,
+      totalChargesExploitation: totChEx,
+      totalProduitsExploitation: totPrEx,
+      totalChargesFinancieres: totChFin,
+      totalProduitsFinanciers: totPrFin,
+      totalChargesExceptionnelles: totChExc,
+      totalProduitsExceptionnels: totPrExc,
+      resultatExploitation: reEx,
+      resultatFinancier: reFin,
+      resultatExceptionnel: reExc,
+      resultatAvantImpot: rAvtImpot,
+      impotBenefices: impot,
+      resultatNet: rNet,
+    };
   }
 
   // ─── Centres de coûts (stub — modèle non présent dans le schéma actuel) ──────

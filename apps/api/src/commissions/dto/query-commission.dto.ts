@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -69,6 +70,14 @@ export class CalculateCommissionsDto {
   @IsOptional()
   @IsString()
   agentId?: string;
+
+  @ApiPropertyOptional({ description: 'Nombre maximum de transactions à recalculer (défaut: 10 000)', default: 10000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  limit?: number;
 }
 
 export class ValidatePaymentDto {

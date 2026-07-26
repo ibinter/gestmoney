@@ -14,6 +14,9 @@ import { CommandPalette } from '@/components/ui/CommandPalette';
 import { Onboarding } from '@/components/ui/Onboarding';
 import { AssistantIA } from '@/components/ui/AssistantIA';
 import { useAuthStore } from '@/store/authStore';
+import ImpersonationBanner from '@/components/ui/ImpersonationBanner';
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
+import { usePageHistory } from '@/hooks/usePageHistory';
 
 const COMPACT_KEY = 'gestmoney-sidebar-compact';
 
@@ -22,6 +25,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const { isAuthenticated, hasHydrated } = useAuthStore();
   const router = useRouter();
+
+  // Enregistre chaque visite pour la page offline
+  usePageHistory();
 
   // Charger la préférence compact depuis localStorage
   useEffect(() => {
@@ -66,6 +72,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen flex bg-surface">
+      {/* Bandeau d'avertissement impersonation — visible uniquement en session support */}
+      <ImpersonationBanner />
       {/* ── Sidebar fixe desktop ───────────────────────────────── */}
       <Sidebar
         mode="fixe"
@@ -110,6 +118,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Navigation mobile bas de page ──────────────────────── */}
       <BottomNav />
+
+      {/* Bannière hors-connexion — positionnée au-dessus de la BottomNav */}
+      <OfflineIndicator />
     </div>
   );
 }

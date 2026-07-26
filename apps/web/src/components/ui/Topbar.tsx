@@ -11,7 +11,7 @@ import { LangSwitch, useT } from '@/lib/i18n';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { useNotificationCount } from '@/hooks/useNotifications';
+import { NotificationCenter } from '@/components/ui/NotificationCenter';
 import { clsx } from 'clsx';
 
 interface TopbarProps {
@@ -20,7 +20,6 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout } = useAuthStore();
-  const { data: nbNonLues = 0 } = useNotificationCount();
   const router = useRouter();
   const [menuOuvert, setMenuOuvert] = useState(false);
   const t = useT();
@@ -88,17 +87,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <ThemeToggle />
 
         {/* Notifications */}
-        <Link
-          href="/dashboard/notifications"
-          className="gm-notif-btn"
-          data-tour="notifications-btn"
-          aria-label={`${t.nav.notifications}${nbNonLues > 0 ? ` (${nbNonLues} non lues)` : ''}`}
-        >
-          <span aria-hidden="true">🔔</span>
-          {nbNonLues > 0 && (
-            <span className="gm-notif-badge">{nbNonLues > 9 ? '9+' : nbNonLues}</span>
-          )}
-        </Link>
+        <NotificationCenter />
 
         {/* Profil */}
         <div className="relative">

@@ -33,6 +33,11 @@ export class QueryAuditDto {
   @IsString()
   ipAddress?: string;
 
+  @ApiPropertyOptional({ description: 'Recherche libre dans les détails / description' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
   @Type(() => Number)

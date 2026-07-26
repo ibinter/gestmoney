@@ -79,12 +79,101 @@ model Tenant {
   mlPredictions       MlPrediction[]
   sessions            Session[]
   kycVerifications    KycVerification[]
+  kycDossiers         KycDossier[]
   integrationLogs     IntegrationLog[]
   notificationLogs    NotificationLog[]
   scheduledReports    ScheduledReport[]
   generatedReports    GeneratedReport[]
+  onboardingStep      OnboardingStep?
+  configAlertes       ConfigAlertes?
+  alertesEmises       AlerteEmise[]
+  webhookEndpoints    WebhookEndpoint[]
+  articleStocks       ArticleStock[]
+  mouvementsArticle   MouvementArticle[]
 
   @@map("tenants")
+}
+
+// ==============================================================================
+// API KEYS
+// ==============================================================================
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  tenantId    String
+  nom         String
+  keyHash     String    @unique
+  prefix      String
+  permissions String[]
+  actif       Boolean   @default(true)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  nbAppels    Int       @default(0)
+  ipWhitelist String[]
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+// ==============================================================================
+// WEBHOOKS
+// ==============================================================================
+
+model WebhookEndpoint {
+  id          String   @id @default(cuid())
+  tenantId    String
+  url         String
+  secret      String
+  actif       Boolean  @default(true)
+  evenements  String[]
+  description String?
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  livraisons  WebhookLivraison[]
+
+  @@index([tenantId])
+  @@map("webhook_endpoints")
+}
+
+model WebhookLivraison {
+  id           String   @id @default(cuid())
+  webhookId    String
+  evenement    String
+  payload      Json
+  reponseCode  Int?
+  reponseBody  String?
+  reussi       Boolean  @default(false)
+  tentatives   Int      @default(0)
+  nextRetryAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  webhook      WebhookEndpoint @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@map("webhook_livraisons")
+}
+
+// ==============================================================================
+// ONBOARDING WIZARD
+// ==============================================================================
+
+model OnboardingStep {
+  id        String   @id @default(cuid())
+  tenantId  String   @unique
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  etape1    Boolean  @default(false) // Profil complété
+  etape2    Boolean  @default(false) // 1ère agence créée
+  etape3    Boolean  @default(false) // 1er agent ajouté
+  etape4    Boolean  @default(false) // Opérateurs configurés
+  etape5    Boolean  @default(false) // 1ère transaction enregistrée
+  termine   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@map("onboarding_steps")
 }
 
 enum TenantStatus {
@@ -121,6 +210,7 @@ model User {
   twoFactorEnabled    Boolean    @default(false)
   twoFactorSecret     String?
   twoFactorVerifiedAt DateTime?
+  twoFactorBackupCodes String[]  @default([]) // codes de secours hachés (bcrypt)
   preferredLanguage   String     @default("fr")
   timezone            String     @default("Africa/Abidjan")
   passwordChangedAt   DateTime?
@@ -406,6 +496,7 @@ model Transaction {
   commission        Decimal           @default(0) @db.Decimal(15, 2)
   netAmount         Decimal           @db.Decimal(15, 2)
   currency          String            @default("XOF")
+  montantXOF        Decimal?          @db.Decimal(15, 2)
   operatorCode      String
   senderId          String?
   senderPhone       String?
@@ -440,6 +531,11 @@ model Transaction {
   @@index([networkId])
   @@index([status])
   @@index([createdAt])
+  // Index composites pour les filtrages multi-critères fréquents
+  @@index([tenantId, createdAt])
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@index([agencyId, createdAt])
   @@map("transactions")
 }
 
@@ -535,6 +631,8 @@ model FloatAccount {
 
   @@unique([tenantId, accountNumber])
   @@index([tenantId])
+  // Index composite pour filtrer les comptes float par agence
+  @@index([tenantId, agencyId])
   @@map("float_accounts")
 }
 
@@ -722,9 +820,14 @@ model CommissionPlan {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
+  typeCalcul           String   @default("SIMPLE") // SIMPLE | PROGRESSIF | PALIERS
+  plafondMensuelAgent  Decimal? @db.Decimal(15, 2) // plafond max commission/mois par agent
+  plafondMensuelReseau Decimal? @db.Decimal(15, 2) // plafond max commission réseau/mois
+
   tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   network       Network         @relation(fields: [networkId], references: [id])
   rates         CommissionRate[]
+  volumePaliers VolumePalier[]
   superAgents   SuperAgent[]
   agents        Agent[]
   earnings      CommissionEarning[]
@@ -732,6 +835,22 @@ model CommissionPlan {
   @@unique([tenantId, name, networkId])
   @@index([tenantId])
   @@map("commission_plans")
+}
+
+/// Paliers basés sur le volume mensuel cumulé de l'agent (typeCalcul=PALIERS)
+model VolumePalier {
+  id         String         @id @default(cuid())
+  planId     String
+  volumeMin  Decimal        @db.Decimal(15, 2) // volume mensuel minimum pour ce palier (FCFA)
+  volumeMax  Decimal?       @db.Decimal(15, 2) // null = pas de plafond
+  tauxAgent  Decimal        @db.Decimal(8, 4)  // % pour l'agent
+  tauxReseau Decimal        @default(0) @db.Decimal(8, 4) // % pour le réseau (NETWORK_ADMIN)
+  createdAt  DateTime       @default(now())
+
+  plan       CommissionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("volume_paliers")
 }
 
 enum CommissionBasis {
@@ -794,6 +913,8 @@ model CommissionEarning {
   @@index([tenantId])
   @@index([transactionId])
   @@index([periodMonth, periodYear])
+  // Index composite pour les rapports de commissions par agent sur une période
+  @@index([tenantId, agentId, createdAt])
   @@map("commission_earnings")
 }
 
@@ -869,9 +990,13 @@ model Customer {
   accounts          CustomerAccount[]
   loyaltyHistory    LoyaltyPoint[]
   fraudAlerts       FraudAlert[]
+  kycDossier        KycDossier?
 
   @@unique([tenantId, phoneNumber])
   @@index([tenantId])
+  // Index composites pour KYC dashboard et tri chronologique
+  @@index([tenantId, kycStatus])
+  @@index([tenantId, createdAt])
   @@map("customers")
 }
 
@@ -1060,6 +1185,54 @@ model FiscalYear {
   @@unique([tenantId, name])
   @@index([tenantId])
   @@map("fiscal_years")
+}
+
+// ==============================================================================
+// ARTICLES STOCK (inventaire simplifié, quantité agrégée par article)
+// ==============================================================================
+
+model ArticleStock {
+  id           String   @id @default(cuid())
+  tenantId     String
+  reference    String
+  nom          String
+  description  String?
+  categorie    String?  // 'CONSOMMABLE' | 'EQUIPEMENT' | 'FOURNITURE'
+  unite        String   @default("pièce")
+  prixUnitaire Decimal  @default(0) @db.Decimal(15, 2)
+  quantite     Int      @default(0)
+  seuilAlerte  Int      @default(5)
+  actif        Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mouvements   MouvementArticle[]
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@map("articles_stock")
+}
+
+model MouvementArticle {
+  id             String       @id @default(cuid())
+  articleId      String
+  tenantId       String
+  type           String       // 'ENTREE' | 'SORTIE' | 'AJUSTEMENT' | 'INVENTAIRE'
+  quantite       Int
+  quantiteAvant  Int
+  quantiteApres  Int
+  motif          String?
+  reference      String?
+  userId         String
+  createdAt      DateTime     @default(now())
+
+  article        ArticleStock @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([articleId])
+  @@map("mouvements_article")
 }
 
 // ==============================================================================
@@ -1389,6 +1562,9 @@ model AuditLog {
   @@index([userId])
   @@index([resource])
   @@index([createdAt])
+  // Index composites pour les recherches audit par tenant + date/action
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action])
   @@map("audit_logs")
 }
 
@@ -1507,6 +1683,37 @@ enum KycStatus {
   EXPIRED
 }
 
+// ==============================================================================
+// KYC DOSSIER CLIENT — vérification multi-documents (recto / verso / selfie)
+// ==============================================================================
+
+model KycDossier {
+  id             String    @id @default(cuid())
+  clientId       String    @unique
+  tenantId       String
+  statut         String    @default("EN_ATTENTE") // EN_ATTENTE | EN_COURS | VALIDE | REFUSE | EXPIRE
+  typeDocument   String?   // CNI | PASSEPORT | PERMIS | CARTE_SEJOUR
+  numeroDocument String?
+  dateExpiration DateTime?
+  paysEmetteur   String?
+  // Photos stockées en base64 ou URL (max 5 Mo chacune)
+  photoRecto     String?   @db.Text
+  photoVerso     String?   @db.Text
+  photoSelfie    String?   @db.Text
+  // Décision
+  verifiePar     String?
+  verifieAt      DateTime?
+  commentaire    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client         Customer  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, statut])
+  @@map("kyc_dossiers")
+}
+
 enum KycLevel {
   NONE
   BASIC
@@ -1558,8 +1765,45 @@ model NotificationLog {
 }
 
 // ==============================================================================
+// NOTIFICATIONS IN-APP
+// ==============================================================================
+
+model NotificationInApp {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  type      String   // 'TRANSACTION' | 'FLOAT_ALERT' | 'LICENCE' | 'SUPPORT' | 'SYSTEME'
+  titre     String
+  message   String
+  lien      String?
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, lu])
+  @@index([tenantId])
+  // Index composite pour les notifications récentes d'un tenant
+  @@index([tenantId, createdAt])
+  @@map("notifications_inapp")
+}
+
+// ==============================================================================
 // TAUX DE CHANGE
 // ==============================================================================
+
+/// Taux de change manuels — gérés par NETWORK_ADMIN ou SUPER_ADMIN.
+/// Distinct de ExchangeRate (taux issus d'APIs externes).
+model TauxChange {
+  id          String   @id @default(cuid())
+  deviseBase  String   // 'XOF'
+  deviseCible String   // 'EUR' | 'USD' | 'GBP' | 'CNY'
+  taux        Float    // 1 unité de deviseBase = taux * deviseCible
+  source      String   @default("MANUAL") // 'MANUAL' | 'API'
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([deviseBase, deviseCible])
+  @@map("taux_change")
+}
 
 model ExchangeRate {
   id           String   @id @default(cuid())
@@ -2033,6 +2277,27 @@ enum VoucherStatut {
 }
 
 // ==============================================================================
+// BASE DOCUMENTAIRE RAG — SARA
+// ==============================================================================
+
+model DocumentBase {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  titre     String
+  categorie String
+  contenu   String   @db.Text
+  mots_cles String[] // pour la recherche par mots-clés
+  source    String   // 'guide' | 'faq' | 'legal' | 'feature'
+  langue    String   @default("fr")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([source])
+  @@index([categorie])
+  @@map("document_base")
+}
+
+// ==============================================================================
 // SARA — ASSISTANT IA
 // ==============================================================================
 
@@ -2044,15 +2309,18 @@ model SaraConversation {
   context     String        @default("PUBLIC") // PUBLIC | INTERNE | SUPPORT
   messages    Json          @default("[]")
   prospect    Json?
-  totalTokens Int           @default(0)
-  provider    String        @default("groq")
-  modele      String        @default("llama-3.3-70b-versatile")
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  totalTokens        Int      @default(0)
+  provider           String   @default("groq")
+  modele             String   @default("llama-3.3-70b-versatile")
+  categorieQuestion  String   @default("autre") // commercial | support | technique | autre
+  escaladeHumain     Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([tenantId])
   @@index([sessionId])
   @@index([createdAt])
+  @@index([categorieQuestion])
   @@map("sara_conversations")
 }
 
@@ -2093,6 +2361,38 @@ model PageLegale {
 }
 
 // ==============================================================================
+// VERSIONS LOGICIEL & NOTIFICATIONS
+// ==============================================================================
+
+model VersionLogiciel {
+  id          String    @id @default(cuid())
+  version     String    // "1.2.0"
+  titre       String    // "Nouvelles fonctionnalités commissions"
+  description String    @db.Text // markdown
+  type        String    // 'MAJEURE' | 'MINEURE' | 'CORRECTIF' | 'SECURITE'
+  publiee     Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  vues        VersionVue[]
+
+  @@map("versions_logiciel")
+}
+
+model VersionVue {
+  id        String          @id @default(cuid())
+  userId    String
+  versionId String
+  vuAt      DateTime        @default(now())
+
+  version   VersionLogiciel @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, versionId])
+  @@index([userId])
+  @@map("versions_vues")
+}
+
+// ==============================================================================
 // ANALYTICS ÉVÉNEMENTS
 // ==============================================================================
 
@@ -2115,6 +2415,27 @@ model AnalyticsEvent {
   @@index([tenantId])
   @@index([createdAt])
   @@map("analytics_events")
+}
+
+// ==============================================================================
+// VÉRIFICATION DE DOCUMENTS PAR TOKEN / QR CODE
+// ==============================================================================
+
+model DocumentVerification {
+  id            String    @id @default(cuid())
+  token         String    @unique
+  documentId    String
+  documentType  String    // 'RECU_TRANSACTION' | 'RAPPORT' | 'FACTURE'
+  tenantId      String
+  contentHash   String    // SHA-256 du contenu du document
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  verifiedAt    DateTime?
+  verifiedCount Int       @default(0)
+
+  @@index([token])
+  @@index([tenantId])
+  @@map("document_verifications")
 }
 
 // ==============================================================================
@@ -2151,6 +2472,28 @@ model EmailLog {
   @@index([statut])
   @@index([createdAt])
   @@map("email_logs")
+}
+
+// ==============================================================================
+// IMPERSONATION — Sessions de support sécurisées (SUPERADMIN uniquement)
+// ==============================================================================
+
+model ImpersonationSession {
+  id             String    @id @default(cuid())
+  superAdminId   String    // qui impersonne
+  targetUserId   String    // qui est impersonné
+  targetTenantId String
+  raison         String    // obligatoire : ex. "Support ticket #123"
+  token          String    @unique @default(cuid()) // token de session
+  actif          Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  terminatedAt   DateTime?
+  ipAddress      String?
+
+  @@index([superAdminId])
+  @@index([targetUserId])
+  @@index([actif])
+  @@map("impersonation_sessions")
 }
 
 // ==============================================================================
@@ -2216,4 +2559,86 @@ enum TicketStatut {
   ESCALADE
   RESOLU
   FERME
+}
+
+// ==============================================================================
+// CRM — CAMPAGNES EMAIL
+// ==============================================================================
+
+model CampagneEmail {
+  id           String    @id @default(cuid())
+  nom          String
+  sujet        String
+  corps        String    @db.Text
+  /// 'PROSPECTS' | 'EXPIRATION_7J' | 'EXPIRATION_30J' | 'SUSPENDUS' | 'TOUS_ADMINS'
+  cible        String
+  /// 'BROUILLON' | 'PLANIFIEE' | 'EN_COURS' | 'TERMINEE'
+  statut       String    @default("BROUILLON")
+  planifieeA   DateTime?
+  envoyeeA     DateTime?
+  nbDestinat   Int       @default(0)
+  nbEnvois     Int       @default(0)
+  nbErreurs    Int       @default(0)
+  createdBy    String
+  createdAt    DateTime  @default(now())
+
+  @@map("campagnes_email")
+}
+
+// ==============================================================================
+// ALERTES CONFIGURABLES
+// ==============================================================================
+
+model ConfigAlertes {
+  id                     String   @id @default(cuid())
+  tenantId               String   @unique
+  seuilFloatBas          Int      @default(100000)
+  seuilVolumeTransaction Int      @default(5000000)
+  alerteFloatEmail       Boolean  @default(true)
+  alerteFloatInApp       Boolean  @default(true)
+  alerteTransactionEmail Boolean  @default(true)
+  alerteExpirationJ7     Boolean  @default(true)
+  alerteExpirationJ30    Boolean  @default(true)
+  alerteAudit            Boolean  @default(false)
+  emailsAlerte           String[]
+  updatedAt              DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("config_alertes")
+}
+
+model AlerteEmise {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String
+  titre     String
+  detail    String
+  severite  String
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, lu])
+  @@map("alertes_emises")
+}
+
+// ==============================================================================
+// NOTIFICATIONS PUSH PWA (Web Push / VAPID)
+// ==============================================================================
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("push_subscriptions")
 }

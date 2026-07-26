@@ -1,10 +1,9 @@
 'use client';
 // ============================================================
 // PAGE COMMISSIONS — GESTMONEY
-// Présentation fidèle à /mockup/commissions.html (classes gm-*).
-// Toutes les valeurs proviennent des données réelles (useCommissions).
+// Onglets : agents | historique | objectifs | plans | tableau
 // ============================================================
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useCommissions, useValiderCommissions, usePayerCommissions } from '@/hooks/useCommissions';
 import { Commission } from '@/types';
 import { formatMontant, formatDate } from '@/lib/formatters';
@@ -40,8 +39,501 @@ function initiales(nom: string): string {
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
 }
 
-type Onglet = 'agents' | 'historique' | 'objectifs';
+type Onglet = 'agents' | 'historique' | 'objectifs' | 'plans' | 'tableau';
 
+// ── Hook données plans ─────────────────────────────────────────────────────────
+function usePlans() {
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchPlans = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/commissions/plans', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setPlans(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // silencieux
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPlans(); }, [fetchPlans]);
+  return { plans, loading, refetch: fetchPlans };
+}
+
+// ── Hook tableau du mois ───────────────────────────────────────────────────────
+function useTableau(mois: number, annee: number) {
+  const [tableau, setTableau] = useState<{ lignes: any[]; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/commissions/tableau?mois=${mois}&annee=${annee}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setTableau(d))
+      .catch(() => setTableau(null))
+      .finally(() => setLoading(false));
+  }, [mois, annee]);
+
+  return { tableau, loading };
+}
+
+// ── Simulateur (appel API) ─────────────────────────────────────────────────────
+async function simulerApi(
+  planId: string,
+  volumeMensuel: number,
+  montantTransaction: number,
+): Promise<{ tauxAgent: number; commissionBrute: number; plafondMensuel: number | null } | null> {
+  try {
+    const res = await fetch(`/api/commissions/plans/${planId}/simuler`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volumeMensuel, montantTransaction }),
+    });
+    return res.ok ? res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Composant onglet Plans ─────────────────────────────────────────────────────
+function OngletPlans({ t }: { t: Translations }) {
+  const { plans, loading, refetch } = usePlans();
+  const [planOuvert, setPlanOuvert] = useState<string | null>(null);
+  const [ajoutPalier, setAjoutPalier] = useState<{
+    volumeMin: string; volumeMax: string; tauxAgent: string; tauxReseau: string;
+  }>({ volumeMin: '', volumeMax: '', tauxAgent: '', tauxReseau: '0' });
+  const [simVolume, setSimVolume] = useState('');
+  const [simMontant, setSimMontant] = useState('');
+  const [simResultat, setSimResultat] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const tp = t.commissions.plans;
+
+  const handleAddPalier = async (planId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/commissions/plans/${planId}/volume-paliers`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          volumeMin: Number(ajoutPalier.volumeMin),
+          volumeMax: ajoutPalier.volumeMax ? Number(ajoutPalier.volumeMax) : undefined,
+          tauxAgent: Number(ajoutPalier.tauxAgent),
+          tauxReseau: Number(ajoutPalier.tauxReseau),
+        }),
+      });
+      if (res.ok) {
+        setMsg(tp.palierSaved);
+        setAjoutPalier({ volumeMin: '', volumeMax: '', tauxAgent: '', tauxReseau: '0' });
+        await refetch();
+        setTimeout(() => setMsg(''), 3000);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSimuler = async (planId: string) => {
+    const result = await simulerApi(planId, Number(simVolume), Number(simMontant));
+    setSimResultat(result);
+  };
+
+  if (loading) return (
+    <div style={{ padding: 32, color: 'var(--gm-text-2)', textAlign: 'center' }}>
+      {t.commissions.tableau.loading}
+    </div>
+  );
+
+  if (plans.length === 0) return (
+    <div style={{ padding: 32, color: 'var(--gm-text-2)', textAlign: 'center' }}>
+      {tp.empty}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 0' }}>
+      {msg && <div style={{ color: 'var(--gm-success)', fontWeight: 600, fontSize: 13 }}>✅ {msg}</div>}
+      {plans.map((plan) => {
+        const ouvert = planOuvert === plan.id;
+        return (
+          <div key={plan.id} className="gm-chart-card" style={{ padding: '16px 20px' }}>
+            {/* En-tête plan */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{plan.nom}</div>
+                <div style={{ fontSize: 12, color: 'var(--gm-text-2)', marginTop: 2 }}>
+                  {plan.operateur} · {tp.typeCalcul} : <strong>{plan.typeCalcul}</strong>
+                  {plan.plafondMensuelAgent != null && (
+                    <> · {tp.plafondMensuel} : <strong>{formatMontant(plan.plafondMensuelAgent)}</strong></>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span className={`gm-status-pill ${plan.active ? 'gm-pill-paid' : 'gm-pill-pending'}`}>
+                  {plan.active ? '✅ Actif' : '⏸ Inactif'}
+                </span>
+                <GmButton variante="outline" petit onClick={() => setPlanOuvert(ouvert ? null : plan.id)}>
+                  {ouvert ? '▲ Fermer' : '▼ Détails'}
+                </GmButton>
+              </div>
+            </div>
+
+            {ouvert && (
+              <div style={{ marginTop: 16 }}>
+                {/* Paliers volume */}
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{tp.palierHeader}</div>
+                {plan.volumePaliers && plan.volumePaliers.length > 0 ? (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--gm-bg-2)' }}>
+                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>{tp.colVolumeMin}</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>{tp.colVolumeMax}</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>{tp.colTauxAgent}</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>{tp.colTauxReseau}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {plan.volumePaliers.map((p: any) => (
+                          <tr key={p.id} style={{ borderBottom: '1px solid var(--gm-border)' }}>
+                            <td style={{ padding: '6px 12px', textAlign: 'right' }}>{formatMontant(p.volumeMin)}</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right' }}>
+                              {p.volumeMax != null ? formatMontant(p.volumeMax) : tp.unlimitedMax}
+                            </td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', color: 'var(--gm-primary)', fontWeight: 700 }}>
+                              {p.tauxAgent}%
+                            </td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right' }}>{p.tauxReseau}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--gm-text-2)', marginBottom: 12 }}>{tp.noPaliers}</div>
+                )}
+
+                {/* Ajout palier */}
+                <div style={{ marginTop: 14, background: 'var(--gm-bg-2)', borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>{tp.addPalier}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' }}>
+                    {[
+                      { label: tp.colVolumeMin, key: 'volumeMin', placeholder: '0' },
+                      { label: tp.colVolumeMax, key: 'volumeMax', placeholder: '∞' },
+                      { label: tp.colTauxAgent + ' (%)', key: 'tauxAgent', placeholder: '1.5' },
+                      { label: tp.colTauxReseau + ' (%)', key: 'tauxReseau', placeholder: '0' },
+                    ].map(({ label, key, placeholder }) => (
+                      <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <label style={{ fontSize: 11, color: 'var(--gm-text-2)' }}>{label}</label>
+                        <input
+                          type="number"
+                          placeholder={placeholder}
+                          value={(ajoutPalier as any)[key]}
+                          onChange={(e) => setAjoutPalier((prev) => ({ ...prev, [key]: e.target.value }))}
+                          style={{
+                            width: 110, padding: '5px 8px', borderRadius: 6,
+                            border: '1px solid var(--gm-border)', fontSize: 13,
+                            background: 'var(--gm-bg)', color: 'var(--gm-text)',
+                          }}
+                        />
+                      </div>
+                    ))}
+                    <GmButton
+                      variante="primary"
+                      petit
+                      disabled={saving || !ajoutPalier.volumeMin || !ajoutPalier.tauxAgent}
+                      onClick={() => handleAddPalier(plan.id)}
+                    >
+                      {saving ? '…' : '+ Ajouter'}
+                    </GmButton>
+                  </div>
+                </div>
+
+                {/* Simulateur */}
+                <div style={{ marginTop: 14, background: 'var(--gm-bg-2)', borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>🧮 {tp.simulator}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' }}>
+                    {[
+                      { label: tp.simVolume, val: simVolume, set: setSimVolume },
+                      { label: tp.simMontant, val: simMontant, set: setSimMontant },
+                    ].map(({ label, val, set }) => (
+                      <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <label style={{ fontSize: 11, color: 'var(--gm-text-2)' }}>{label}</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={val}
+                          onChange={(e) => { set(e.target.value); setSimResultat(null); }}
+                          style={{
+                            width: 150, padding: '5px 8px', borderRadius: 6,
+                            border: '1px solid var(--gm-border)', fontSize: 13,
+                            background: 'var(--gm-bg)', color: 'var(--gm-text)',
+                          }}
+                        />
+                      </div>
+                    ))}
+                    <GmButton
+                      variante="outline"
+                      petit
+                      disabled={!simVolume || !simMontant}
+                      onClick={() => handleSimuler(plan.id)}
+                    >
+                      {tp.simBtn}
+                    </GmButton>
+                  </div>
+                  {simResultat && (
+                    <div style={{ marginTop: 10, fontSize: 13 }}>
+                      <strong>{tp.simResult} :</strong>{' '}
+                      <span style={{ color: 'var(--gm-primary)', fontWeight: 700, fontSize: 16 }}>
+                        {formatMontant(simResultat.commissionBrute)}
+                      </span>
+                      {' '}(taux agent {simResultat.tauxAgent}%
+                      {simResultat.plafondMensuel != null
+                        ? ` · plafond ${formatMontant(simResultat.plafondMensuel)}/mois`
+                        : ''})
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Composant onglet Tableau du mois ──────────────────────────────────────────
+function OngletTableau({ t }: { t: Translations }) {
+  const now = new Date();
+  const [mois, setMois] = useState(now.getMonth() + 1);
+  const [annee, setAnnee] = useState(now.getFullYear());
+  const { tableau, loading } = useTableau(mois, annee);
+  const tt = t.commissions.tableau;
+
+  const handleExportCsv = () => {
+    window.open(`/api/commissions/export-csv?mois=${mois}&annee=${annee}`, '_blank');
+  };
+
+  const MOIS_LABELS = [
+    'Janvier','Février','Mars','Avril','Mai','Juin',
+    'Juillet','Août','Septembre','Octobre','Novembre','Décembre',
+  ];
+
+  return (
+    <div>
+      <div className="gm-actions-bar" style={{ flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 13, color: 'var(--gm-text-2)' }}>{tt.selectMonth}</label>
+          <select
+            value={mois}
+            onChange={(e) => setMois(+e.target.value)}
+            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--gm-border)', fontSize: 13 }}
+          >
+            {MOIS_LABELS.map((m, i) => (
+              <option key={i + 1} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <label style={{ fontSize: 13, color: 'var(--gm-text-2)' }}>{tt.selectYear}</label>
+          <select
+            value={annee}
+            onChange={(e) => setAnnee(+e.target.value)}
+            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--gm-border)', fontSize: 13 }}
+          >
+            {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+        <div className="gm-actions-bar-right">
+          <GmButton variante="outline" petit onClick={handleExportCsv}>
+            {tt.exportCsv}
+          </GmButton>
+        </div>
+      </div>
+
+      <GmTableWrap>
+        <table>
+          <thead>
+            <tr>
+              <th>{tt.colAgent}</th>
+              <th style={{ textAlign: 'right' }}>{tt.colVolume}</th>
+              <th>{tt.colPalier}</th>
+              <th style={{ textAlign: 'right' }}>{tt.colBrute}</th>
+              <th style={{ textAlign: 'center' }}>{tt.colPlafond}</th>
+              <th style={{ textAlign: 'right' }}>{tt.colNette}</th>
+              <th style={{ textAlign: 'center' }}>Bulletin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
+                  {tt.loading}
+                </td>
+              </tr>
+            )}
+            {!loading && (!tableau || tableau.lignes.length === 0) && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--gm-text-2)' }}>
+                  {tt.empty}
+                </td>
+              </tr>
+            )}
+            {!loading && tableau?.lignes.map((l: any) => (
+              <tr key={l.agentId}>
+                <td>
+                  <div className="gm-avatar-cell">
+                    <div className="gm-avatar" style={{ background: couleurAvatar(l.agentId) }}>
+                      {initiales(l.agentCode)}
+                    </div>
+                    <div>
+                      <strong>{l.agentCode}</strong>
+                      {l.phone && <div style={{ fontSize: 11, color: 'var(--gm-text-2)' }}>{l.phone}</div>}
+                    </div>
+                  </div>
+                </td>
+                <td className="gm-amount-cell" style={{ textAlign: 'right' }}>
+                  {formatMontant(l.volumeMensuel)}
+                </td>
+                <td style={{ fontSize: 12 }}>{l.typeCalcul}</td>
+                <td className="gm-amount-cell" style={{ textAlign: 'right', color: 'var(--gm-text-2)' }}>
+                  {formatMontant(l.commissionBrute)}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  {l.plafondAtteint
+                    ? <span style={{ color: 'var(--gm-warning)', fontWeight: 700 }}>{tt.yes}</span>
+                    : <span style={{ color: 'var(--gm-text-2)' }}>{tt.no}</span>}
+                </td>
+                <td className="gm-amount-cell" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--gm-success)' }}>
+                  {formatMontant(l.commissionNette)}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    title="Bulletin de paie PDF"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(
+                          `/api/hr/agents/${l.agentId}/bulletin/${annee}/${mois}/pdf`,
+                          { credentials: 'include' },
+                        );
+                        if (!res.ok) return;
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                      } catch { /* silencieux */ }
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 5,
+                      border: '1px solid var(--gm-primary)',
+                      background: 'transparent',
+                      color: 'var(--gm-primary)',
+                      cursor: 'pointer',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Bulletin PDF
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {tableau && tableau.lignes.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 700, borderTop: '2px solid var(--gm-border)' }}>
+                <td colSpan={6} style={{ padding: '10px 12px', textAlign: 'right' }}>
+                  {tt.total}
+                </td>
+                <td className="gm-amount-cell" style={{ textAlign: 'right', color: 'var(--gm-primary)', fontSize: 15 }}>
+                  {formatMontant(tableau.total)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </GmTableWrap>
+    </div>
+  );
+}
+
+// ── Graphique 6 mois (barres CSS) ─────────────────────────────────────────────
+function Graphique6Mois({ commissions, t }: { commissions: Commission[]; t: Translations }) {
+  const th = t.commissions.historique;
+  const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+  const donnees = useMemo(() => {
+    const now = new Date();
+    const points: { label: string; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      const label = `${MOIS_COURTS[d.getMonth()]} ${y}`;
+      const total = commissions
+        .filter((c) => {
+          const [cy, cm] = (c.periode || '').split('-').map(Number);
+          return cy === y && cm === m;
+        })
+        .reduce((s, c) => s + c.montantCommission, 0);
+      points.push({ label, total });
+    }
+    return points;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commissions]);
+
+  const max = Math.max(...donnees.map((d) => d.total), 1);
+
+  if (donnees.every((d) => d.total === 0)) {
+    return <div style={{ fontSize: 13, color: 'var(--gm-text-2)', padding: 20 }}>{th.noData}</div>;
+  }
+
+  return (
+    <div className="gm-chart-card">
+      <div className="gm-chart-title">{th.chartTitle}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 160, marginTop: 16, padding: '0 8px' }}>
+        {donnees.map((d) => {
+          const pct = Math.round((d.total / max) * 100);
+          return (
+            <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{ fontSize: 10, color: 'var(--gm-text-2)', fontWeight: 600 }}>
+                {d.total > 0 ? formatMontant(d.total) : '—'}
+              </div>
+              <div style={{ width: '100%', height: 120, display: 'flex', alignItems: 'flex-end' }}>
+                <div
+                  style={{
+                    width: '100%',
+                    height: `${Math.max(pct, 4)}%`,
+                    background: pct > 80
+                      ? 'var(--gm-success)'
+                      : pct > 40
+                      ? 'var(--gm-primary)'
+                      : 'var(--gm-border)',
+                    borderRadius: '4px 4px 0 0',
+                    transition: 'height 0.4s ease',
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--gm-text-2)', textAlign: 'center' }}>{d.label}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Page principale ────────────────────────────────────────────────────────────
 export default function CommissionsPage() {
   const t = useT();
   const STATUT_LABELS = statutLabels(t);
@@ -56,7 +548,6 @@ export default function CommissionsPage() {
 
   const { data: resultat, isLoading } = useCommissions(filtrePeriode || undefined);
   const commissions = resultat?.items ?? [];
-  // Repli sur fixtures : on l'affiche, jamais de faux montants silencieux.
   const donneesFictives = resultat?.isMock ?? false;
 
   const totalPages = Math.ceil(commissions.length / LIMIT);
@@ -82,7 +573,6 @@ export default function CommissionsPage() {
     setTimeout(() => setSucces(''), 3000);
   };
 
-  // Logique de traitement groupé — inchangée
   const aValider = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'calculee').map((c) => c.id);
   const aPayer = commissions.filter((c) => selectionnees.includes(c.id) && c.statut === 'validee').map((c) => c.id);
 
@@ -149,6 +639,14 @@ export default function CommissionsPage() {
   const basculerLigne = (id: string, coche: boolean) =>
     setSelectionnees((prev) => (coche ? [...prev, id] : prev.filter((x) => x !== id)));
 
+  const ONGLETS: { key: Onglet; label: string }[] = [
+    { key: 'agents', label: t.commissions.tabs.agents },
+    { key: 'historique', label: t.commissions.tabs.historique },
+    { key: 'objectifs', label: t.commissions.tabs.objectifs },
+    { key: 'plans', label: t.commissions.tabs.plans },
+    { key: 'tableau', label: t.commissions.tabs.tableau },
+  ];
+
   return (
     <>
       <GmPageHeader
@@ -176,8 +674,6 @@ export default function CommissionsPage() {
         }
       />
 
-      {/* L'API commissions est injoignable : les montants ci-dessous sont des
-          données de démonstration. Ne jamais les présenter comme réels. */}
       {donneesFictives && (
         <div
           className="gm-alert-banner"
@@ -194,7 +690,7 @@ export default function CommissionsPage() {
         </div>
       )}
 
-      {/* STATS — valeurs calculées sur les données réelles */}
+      {/* STATS */}
       <div className="gm-stats-row">
         <div className="gm-stat-card gm-total">
           <div className="gm-stat-value">{formatMontant(totalGeneral)}</div>
@@ -229,24 +725,15 @@ export default function CommissionsPage() {
 
       {/* ONGLETS */}
       <div className="gm-tabs-bar">
-        <button
-          className={`gm-tab-btn${onglet === 'agents' ? ' gm-active' : ''}`}
-          onClick={() => setOnglet('agents')}
-        >
-          {t.commissions.tabs.agents}
-        </button>
-        <button
-          className={`gm-tab-btn${onglet === 'historique' ? ' gm-active' : ''}`}
-          onClick={() => setOnglet('historique')}
-        >
-          {t.commissions.tabs.historique}
-        </button>
-        <button
-          className={`gm-tab-btn${onglet === 'objectifs' ? ' gm-active' : ''}`}
-          onClick={() => setOnglet('objectifs')}
-        >
-          {t.commissions.tabs.objectifs}
-        </button>
+        {ONGLETS.map(({ key, label }) => (
+          <button
+            key={key}
+            className={`gm-tab-btn${onglet === key ? ' gm-active' : ''}`}
+            onClick={() => setOnglet(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {succes && (
@@ -465,6 +952,11 @@ export default function CommissionsPage() {
 
       {/* ONGLET : HISTORIQUE DES PAIEMENTS */}
       <div className={`gm-tab-content${onglet === 'historique' ? ' gm-active' : ''}`}>
+        {/* Graphique 6 mois */}
+        <div style={{ marginBottom: 20 }}>
+          <Graphique6Mois commissions={commissions} t={t} />
+        </div>
+
         <GmTableWrap>
           <table>
             <thead>
@@ -545,12 +1037,8 @@ export default function CommissionsPage() {
             </div>
             {topAgent ? (
               <>
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-                  {topAgent.agentNom || '—'}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--gm-text-2)', marginBottom: 4 }}>
-                  {topAgent.agenceNom || '—'}
-                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{topAgent.agentNom || '—'}</div>
+                <div style={{ fontSize: 12, color: 'var(--gm-text-2)', marginBottom: 4 }}>{topAgent.agenceNom || '—'}</div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gm-primary)' }}>
                   {formatMontant(topAgent.montantCommission)}
                 </div>
@@ -582,12 +1070,20 @@ export default function CommissionsPage() {
         </div>
       </div>
 
-      {/* MODALE DE CONFIRMATION — montants réels de la sélection */}
+      {/* ONGLET : PLANS TARIFAIRES */}
+      <div className={`gm-tab-content${onglet === 'plans' ? ' gm-active' : ''}`}>
+        <OngletPlans t={t} />
+      </div>
+
+      {/* ONGLET : TABLEAU DU MOIS */}
+      <div className={`gm-tab-content${onglet === 'tableau' ? ' gm-active' : ''}`}>
+        <OngletTableau t={t} />
+      </div>
+
+      {/* MODALE DE CONFIRMATION */}
       <div
         className={`gm-modal-overlay${modalOuverte ? ' gm-open' : ''}`}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setModalOuverte(false);
-        }}
+        onClick={(e) => { if (e.target === e.currentTarget) setModalOuverte(false); }}
       >
         <div className="gm-modal">
           <div className="gm-modal-header">

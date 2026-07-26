@@ -74,10 +74,14 @@ export class AuditController {
   }
 
   @Get('export')
-  @ApiOperation({ summary: 'Export du journal d\'audit (PDF/CSV)' })
+  @ApiOperation({ summary: 'Export du journal d\'audit (CSV)' })
   @ApiQuery({ name: 'format', enum: ['CSV', 'PDF'], required: false })
   @ApiQuery({ name: 'startDate', required: false })
   @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'action', required: false })
+  @ApiQuery({ name: 'userId', required: false })
+  @ApiQuery({ name: 'resource', required: false })
+  @ApiQuery({ name: 'search', required: false })
   async exportLogs(
     @CurrentUser() user: CurrentUserData,
     @Res() res: Response,
@@ -85,15 +89,23 @@ export class AuditController {
     @Query('format') format: 'CSV' | 'PDF' = 'CSV',
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('action') action?: string,
+    @Query('userId') userId?: string,
+    @Query('resource') resource?: string,
+    @Query('search') search?: string,
   ) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 86400000);
     const end = endDate ? new Date(endDate) : new Date();
 
-    const buffer = await this.auditService.exportAuditLog(user.tenantId, { start, end }, format);
+    const { buffer, filename } = await this.auditService.exportAuditLog(
+      user.tenantId,
+      { start, end },
+      format,
+      { action, userId, resource, search },
+    );
 
     // Traçabilité (§27) : télécharger le journal d'audit est une action sensible.
     // Route GET → non captée par l'AuditInterceptor, on la journalise ici.
-    // Fire-and-forget : ne bloque ni ne fait échouer le téléchargement.
     void Promise.resolve(
       this.auditService.log(
         'EXPORT',
@@ -107,11 +119,11 @@ export class AuditController {
     ).catch(() => undefined);
 
     if (format === 'CSV') {
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="audit-log.csv"');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     } else {
-      res.setHeader('Content-Type', 'text/html');
-      res.setHeader('Content-Disposition', 'attachment; filename="audit-log.html"');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     }
     res.send(buffer);
   }

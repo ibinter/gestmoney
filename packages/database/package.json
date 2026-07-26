@@ -22,6 +22,7 @@
     "db:migrate:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "db:seed": "tsx src/seeds/seed.ts",
+    "db:seed-demo": "tsx src/seeds/seed-demo-runner.ts",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit"
   },

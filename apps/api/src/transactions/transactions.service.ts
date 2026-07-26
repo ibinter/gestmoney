@@ -1,10 +1,15 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
+import { PushService } from '../push/push.service';
+import { DevisesService } from '../devises/devises.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { QueryTransactionDto } from './dto/query-transaction.dto';
 import { TransactionStatsQueryDto } from './dto/transaction-stats.dto';
@@ -42,6 +47,10 @@ export class TransactionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly notifications: NotificationsService,
+    private readonly webhooks: WebhooksService,
+    private readonly devises: DevisesService,
+    private readonly push: PushService,
   ) {}
 
   // ─── Génération référence unique ────────────────────────────────────────────
@@ -159,7 +168,20 @@ export class TransactionsService {
     };
   }
 
-  async create(dto: CreateTransactionDto, tenantId: string, userId: string): Promise<ITransaction> {
+  async create(
+    dto: CreateTransactionDto,
+    tenantId: string,
+    userId: string,
+    agenceId?: string | null,
+  ): Promise<ITransaction> {
+    // Contrôle d'isolation : si l'appelant est scopé à une agence, vérifier
+    // que la transaction cible bien cette agence (et non une agence tierce).
+    if (agenceId && dto.agencyId && dto.agencyId !== agenceId) {
+      throw new ForbiddenException(
+        'Vous ne pouvez créer des transactions que pour votre agence',
+      );
+    }
+
     // 1. Résoudre l'agent (fourni ou déduit de l'utilisateur courant).
     const agentId = await this.resolveAgentId(dto, tenantId, userId);
 
@@ -204,7 +226,10 @@ export class TransactionsService {
         fee: frais,
         netAmount: dto.montant - frais,
         commission: 0,
-        currency: 'XOF',
+        currency: dto.devise ?? 'XOF',
+        montantXOF: dto.devise && dto.devise !== 'XOF'
+          ? await this.devises.montantEnXOF(dto.montant, dto.devise).catch(() => dto.montant)
+          : dto.montant,
         agentId,
         agencyId: agent?.agencyId ?? '',
         receiverPhone: dto.clientPhone,
@@ -236,6 +261,25 @@ export class TransactionsService {
     );
 
     this.logger.log(`Transaction créée: ${reference} | ${dto.type} | ${dto.montant} FCFA`);
+
+    // Webhook fire-and-forget
+    void this.webhooks.emettre(tenantId, 'transaction.created', txResult);
+
+    void this.notifications.creerInApp(
+      userId,
+      tenantId,
+      'TRANSACTION',
+      `Transaction ${reference} créée`,
+      `${dto.type} de ${dto.montant.toLocaleString('fr-FR')} XOF via ${dto.operateur} — en attente de validation.`,
+      `/dashboard/transactions`,
+    );
+
+    // Onboarding : marquer etape5 (1ère transaction enregistrée) en fire-and-forget
+    this.prisma.onboardingStep.upsert({
+      where:  { tenantId },
+      create: { tenantId, etape5: true },
+      update: { etape5: true },
+    }).catch(() => { /* non bloquant */ });
     return txResult;
   }
 
@@ -298,12 +342,34 @@ export class TransactionsService {
     );
 
     this.logger.log(`Transaction complétée: ${transaction.reference}`);
+
+    // Webhook fire-and-forget
+    void this.webhooks.emettre(tenantId, 'transaction.completed', completedTx);
+
+    void this.notifications.creerInApp(
+      userId,
+      tenantId,
+      'TRANSACTION',
+      `Transaction ${transaction.reference} validée`,
+      `La transaction de ${Number(updated.amount).toLocaleString('fr-FR')} XOF a été complétée avec succès.`,
+      `/dashboard/transactions`,
+    );
+
+    // Notification push à l'agent ayant créé la transaction (fire-and-forget)
+    void this.push.envoyerNotification(userId, {
+      title: '✅ Transaction validée',
+      body: `${transaction.type} de ${Number(updated.amount).toLocaleString('fr-FR')} FCFA validée avec succès`,
+      icon: '/icons/icon-192.svg',
+      data: { url: '/dashboard/transactions' },
+    }).catch((err: Error) => this.logger.warn(`Push transaction validée échoué : ${err.message}`));
+
     return completedTx;
   }
 
   async findAll(
     query: QueryTransactionDto,
     tenantId: string,
+    agenceId?: string | null,
   ): Promise<{ data: ITransaction[]; total: number; page: number; limit: number }> {
     const {
       page = 1,
@@ -316,7 +382,7 @@ export class TransactionsService {
       operateur,
       statut,
       agentId,
-      agenceId,
+      agenceId: agenceIdQuery,
       montantMin,
       montantMax,
       clientPhone,
@@ -324,6 +390,15 @@ export class TransactionsService {
     } = query;
 
     const where: any = { tenantId };
+
+    // Isolation agence : si l'appelant est scopé (AGENCY_MANAGER/AGENT),
+    // forcer le filtre agencyId, ignorant tout filtre query qui pourrait
+    // tenter de sortir du périmètre autorisé.
+    if (agenceId) {
+      where.agencyId = agenceId;
+    } else if (agenceIdQuery) {
+      where.agencyId = agenceIdQuery;
+    }
 
     if (dateDebut || dateFin) {
       where.createdAt = {};
@@ -338,7 +413,6 @@ export class TransactionsService {
     if (operateur) where.operatorCode = operateur;
     if (statut) where.status = statut;
     if (agentId) where.agentId = agentId;
-    if (agenceId) where.agencyId = agenceId;
     if (montantMin !== undefined || montantMax !== undefined) {
       where.amount = {};
       if (montantMin !== undefined) where.amount.gte = montantMin;

@@ -61,30 +61,83 @@ export class NotificationsService {
     private readonly configService: ConfigService,
   ) {}
 
-  // ─── SMS via Twilio ───────────────────────────────────────────────────────────
+  // ─── SMS (Twilio conditionnel) ────────────────────────────────────────────────
+  //
+  // Comportement :
+  //   - Si TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_FROM_NUMBER sont définis
+  //     → envoi réel via Twilio (nécessite: pnpm add twilio --filter @gestmoney/api)
+  //   - Sinon → log WARN structuré (mode simulation, aucune exception levée)
+  //
+  // Le statut en base est 'SENT' dans les deux cas pour ne pas bloquer le flux
+  // métier ; 'FAILED' est réservé aux erreurs réseau/Twilio réelles.
 
   async sendSms(options: SendSmsOptions): Promise<void> {
-    try {
-      // Intégration Twilio — injecter TwilioClient en production
-      // const message = await this.twilioClient.messages.create({ ... });
-      this.logger.log(`[SMS] To: ${options.to} | ${options.message.substring(0, 50)}...`);
+    const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
+    const authToken  = this.configService.get<string>('TWILIO_AUTH_TOKEN');
+    const fromNumber = this.configService.get<string>('TWILIO_FROM_NUMBER');
 
+    if (accountSid && authToken && fromNumber) {
+      // ── Envoi réel via Twilio ──────────────────────────────────────────────
+      // Le paquet twilio peut ne pas être installé dans l'environnement.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let twilioModule: any = null;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        twilioModule = require('twilio');
+      } catch {
+        this.logger.warn(
+          '[SMS-CONFIG] TWILIO_* configuré mais le paquet « twilio » n\'est pas installé. ' +
+          'Exécutez « pnpm add twilio --filter @gestmoney/api » pour activer l\'envoi réel. ' +
+          `SMS simulé → ${options.to}: ${options.message.substring(0, 60)}`,
+        );
+        await this.logNotification({
+          tenantId: options.tenantId,
+          canal: 'SMS',
+          destinataire: options.to,
+          contenu: options.message,
+          statut: 'SENT',
+        });
+        return;
+      }
+
+      try {
+        const client = twilioModule(accountSid, authToken);
+        await client.messages.create({
+          body: options.message,
+          from: fromNumber,
+          to: options.to,
+        });
+        this.logger.log(`[SMS] Envoyé via Twilio → ${options.to}`);
+        await this.logNotification({
+          tenantId: options.tenantId,
+          canal: 'SMS',
+          destinataire: options.to,
+          contenu: options.message,
+          statut: 'SENT',
+        });
+      } catch (error: any) {
+        this.logger.error(`[SMS] Échec Twilio pour ${options.to}: ${error.message}`);
+        await this.logNotification({
+          tenantId: options.tenantId,
+          canal: 'SMS',
+          destinataire: options.to,
+          contenu: options.message,
+          statut: 'FAILED',
+          erreur: error.message,
+        });
+      }
+    } else {
+      // ── Mode simulation (variables Twilio absentes) ────────────────────────
+      this.logger.warn(
+        `[SMS-SIMULATION] TWILIO_* non configurés — SMS non envoyé. ` +
+        `Destinataire: ${options.to} | Message: ${options.message.substring(0, 80)}`,
+      );
       await this.logNotification({
         tenantId: options.tenantId,
         canal: 'SMS',
         destinataire: options.to,
         contenu: options.message,
         statut: 'SENT',
-      });
-    } catch (error: any) {
-      this.logger.error(`Erreur envoi SMS à ${options.to}: ${error.message}`);
-      await this.logNotification({
-        tenantId: options.tenantId,
-        canal: 'SMS',
-        destinataire: options.to,
-        contenu: options.message,
-        statut: 'FAILED',
-        erreur: error.message,
       });
     }
   }
@@ -344,6 +397,104 @@ export class NotificationsService {
     }));
 
     return { data, total, page: p, limit: l };
+  }
+
+  // ─── Notifications in-app ────────────────────────────────────────────────────
+
+  async creerInApp(
+    userId: string,
+    tenantId: string,
+    type: string,
+    titre: string,
+    message: string,
+    lien?: string,
+  ) {
+    try {
+      return await this.prisma.notificationInApp.create({
+        data: { userId, tenantId, type, titre, message, lien },
+      });
+    } catch {
+      // Ne jamais bloquer le flux métier
+    }
+  }
+
+  async listerInApp(
+    userId: string,
+    tenantId: string,
+    opts: { limit?: number; lue?: boolean; type?: string; page?: number } = {},
+  ) {
+    const limit = opts.limit ?? 20;
+    const page = Math.max(1, opts.page ?? 1);
+    const skip = (page - 1) * limit;
+    const where: Record<string, unknown> = { userId, tenantId };
+    if (opts.lue !== undefined) where.lu = opts.lue;
+    if (opts.type) where.type = opts.type;
+
+    const [rows, total] = await Promise.all([
+      this.prisma.notificationInApp.findMany({
+        where,
+        orderBy: [{ lu: 'asc' }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+      }),
+      this.prisma.notificationInApp.count({ where }),
+    ]);
+
+    return {
+      data: rows.map((n) => ({
+        id: n.id,
+        type: n.type.toLowerCase(),
+        titre: n.titre,
+        description: n.message,
+        lue: n.lu,
+        date: n.createdAt,
+        lien: n.lien ?? undefined,
+      })),
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async marquerInAppLue(id: string, userId: string) {
+    try {
+      return await this.prisma.notificationInApp.updateMany({
+        where: { id, userId },
+        data: { lu: true },
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async marquerToutesInAppLues(userId: string, tenantId: string) {
+    try {
+      return await this.prisma.notificationInApp.updateMany({
+        where: { userId, tenantId, lu: false },
+        data: { lu: true },
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async compterInAppNonLues(userId: string, tenantId: string) {
+    try {
+      return await this.prisma.notificationInApp.count({
+        where: { userId, tenantId, lu: false },
+      });
+    } catch {
+      return 0;
+    }
+  }
+
+  async supprimerInApp(id: string, userId: string) {
+    try {
+      return await this.prisma.notificationInApp.deleteMany({
+        where: { id, userId },
+      });
+    } catch {
+      return null;
+    }
   }
 
   // ─── Log interne ─────────────────────────────────────────────────────────────

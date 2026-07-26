@@ -70,6 +70,22 @@ export function useCreateAgence() {
   });
 }
 
+export function useAgenceDashboard(agenceId: string) {
+  return useQuery({
+    queryKey: ['agences', 'dashboard', agenceId] as const,
+    queryFn: async () => {
+      try {
+        const res = await api.get(`/agencies/${agenceId}/dashboard`);
+        return res.data;
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(agenceId),
+    staleTime: 60_000,
+  });
+}
+
 export function useToggleAgenceStatus() {
   const qc = useQueryClient();
   return useMutation({

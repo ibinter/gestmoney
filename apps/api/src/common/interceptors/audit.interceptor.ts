@@ -103,9 +103,18 @@ export class AuditInterceptor implements NestInterceptor {
     const resourceId = this.extraireResourceId(req, reponse);
     const details = { resourceId, method: req.method, path: req.originalUrl || req.url };
 
+    // Pour les mutations (PUT/PATCH), le corps de la requête représente
+    // les valeurs soumises — on le stocke comme « oldValues » au sens
+    // « ce que le client a envoyé » jusqu'à ce que le service appelant
+    // fournisse l'état DB réel via auditService.log(..., oldValues).
+    const oldValues =
+      (req.method === 'PUT' || req.method === 'PATCH') && req.body && typeof req.body === 'object'
+        ? req.body
+        : undefined;
+
     setImmediate(() => {
       Promise.resolve(
-        this.auditService.log(action, userId, resource, details, tenantId, ip, userAgent),
+        this.auditService.log(action, userId, resource, details, tenantId, ip, userAgent, oldValues),
       ).catch((err) => {
         // L'audit est accessoire : on avale l'erreur pour ne pas polluer le flux.
         this.logger.warn(`Audit non enregistré (${action} ${resource}): ${err?.message ?? err}`);

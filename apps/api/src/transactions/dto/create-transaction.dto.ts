@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -81,6 +82,15 @@ export class CreateTransactionDto {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  @ApiPropertyOptional({
+    description: 'Devise du montant saisi (XOF par défaut)',
+    enum: ['XOF', 'EUR', 'USD', 'GBP'],
+    example: 'XOF',
+  })
+  @IsOptional()
+  @IsIn(['XOF', 'EUR', 'USD', 'GBP'])
+  devise?: string;
 
   @ApiPropertyOptional({ description: 'Métadonnées supplémentaires (JSON)' })
   @IsOptional()

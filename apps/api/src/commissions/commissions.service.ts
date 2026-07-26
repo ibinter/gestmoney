@@ -50,12 +50,158 @@ export class CommissionsService {
    * complète de la commission. Renvoie `null` si rien ne s'applique (pas de
    * réseau, pas de grille active, aucun palier pour ce type/montant, ou 0).
    */
+  // ─── Helpers volume mensuel / plafond ───────────────────────────────────────
+
+  async getVolumeMensuelAgent(
+    agentId: string,
+    tenantId: string,
+    mois?: number,
+    annee?: number,
+  ): Promise<number> {
+    const now = new Date();
+    const m = mois ?? now.getMonth() + 1;
+    const y = annee ?? now.getFullYear();
+    const debut = new Date(y, m - 1, 1);
+    const fin = new Date(y, m, 1);
+
+    const agg = await this.prisma.transaction.aggregate({
+      where: {
+        tenantId,
+        agentId,
+        status: 'COMPLETED',
+        createdAt: { gte: debut, lt: fin },
+      },
+      _sum: { amount: true },
+    });
+    return this.num(agg._sum.amount);
+  }
+
+  async getCommissionsMensuelles(
+    agentId: string,
+    tenantId: string,
+    mois?: number,
+    annee?: number,
+  ): Promise<number> {
+    const now = new Date();
+    const m = mois ?? now.getMonth() + 1;
+    const y = annee ?? now.getFullYear();
+
+    const agg = await this.prisma.commissionEarning.aggregate({
+      where: { tenantId, agentId, periodMonth: m, periodYear: y },
+      _sum: { agentAmount: true },
+    });
+    return this.num(agg._sum.agentAmount);
+  }
+
+  /** Tableau synthétique des commissions d'un mois — par agent. */
+  async getTableauCommissions(tenantId: string, mois: number, annee: number) {
+    const earnings = await this.prisma.commissionEarning.findMany({
+      where: { tenantId, periodMonth: mois, periodYear: annee },
+      include: {
+        agent: { select: { agentCode: true, phoneNumber: true, agencyId: true } },
+        commissionPlan: { select: { name: true, typeCalcul: true, plafondMensuelAgent: true } },
+      },
+    });
+
+    // Agréger par agent
+    const parAgent = new Map<
+      string,
+      {
+        agentId: string;
+        agentCode: string;
+        phone: string;
+        agencyId: string | null;
+        volumeBrut: number;
+        commissionBrute: number;
+        planNom: string;
+        typeCalcul: string;
+        plafond: number | null;
+      }
+    >();
+
+    for (const e of earnings) {
+      const agentId = e.agentId ?? 'unknown';
+      const existing = parAgent.get(agentId);
+      const montant = this.num(e.agentAmount);
+      if (existing) {
+        existing.volumeBrut += this.num(e.grossAmount);
+        existing.commissionBrute += montant;
+      } else {
+        parAgent.set(agentId, {
+          agentId,
+          agentCode: e.agent?.agentCode ?? 'N/A',
+          phone: e.agent?.phoneNumber ?? '',
+          agencyId: e.agent?.agencyId ?? null,
+          volumeBrut: this.num(e.grossAmount),
+          commissionBrute: montant,
+          planNom: e.commissionPlan?.name ?? '',
+          typeCalcul: e.commissionPlan?.typeCalcul ?? 'SIMPLE',
+          plafond: e.commissionPlan?.plafondMensuelAgent
+            ? this.num(e.commissionPlan.plafondMensuelAgent)
+            : null,
+        });
+      }
+    }
+
+    // Calculer le volume mensuel réel (transactions) et plafond atteint
+    const lignes = await Promise.all(
+      [...parAgent.values()].map(async (row) => {
+        const volumeMensuel = await this.getVolumeMensuelAgent(
+          row.agentId,
+          tenantId,
+          mois,
+          annee,
+        );
+        const commissionNette =
+          row.plafond != null
+            ? Math.min(row.commissionBrute, row.plafond)
+            : row.commissionBrute;
+        return {
+          ...row,
+          volumeMensuel,
+          commissionNette,
+          plafondAtteint: row.plafond != null && row.commissionBrute >= row.plafond,
+        };
+      }),
+    );
+
+    const total = lignes.reduce((s, l) => s + l.commissionNette, 0);
+    return { lignes, total, mois, annee };
+  }
+
+  /** Export CSV des commissions d'un mois (pour paiement). */
+  async exporterCommissions(
+    tenantId: string,
+    mois: number,
+    annee: number,
+  ): Promise<string> {
+    const { lignes } = await this.getTableauCommissions(tenantId, mois, annee);
+
+    const entete =
+      'Agent;Téléphone;Volume mensuel (FCFA);Commission brute (FCFA);Plafond atteint;Commission nette (FCFA)\n';
+    const corps = lignes
+      .map(
+        (l) =>
+          `${l.agentCode};${l.phone};${l.volumeMensuel};${l.commissionBrute};${l.plafondAtteint ? 'OUI' : 'NON'};${l.commissionNette}`,
+      )
+      .join('\n');
+    return entete + corps;
+  }
+
+  // ─── Résolution grille + palier (cœur du calcul) ───────────────────────────────
+
+  /**
+   * Résout la grille active et le palier applicable, puis calcule la ventilation
+   * complète de la commission. Renvoie `null` si rien ne s'applique (pas de
+   * réseau, pas de grille active, aucun palier pour ce type/montant, ou 0).
+   */
   private async resoudreCommission(params: {
     tenantId: string;
     montant: number;
     type: any;
     networkId?: string;
     operateur?: string;
+    agentId?: string; // requis pour typeCalcul=PALIERS
   }): Promise<null | {
     planId: string;
     rateId: string;
@@ -91,10 +237,57 @@ export class CommissionsService {
         effectiveFrom: { lte: now },
         OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
       },
-      include: { rates: true },
+      include: { rates: true, volumePaliers: true },
       orderBy: { effectiveFrom: 'desc' },
     });
-    if (!plan || plan.rates.length === 0) return null;
+    if (!plan) return null;
+
+    // ── Mode PALIERS : taux déterminé par le volume mensuel de l'agent ───────
+    if (plan.typeCalcul === 'PALIERS' && params.agentId) {
+      const volumeMensuel = await this.getVolumeMensuelAgent(
+        params.agentId,
+        params.tenantId,
+      );
+      const palier = (plan.volumePaliers as any[])
+        .sort((a, b) => this.num(b.volumeMin) - this.num(a.volumeMin))
+        .find(
+          (p) =>
+            volumeMensuel >= this.num(p.volumeMin) &&
+            (p.volumeMax == null || volumeMensuel <= this.num(p.volumeMax)),
+        );
+
+      if (!palier) return null;
+
+      const tauxAgent = this.num(palier.tauxAgent);
+      const tauxReseau = this.num(palier.tauxReseau);
+      let gross = Math.round(params.montant * (tauxAgent + tauxReseau) / 100);
+      if (gross <= 0) return null;
+
+      // Appliquer le plafond mensuel si défini
+      if (plan.plafondMensuelAgent) {
+        const dejaGagne = await this.getCommissionsMensuelles(
+          params.agentId,
+          params.tenantId,
+        );
+        const plafond = this.num(plan.plafondMensuelAgent);
+        const reste = Math.max(0, plafond - dejaGagne);
+        gross = Math.min(gross, reste);
+        if (gross <= 0) return null;
+      }
+
+      const totalTaux = tauxAgent + tauxReseau || 1;
+      return {
+        planId: plan.id,
+        rateId: palier.id, // on réutilise le champ rateId pour stocker la référence
+        gross,
+        agentAmount: Math.round(gross * (tauxAgent / totalTaux)),
+        superAgentAmount: 0,
+        agencyAmount: 0,
+        networkAmount: Math.round(gross * (tauxReseau / totalTaux)),
+      };
+    }
+
+    if (plan.rates.length === 0) return null;
 
     // Les taux sont indexés sur l'enum Prisma (DEPOSIT/WITHDRAWAL…), tout comme
     // Transaction.type. On normalise donc le type reçu (qu'il vienne d'un DTO FR
@@ -111,11 +304,23 @@ export class CommissionsService {
       .sort((a, b) => this.num(b.minAmount) - this.num(a.minAmount))[0];
     if (!rate) return null;
 
-    const gross =
+    let gross =
       rate.fixedAmount != null
         ? this.num(rate.fixedAmount)
         : Math.round(params.montant * (this.num(rate.rate) / 100));
     if (gross <= 0) return null;
+
+    // Appliquer le plafond mensuel (SIMPLE / PROGRESSIF aussi)
+    if (plan.plafondMensuelAgent && params.agentId) {
+      const dejaGagne = await this.getCommissionsMensuelles(
+        params.agentId,
+        params.tenantId,
+      );
+      const plafond = this.num(plan.plafondMensuelAgent);
+      const reste = Math.max(0, plafond - dejaGagne);
+      gross = Math.min(gross, reste);
+      if (gross <= 0) return null;
+    }
 
     const part = (share: any) => Math.round(gross * (this.num(share) / 100));
     return {
@@ -169,6 +374,7 @@ export class CommissionsService {
       networkId: tx.networkId,
       type: tx.type,
       montant: this.num(tx.amount),
+      agentId: tx.agentId ?? undefined,
     });
     if (!c) return;
 
@@ -294,6 +500,7 @@ export class CommissionsService {
     const transactions = await this.prisma.transaction.findMany({
       where,
       select: { id: true },
+      take: dto.limit ?? 10_000, // plafond batch : évite un recalcul illimité sans pagination explicite
     });
     let recalculated = 0;
 
@@ -324,6 +531,13 @@ export class CommissionsService {
         ? fromPrismaTransactionType(premier.transactionType)
         : null,
       active: plan.isActive,
+      typeCalcul: plan.typeCalcul ?? 'SIMPLE',
+      plafondMensuelAgent: plan.plafondMensuelAgent
+        ? this.num(plan.plafondMensuelAgent)
+        : null,
+      plafondMensuelReseau: plan.plafondMensuelReseau
+        ? this.num(plan.plafondMensuelReseau)
+        : null,
       partAgent: premier ? this.num(premier.agentShare) : 70,
       partReseau: premier
         ? this.num(premier.superAgentShare) +
@@ -331,10 +545,18 @@ export class CommissionsService {
           this.num(premier.networkShare)
         : 30,
       paliers: rates.map((r) => ({
+        id: r.id,
         montantMin: this.num(r.minAmount),
         montantMax: r.maxAmount == null ? null : this.num(r.maxAmount),
         taux: this.num(r.rate),
         montantFixe: r.fixedAmount == null ? null : this.num(r.fixedAmount),
+      })),
+      volumePaliers: (plan.volumePaliers ?? []).map((p: any) => ({
+        id: p.id,
+        volumeMin: this.num(p.volumeMin),
+        volumeMax: p.volumeMax == null ? null : this.num(p.volumeMax),
+        tauxAgent: this.num(p.tauxAgent),
+        tauxReseau: this.num(p.tauxReseau),
       })),
       createdAt: plan.createdAt,
     };
@@ -393,10 +615,13 @@ export class CommissionsService {
         networkId: network.id,
         basis: this.deriverBasis(dto.paliers),
         isActive: dto.active ?? true,
+        typeCalcul: (dto as any).typeCalcul ?? 'SIMPLE',
+        plafondMensuelAgent: (dto as any).plafondMensuelAgent ?? null,
+        plafondMensuelReseau: (dto as any).plafondMensuelReseau ?? null,
         effectiveFrom: new Date(),
         rates: { create: this.ratesDepuisDto(dto, tenantId) },
       },
-      include: { rates: true, network: true },
+      include: { rates: true, network: true, volumePaliers: true },
     });
 
     return this.mapPlan(plan);
@@ -405,10 +630,89 @@ export class CommissionsService {
   async getPlans(tenantId: string) {
     const plans = await this.prisma.commissionPlan.findMany({
       where: { tenantId },
-      include: { rates: true, network: true },
+      include: { rates: true, network: true, volumePaliers: true },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
     return plans.map((p) => this.mapPlan(p));
+  }
+
+  async getPlan(id: string, tenantId: string) {
+    const plan = await this.prisma.commissionPlan.findFirst({
+      where: { id, tenantId },
+      include: { rates: true, network: true, volumePaliers: true },
+    });
+    if (!plan) throw new CommissionPlanNotFoundException(id);
+    return this.mapPlan(plan);
+  }
+
+  // ─── CRUD VolumePalier ────────────────────────────────────────────────────────
+
+  async addVolumePalier(
+    planId: string,
+    tenantId: string,
+    dto: { volumeMin: number; volumeMax?: number; tauxAgent: number; tauxReseau?: number },
+  ) {
+    const plan = await this.prisma.commissionPlan.findFirst({
+      where: { id: planId, tenantId },
+    });
+    if (!plan) throw new CommissionPlanNotFoundException(planId);
+
+    const palier = await this.prisma.volumePalier.create({
+      data: {
+        planId,
+        volumeMin: dto.volumeMin,
+        volumeMax: dto.volumeMax ?? null,
+        tauxAgent: dto.tauxAgent,
+        tauxReseau: dto.tauxReseau ?? 0,
+      },
+    });
+
+    // Basculer le plan en mode PALIERS
+    await this.prisma.commissionPlan.update({
+      where: { id: planId },
+      data: { typeCalcul: 'PALIERS' },
+    });
+
+    return palier;
+  }
+
+  async deleteVolumePalier(palierId: string, planId: string, tenantId: string) {
+    const plan = await this.prisma.commissionPlan.findFirst({
+      where: { id: planId, tenantId },
+    });
+    if (!plan) throw new CommissionPlanNotFoundException(planId);
+    await this.prisma.volumePalier.delete({ where: { id: palierId } });
+    return { deleted: true };
+  }
+
+  /** Simulateur : commission nette estimée pour un volume donné sur un plan. */
+  simulerCommission(
+    plan: any,
+    volumeMensuel: number,
+    montantTransaction: number,
+  ): { tauxAgent: number; commissionBrute: number; plafondMensuel: number | null } {
+    if (plan.typeCalcul === 'PALIERS') {
+      const palier = (plan.volumePaliers ?? [])
+        .slice()
+        .sort((a: any, b: any) => b.volumeMin - a.volumeMin)
+        .find(
+          (p: any) =>
+            volumeMensuel >= p.volumeMin &&
+            (p.volumeMax == null || volumeMensuel <= p.volumeMax),
+        );
+      const tauxAgent = palier?.tauxAgent ?? 0;
+      const commissionBrute = Math.round(montantTransaction * (tauxAgent / 100));
+      return { tauxAgent, commissionBrute, plafondMensuel: plan.plafondMensuelAgent };
+    }
+    // SIMPLE : premier palier
+    const premier = plan.paliers?.[0];
+    const taux = premier?.taux ?? 0;
+    return {
+      tauxAgent: taux * (plan.partAgent / 100),
+      commissionBrute: Math.round(montantTransaction * (taux / 100) * (plan.partAgent / 100)),
+      plafondMensuel: plan.plafondMensuelAgent,
+    };
   }
 
   async updatePlan(
@@ -426,6 +730,9 @@ export class CommissionsService {
     if (dto.nom !== undefined) data.name = dto.nom;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.active !== undefined) data.isActive = dto.active;
+    if ((dto as any).typeCalcul !== undefined) data.typeCalcul = (dto as any).typeCalcul;
+    if ((dto as any).plafondMensuelAgent !== undefined) data.plafondMensuelAgent = (dto as any).plafondMensuelAgent;
+    if ((dto as any).plafondMensuelReseau !== undefined) data.plafondMensuelReseau = (dto as any).plafondMensuelReseau;
 
     if (dto.paliers) {
       // Conserver le type de transaction et le partage existants si le DTO
@@ -454,7 +761,7 @@ export class CommissionsService {
     const updated = await this.prisma.commissionPlan.update({
       where: { id },
       data,
-      include: { rates: true, network: true },
+      include: { rates: true, network: true, volumePaliers: true },
     });
 
     return this.mapPlan(updated);
@@ -485,7 +792,7 @@ export class CommissionsService {
       where.createdAt = { ...(where.createdAt || {}), lte: new Date(dto.dateFin) };
     }
 
-    const earnings = await this.prisma.commissionEarning.findMany({ where });
+    const earnings = await this.prisma.commissionEarning.findMany({ where, take: 10_000 });
     if (!earnings.length) {
       throw new NotFoundException('Aucune commission à payer trouvée');
     }

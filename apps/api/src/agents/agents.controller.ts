@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -25,6 +26,7 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { QueryAgentDto } from './dto/query-agent.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { AgencyScopeGuard } from '../common/guards/agency-scope.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
@@ -41,7 +43,7 @@ class SuspendAgentDto {
 
 @ApiTags('Agents')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, AgencyScopeGuard, RolesGuard)
 @Controller('agents')
 export class AgentsController {
   constructor(private readonly agentsService: AgentsService) {}
@@ -61,8 +63,9 @@ export class AgentsController {
   @Get()
   @ApiOperation({ summary: 'Lister les agents avec filtres' })
   @ApiResponse({ status: 200, description: 'Liste des agents' })
-  findAll(@Query() query: QueryAgentDto, @TenantId() tenantId: string) {
-    return this.agentsService.findAll(query, tenantId);
+  findAll(@Query() query: QueryAgentDto, @TenantId() tenantId: string, @Req() req: any) {
+    // agenceId enrichi par AgencyScopeGuard pour AGENCY_MANAGER/AGENT
+    return this.agentsService.findAll(query, tenantId, req.user?.agenceId);
   }
 
   @Get(':id')

@@ -25,6 +25,7 @@ import {
   type Paiement,
   type StatutPaiement,
 } from '@/hooks/usePaiements';
+import { useStatutLicence } from '@/hooks/useLicence';
 import { formatMontant, formatDateTime } from '@/lib/formatters';
 import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
@@ -209,16 +210,226 @@ function humaniserCle(cle: string): string {
   return espace.charAt(0).toUpperCase() + espace.slice(1);
 }
 
+// ─── Carte de statut d'abonnement ─────────────────────────────────────────────
+
+function couleurStatut(joursRestants: number | null, statut: string): string {
+  if (statut === 'EXPIREE' || statut === 'SUSPENDUE' || statut === 'REVOQUEE') return 'var(--gm-danger)';
+  if (joursRestants !== null && joursRestants <= 3) return 'var(--gm-danger)';
+  if (joursRestants !== null && joursRestants <= 7) return 'var(--gm-warning, #f59e0b)';
+  return 'var(--gm-success)';
+}
+
+function libelleStatutLicence(t: Translations, statut: string): string {
+  const s = t.abonnement.statutCard;
+  if (statut === 'ACTIVE') return s.actif;
+  if (statut === 'GRACE') return s.grace;
+  if (statut === 'ESSAI') return s.essai;
+  if (statut === 'EN_ATTENTE_PAIEMENT' || statut === 'PROVISOIRE') return s.enAttente;
+  if (statut === 'EXPIREE' || statut === 'SUSPENDUE' || statut === 'REVOQUEE') return s.expire;
+  return s.autreStatut;
+}
+
+function dateEcheance(statut: ReturnType<typeof useStatutLicence>['data']): string | null {
+  if (!statut) return null;
+  return statut.subscriptionEndsAt ?? statut.graceJusquA ?? statut.provisoireJusquA ?? statut.trialEndsAt ?? null;
+}
+
+function CarteStatutAbonnement() {
+  const t = useT();
+  const licence = useStatutLicence();
+  const s = t.abonnement.statutCard;
+
+  if (licence.isLoading) {
+    return (
+      <div className="gm-section-block" style={{ padding: '16px 20px', fontSize: 13, color: 'var(--gm-text-2)' }}>
+        {s.loading}
+      </div>
+    );
+  }
+
+  const data = licence.data;
+  if (!data) return null;
+
+  const echeanceIso = dateEcheance(data);
+  const echeanceStr = echeanceIso
+    ? new Date(echeanceIso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : s.aucune;
+
+  const couleur = couleurStatut(data.joursRestants, data.statut);
+  const libelleStatut = libelleStatutLicence(t, data.statut);
+
+  return (
+    <div
+      className="gm-section-block"
+      style={{
+        borderLeft: `4px solid ${couleur}`,
+        padding: '16px 20px',
+        marginBottom: 0,
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gm-text-2)', textTransform: 'uppercase', marginBottom: 12 }}>
+        {s.title}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px 24px', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--gm-text-2)', textTransform: 'uppercase' }}>{s.formule}</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{data.plan || '—'}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--gm-text-2)', textTransform: 'uppercase' }}>{s.statut}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: couleur }}>{libelleStatut}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--gm-text-2)', textTransform: 'uppercase' }}>{s.echeance}</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{echeanceStr}</div>
+        </div>
+        {data.joursRestants !== null && (
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--gm-text-2)', textTransform: 'uppercase' }}>{s.joursRestants}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: couleur }}>
+              {data.joursRestants} {s.joursRestantsSuffix}
+            </div>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <GmButton variante="primary" petit onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>
+          {s.renew}
+        </GmButton>
+        <GmButton variante="outline" petit onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          {s.changeFormule}
+        </GmButton>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bouton voucher inline ─────────────────────────────────────────────────────
+
+interface VoucherInlineProps {
+  consommerVoucher: ReturnType<typeof useConsommerVoucher>;
+}
+
+function VoucherInline({ consommerVoucher }: VoucherInlineProps) {
+  const t = useT();
+  const v = t.abonnement.voucherInline;
+  const [ouvert, setOuvert] = useState(false);
+  const [code, setCode] = useState('');
+  const [erreur, setErreur] = useState('');
+  const [succes, setSucces] = useState('');
+
+  async function soumettre(ev: React.FormEvent) {
+    ev.preventDefault();
+    setErreur('');
+    setSucces('');
+    const c = code.trim();
+    if (c.length < 8) {
+      setErreur(t.abonnement.voucher.invalid);
+      return;
+    }
+    try {
+      const resultat = await consommerVoucher.mutateAsync(c);
+      setSucces(
+        `${t.abonnement.voucher.acceptedPrefix}${resultat.plan ? ` ${t.abonnement.voucher.onPlan} ${resultat.plan}` : ''} ${t.abonnement.voucher.forPrefix} ${resultat.dureeJours} ${t.abonnement.voucher.forDays}`,
+      );
+      setCode('');
+    } catch (err) {
+      setErreur(messageErreurApi(err, t.abonnement.voucher.failed));
+    }
+  }
+
+  return (
+    <div className="gm-section-block" style={{ marginBottom: 0 }}>
+      {!ouvert ? (
+        <GmButton variante="outline" petit onClick={() => setOuvert(true)}>
+          {v.button}
+        </GmButton>
+      ) : (
+        <div className="gm-section-card">
+          <div className="gm-section-title"><span>{v.title}</span></div>
+          <form onSubmit={soumettre}>
+            <div className="gm-form-group">
+              <label className="gm-form-label" htmlFor="voucher-inline-code">{v.label}</label>
+              <input
+                id="voucher-inline-code"
+                className="gm-form-input"
+                type="text"
+                autoComplete="off"
+                autoFocus
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+              />
+            </div>
+            <div className="gm-alert-desc">{v.hint}</div>
+            {erreur && <div className="gm-alert-desc" style={{ color: 'var(--gm-danger)' }}>{erreur}</div>}
+            {succes && <div className="gm-alert-desc" style={{ color: 'var(--gm-success)' }}>{succes}</div>}
+            <div className="gm-card-actions">
+              <GmButton type="submit" variante="primary" disabled={consommerVoucher.isPending}>
+                {consommerVoucher.isPending ? t.common.checking : v.submit}
+              </GmButton>
+              <GmButton variante="outline" onClick={() => { setOuvert(false); setCode(''); setErreur(''); setSucces(''); }}>
+                {v.cancel}
+              </GmButton>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Sous-composants d'affichage ─────────────────────────────────────────────
 
 /** Ligne « libellé / valeur » d'un bloc d'instructions. */
-function LigneInfo({ label, valeur }: { label: string; valeur: React.ReactNode }) {
+function LigneInfo({
+  label,
+  valeur,
+  copiable,
+}: {
+  label: string;
+  valeur: React.ReactNode;
+  copiable?: string; // texte à copier (si défini, bouton copier affiché)
+}) {
+  const t = useT();
+  const [copie, setCopie] = useState(false);
+
+  function copierNumero() {
+    if (!copiable) return;
+    void navigator.clipboard.writeText(copiable).then(() => {
+      setCopie(true);
+      setTimeout(() => setCopie(false), 2000);
+    });
+  }
+
   return (
     <div className="gm-panel-metrics" style={{ display: 'block', marginBottom: 10 }}>
       <div style={{ fontSize: 11, color: 'var(--gm-text-2)', textTransform: 'uppercase' }}>
         {label}
       </div>
-      <div style={{ fontSize: 14, fontWeight: 600, wordBreak: 'break-all' }}>{valeur}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, wordBreak: 'break-all' }}>{valeur}</div>
+        {copiable && (
+          <button
+            type="button"
+            title={copie ? t.abonnement.copied : t.abonnement.copyNumber}
+            onClick={copierNumero}
+            style={{
+              background: 'none',
+              border: '1px solid var(--gm-border, #e2e8f0)',
+              borderRadius: 4,
+              padding: '2px 6px',
+              cursor: 'pointer',
+              fontSize: 13,
+              color: copie ? 'var(--gm-success)' : 'var(--gm-text-2)',
+              transition: 'color 0.2s',
+              flexShrink: 0,
+            }}
+          >
+            {copie ? '✓' : '📋'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -279,9 +490,21 @@ function BlocInstructions({ methode }: { methode: MethodeDisponible }) {
             </div>
           )}
 
-          {renseignes.map((champ) => (
-            <LigneInfo key={champ.label} label={champ.label} valeur={champ.valeur} />
-          ))}
+          {renseignes.map((champ) => {
+            // Pour Mobile Money : le numéro (2e champ) est copiable
+            const labelNumero = methode.methode === 'MOBILE_MONEY_MANUEL'
+              ? champs.find((c) => c.alias.includes('numero'))?.label
+              : undefined;
+            const estNumero = labelNumero !== undefined && champ.label === labelNumero;
+            return (
+              <LigneInfo
+                key={champ.label}
+                label={champ.label}
+                valeur={champ.valeur}
+                copiable={estNumero ? champ.valeur : undefined}
+              />
+            );
+          })}
 
           {pointsCollecte.length > 0 && (
             <LigneInfo
@@ -477,6 +700,12 @@ export default function AbonnementPage() {
           </>
         }
       />
+
+      {/* ─── Carte de statut d'abonnement ────────────────────────────────── */}
+      <CarteStatutAbonnement />
+
+      {/* ─── Bouton voucher inline (toujours visible) ────────────────────── */}
+      <VoucherInline consommerVoucher={consommerVoucher} />
 
       {/* ─── Mention de sécurité (toujours visible) ──────────────────────── */}
       <div className="gm-alert-banner">

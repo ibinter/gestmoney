@@ -1,11 +1,25 @@
 'use client';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
-import { SaraBubble } from '@/components/landing/SaraBubble';
-import { WhatsAppBubble } from '@/components/landing/WhatsAppBubble';
 import { FooterGestmoney } from '@/components/landing/FooterGestmoney';
-import { Logo } from '@/components/ui/Logo';
+import { HeaderLanding } from '@/components/landing/HeaderLanding';
+import { PreuvesConfianceSection } from '@/components/landing/PreuvesConfianceSection';
+import { IBIGPartnersSection } from '@/components/landing/IBIGPartnersSection';
+import { CTAFinalSection } from '@/components/landing/CTAFinalSection';
+import { SARAfloatingButton } from '@/components/landing/SARAfloatingButton';
+import { WhatsAppFlottant } from '@/components/landing/WhatsAppFlottant';
+import { BandeauInfo } from '@/components/landing/BandeauInfo';
+import { ProblèmesRésolusSection } from '@/components/landing/ProblèmesRésolusSection';
+import { DemoInteractive } from '@/components/landing/DemoInteractive';
+import { BénéficesMajeursSection } from '@/components/landing/BénéficesMajeursSection';
+import { PublicsConcernésSection } from '@/components/landing/PublicsConcernésSection';
+import { SécuritéVitrineSection } from '@/components/landing/SécuritéVitrineSection';
+import { AvantagesIBIGSection } from '@/components/landing/AvantagesIBIGSection';
+import { IntégrationsSectionComponent } from '@/components/landing/IntégrationsSectionComponent';
+import { OffreComparateurSection } from '@/components/landing/OffreComparateurSection';
+import { TémoignagesSection } from '@/components/landing/TémoignagesSection';
+import { FAQSection } from '@/components/landing/FAQSection';
 
 // ─── Données ───────────────────────────────────────────────────
 const FEATURES = [
@@ -264,16 +278,51 @@ function Stars({ n }: { n: number }) {
 
 // ─── Page principale ────────────────────────────────────────────
 export default function LandingPage() {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [faqOuvert, setFaqOuvert] = useState<number | null>(null);
   const [heroSlide, setHeroSlide] = useState(0);
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+  // ── État du formulaire de démo ────────────────────────────────────────────
+  const [demoStatus, setDemoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [demoError, setDemoError] = useState<string>('');
+
+  const handleDemoSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setDemoStatus('loading');
+    setDemoError('');
+
+    const form = e.currentTarget;
+    const data = {
+      nom: (form.elements.namedItem('nom') as HTMLInputElement)?.value ?? '',
+      prenom: (form.elements.namedItem('prenom') as HTMLInputElement)?.value ?? '',
+      societe: (form.elements.namedItem('entreprise') as HTMLInputElement)?.value ?? '',
+      email: (form.elements.namedItem('email') as HTMLInputElement)?.value ?? '',
+      telephone: (form.elements.namedItem('telephone') as HTMLInputElement)?.value ?? '',
+      message: (form.elements.namedItem('message') as HTMLTextAreaElement)?.value ?? '',
+      source: 'DEMO',
+    };
+
+    // En dev, l'API est proxiée via /api (next.config) ; en prod on appelle directement.
+    const apiUrl =
+      typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? '/api/public/leads'
+        : 'https://gestmoney.ibigsoft.com/api/public/leads';
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any)?.message ?? `Erreur ${res.status}`);
+      }
+      setDemoStatus('success');
+      form.reset();
+    } catch (err: any) {
+      setDemoError(err?.message ?? 'Une erreur est survenue. Veuillez réessayer.');
+      setDemoStatus('error');
+    }
   }, []);
 
   // Rotation fluide du hero
@@ -284,111 +333,14 @@ export default function LandingPage() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileMenuOpen(false); };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [mobileMenuOpen]);
-
-  useEffect(() => {
-    document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [mobileMenuOpen]);
-
   return (
     <div style={{ background: '#f8fef9', color: '#111', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', overflowX: 'hidden' }}>
 
-      {/* ── BANDE D'ANNONCE ── */}
-      <div style={{ background: 'linear-gradient(90deg,#009E00,#00c400)', padding: '9px 16px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-        🎉 Essai gratuit 14 jours — aucune carte bancaire requise.{' '}
-        <Link href="/register" style={{ color: '#FFD000', fontWeight: 900, textDecoration: 'underline' }}>Démarrer maintenant →</Link>
-      </div>
+      {/* ── BANDEAU INFO IBIG SOFT ── */}
+      <BandeauInfo />
 
       {/* ── NAVBAR ── */}
-      <nav style={{
-        position: 'sticky', top: 0, zIndex: 100,
-        padding: '0 clamp(16px,4vw,48px)', height: 66,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: scrolled ? 'rgba(255,255,255,0.97)' : 'rgba(248,254,249,0.95)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: `1px solid ${scrolled ? 'rgba(0,158,0,0.15)' : 'rgba(0,0,0,0.06)'}`,
-        boxShadow: scrolled ? '0 2px 16px rgba(0,158,0,0.08)' : 'none',
-        transition: 'all .25s',
-      }}>
-        <Logo variante="compact" theme="clair" />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="hidden-mobile">
-          {[
-            ['#fonctionnalites', 'Fonctionnalités'],
-            ['#modules', 'Modules'],
-            ['#tarifs', 'Tarifs'],
-            ['#paiement', 'Paiement'],
-            ['#faq', 'FAQ'],
-            ['#contact', 'Contact'],
-          ].map(([href, label]) => (
-            <a key={href} href={href} style={{ fontSize: 14, fontWeight: 600, color: '#444', textDecoration: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#009E00')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#444')}>
-              {label}
-            </a>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="hidden-mobile">
-          <Link href="/login" style={{ fontSize: 14, fontWeight: 700, color: '#009E00', textDecoration: 'none', padding: '8px 16px', border: '1.5px solid #009E00', borderRadius: 10 }}>
-            Connexion
-          </Link>
-          <Link href="/register" style={{
-            padding: '9px 22px', borderRadius: 10, fontSize: 14, fontWeight: 800,
-            background: '#FFD000', color: '#111', textDecoration: 'none',
-            boxShadow: '0 2px 12px rgba(255,208,0,0.35)',
-          }}>
-            Essai gratuit →
-          </Link>
-        </div>
-
-        <button
-          onClick={() => setMobileMenuOpen(v => !v)}
-          aria-label="Menu"
-          className="show-mobile"
-          style={{ background: 'none', border: '1.5px solid #ddd', borderRadius: 8, width: 40, height: 40, cursor: 'pointer', fontSize: 18, color: '#333' }}
-        >
-          {mobileMenuOpen ? '✕' : '☰'}
-        </button>
-      </nav>
-
-      {/* ── MENU MOBILE ── */}
-      {mobileMenuOpen && (
-        <>
-          <div onClick={() => setMobileMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200 }} />
-          <div ref={menuRef} style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(300px, 85vw)',
-            background: '#fff', zIndex: 201, padding: 24, overflowY: 'auto',
-            display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-              <Logo variante="compact" theme="clair" />
-              <button onClick={() => setMobileMenuOpen(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#666' }}>✕</button>
-            </div>
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {[['#fonctionnalites','Fonctionnalités'],['#modules','Modules'],['#tarifs','Tarifs'],['#paiement','Paiement'],['#faq','FAQ'],['#contact','Contact']].map(([href,label]) => (
-                <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} style={{ display: 'block', padding: '12px 8px', fontSize: 16, fontWeight: 600, color: '#222', textDecoration: 'none', borderBottom: '1px solid #f0f0f0' }}>
-                  {label}
-                </a>
-              ))}
-            </nav>
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 24 }}>
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ display: 'block', textAlign: 'center', padding: 13, borderRadius: 10, border: '1.5px solid #009E00', color: '#009E00', textDecoration: 'none', fontWeight: 700 }}>
-                Se connecter
-              </Link>
-              <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ display: 'block', textAlign: 'center', padding: 13, borderRadius: 10, background: '#FFD000', color: '#111', textDecoration: 'none', fontWeight: 900 }}>
-                ⚡ Essai gratuit 14 jours
-              </Link>
-            </div>
-          </div>
-        </>
-      )}
+      <HeaderLanding />
 
       {/* ── HERO ── */}
       <section style={{
@@ -495,6 +447,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── PREUVES DE CONFIANCE ── */}
+      <PreuvesConfianceSection />
+
       {/* ── STATS ── */}
       <section style={{ padding: 'clamp(40px,6vh,60px) clamp(16px,4vw,48px)', background: '#fff', borderTop: '1px solid #e8f5e9', borderBottom: '1px solid #e8f5e9' }}>
         <div style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
@@ -557,6 +512,31 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── PROBLÈMES RÉSOLUS ── */}
+      <ProblèmesRésolusSection />
+
+      {/* ── DÉMO INTERACTIVE ── */}
+      <section id="demo" style={{ background: '#f8fafc', padding: 'clamp(48px,7vh,88px) clamp(16px,4vw,48px)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <p style={{ color: '#009E00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', fontSize: 12, margin: '0 0 10px' }}>
+            Démo interactive
+          </p>
+          <h2 style={{ fontSize: 'clamp(1.5rem,3vw,2.25rem)', fontWeight: 800, color: '#0a2e15', margin: '0 0 12px' }}>
+            Explorez GESTMONEY sans créer de compte
+          </h2>
+          <p style={{ color: '#6b7280', maxWidth: '55ch', margin: '0 auto' }}>
+            Naviguez dans le vrai dashboard. Cliquez, explorez, découvrez.
+          </p>
+        </div>
+        <DemoInteractive />
+      </section>
+
+      {/* ── BÉNÉFICES MAJEURS ── */}
+      <BénéficesMajeursSection />
+
+      {/* ── PUBLICS CONCERNÉS ── */}
+      <PublicsConcernésSection />
 
       {/* ── MODULES ── */}
       <section id="modules" style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: 'linear-gradient(180deg,#f0fdf4 0%,#e8fded 100%)' }}>
@@ -626,6 +606,15 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── INTÉGRATIONS & OPÉRATEURS ── */}
+      <IntégrationsSectionComponent />
+
+      {/* ── COMPARATEUR D'OFFRES ── */}
+      <OffreComparateurSection />
+
+      {/* ── TÉMOIGNAGES ── */}
+      <TémoignagesSection />
+
       {/* ── TARIFS — 4 LICENCES ── */}
       <section id="tarifs" style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: 'linear-gradient(180deg,#fffef0 0%,#fff8e1 50%,#f8fef9 100%)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -692,7 +681,12 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', marginTop: 36, fontSize: 13, color: '#9ca3af' }}>
             Tarifs HT · TVA selon pays · Paiement mensuel ou annuel (2 mois offerts) · Devis personnalisé disponible
           </p>
-          <p style={{ textAlign: 'center', marginTop: 10, fontSize: 13, color: '#6b7280' }}>
+          <p style={{ textAlign: 'center', marginTop: 12, fontSize: 14, color: '#6b7280' }}>
+            <Link href="/tarifs" style={{ color: '#009E00', fontWeight: 700, textDecoration: 'none' }}>
+              Voir tous les détails des plans →
+            </Link>
+          </p>
+          <p style={{ textAlign: 'center', marginTop: 8, fontSize: 13, color: '#6b7280' }}>
             <a href="#paiement" style={{ color: '#009E00', fontWeight: 700, textDecoration: 'none' }}>
               Voir les moyens de paiement pris en charge ↓
             </a>
@@ -757,7 +751,140 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TÉMOIGNAGES ── */}
+      {/* ── COMMENT ÇA MARCHE ── */}
+      <section style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: 'linear-gradient(180deg,#f0fdf4 0%,#e8fded 100%)' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, letterSpacing: '.15em', color: '#009E00', textTransform: 'uppercase', marginBottom: 12 }}>Comment ça marche</p>
+          <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 900, textAlign: 'center', marginBottom: 60, color: '#0a2e15', letterSpacing: '-0.02em' }}>
+            Opérationnel en 3 étapes.
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 28 }}>
+            {[
+              {
+                num: '01',
+                titre: 'Créez votre compte',
+                desc: 'Inscription en 2 minutes, sans carte bancaire. Accès immédiat à l\'essai gratuit PROFESSIONAL complet.',
+              },
+              {
+                num: '02',
+                titre: 'Configurez votre réseau',
+                desc: 'Ajoutez vos agences, agents et flottes opérateurs depuis l\'espace SuperAdmin en quelques clics.',
+              },
+              {
+                num: '03',
+                titre: 'Pilotez en temps réel',
+                desc: 'Transactions, commissions et rapports instantanés — tout votre réseau Mobile Money sur un seul écran.',
+              },
+            ].map((step, i) => (
+              <div key={i} style={{
+                background: '#fff', border: '1.5px solid #d1fae5',
+                borderRadius: 20, padding: '36px 28px',
+                boxShadow: '0 4px 16px rgba(0,158,0,0.07)',
+                display: 'flex', flexDirection: 'column', gap: 16,
+              }}>
+                <div style={{
+                  fontSize: 'clamp(48px,8vw,64px)', fontWeight: 900, lineHeight: 1,
+                  color: '#009E00', letterSpacing: '-0.04em',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>{step.num}</div>
+                <h3 style={{ fontSize: 19, fontWeight: 800, color: '#0a2e15', margin: 0 }}>{step.titre}</h3>
+                <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.7, margin: 0 }}>{step.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 48 }}>
+            <Link href="/register" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '14px 32px', borderRadius: 12, fontSize: 15, fontWeight: 900,
+              background: '#009E00', color: '#fff', textDecoration: 'none',
+              boxShadow: '0 4px 16px rgba(0,158,0,0.3)',
+            }}>
+              Démarrer maintenant →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── APERÇU DU TABLEAU DE BORD ── */}
+      <section style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: '#fff' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.15em', color: '#009E00', textTransform: 'uppercase', marginBottom: 12 }}>Interface</p>
+          <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 900, marginBottom: 14, color: '#0a2e15', letterSpacing: '-0.02em' }}>
+            Aperçu du tableau de bord.
+          </h2>
+          <p style={{ fontSize: 16, color: '#6b7280', marginBottom: 40, maxWidth: 520, margin: '0 auto 40px' }}>
+            Une interface pensée pour le terrain — claire, rapide, accessible sur mobile.
+          </p>
+          <div style={{
+            maxWidth: 900, margin: '0 auto',
+            background: '#1a2e1a', borderRadius: 12,
+            aspectRatio: '16/9', display: 'flex',
+            flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+            boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+            border: '1.5px solid rgba(0,158,0,0.20)',
+          }}>
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true">
+              <rect x="4" y="8" width="44" height="30" rx="4" stroke="#009E00" strokeWidth="2.5" fill="none" />
+              <rect x="18" y="38" width="16" height="4" rx="2" fill="#009E00" opacity=".6" />
+              <rect x="12" y="44" width="28" height="2.5" rx="1.25" fill="#009E00" opacity=".3" />
+              <rect x="10" y="14" width="14" height="8" rx="2" fill="#009E00" opacity=".4" />
+              <rect x="28" y="14" width="14" height="8" rx="2" fill="#FFD000" opacity=".4" />
+              <rect x="10" y="26" width="32" height="5" rx="2" fill="#009E00" opacity=".2" />
+            </svg>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, fontWeight: 700, margin: 0 }}>
+              Captures d&apos;écran disponibles prochainement
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.30)', fontSize: 12, margin: 0 }}>
+              La plateforme est en cours de finalisation
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── VIDÉO DE PRÉSENTATION ── */}
+      <section style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: 'linear-gradient(180deg,#f8fef9 0%,#fff 100%)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.15em', color: '#009E00', textTransform: 'uppercase', marginBottom: 12 }}>Vidéo</p>
+          <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 900, marginBottom: 14, color: '#0a2e15', letterSpacing: '-0.02em' }}>
+            Découvrez GESTMONEY en vidéo.
+          </h2>
+          <p style={{ fontSize: 16, color: '#6b7280', marginBottom: 40, maxWidth: 520, margin: '0 auto 40px' }}>
+            Une présentation complète de la plateforme par notre équipe.
+          </p>
+          <div style={{
+            maxWidth: 900, margin: '0 auto',
+            background: '#0a2e15', borderRadius: 12,
+            aspectRatio: '16/9', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+            border: '1.5px solid rgba(0,158,0,0.20)',
+            cursor: 'default',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            {/* Fond décoratif */}
+            <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, rgba(0,158,0,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+            {/* Bouton play */}
+            <div style={{
+              position: 'relative', zIndex: 1,
+              width: 80, height: 80, borderRadius: '50%',
+              background: 'rgba(0,158,0,0.85)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 0 12px rgba(0,158,0,0.20)',
+            }}>
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                <polygon points="11,7 27,16 11,25" fill="#fff" />
+              </svg>
+            </div>
+          </div>
+          <p style={{ marginTop: 20, fontSize: 13, color: '#9ca3af' }}>
+            Vidéo de présentation disponible prochainement — <a href="#contact" style={{ color: '#009E00', fontWeight: 700 }}>demandez une démo live</a>
+          </p>
+        </div>
+      </section>
+
+      {/* ── TÉMOIGNAGES (masqués jusqu'à disponibilité de vrais retours clients) ── */}
+      {process.env.NEXT_PUBLIC_SHOW_TESTIMONIALS === 'true' && (
       <section style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: '#fff' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, letterSpacing: '.15em', color: '#009E00', textTransform: 'uppercase', marginBottom: 12 }}>Témoignages</p>
@@ -780,6 +907,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── FAQ ── */}
       <section id="faq" style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: '#f8fef9' }}>
@@ -808,31 +936,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PARTENAIRES ── */}
-      <section id="partners" style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: 'linear-gradient(135deg,#fffef0,#fff8e1)' }}>
-        <div style={{ maxWidth: 780, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 44, marginBottom: 16 }}>🤝</div>
-          <h2 style={{ fontSize: 'clamp(24px,3.5vw,38px)', fontWeight: 900, marginBottom: 16, color: '#0a2e15' }}>
-            Développez vos revenus avec{' '}
-            <span style={{ color: '#d97706' }}>IBIG PARTNERS</span>
-          </h2>
-          <p style={{ fontSize: 16, color: '#6b7280', marginBottom: 32, lineHeight: 1.7, maxWidth: 520, margin: '0 auto 32px' }}>
-            Rejoignez gratuitement le programme de partenariat IBIG. Commissions attractives sur chaque client converti.
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 36 }}>
-            {['Inscription gratuite','Commission sur ventes','Espace dédié','Support commercial'].map(b => (
-              <span key={b} style={{ background: '#fff', border: '1.5px solid #fde68a', borderRadius: 999, padding: '7px 16px', fontSize: 13, fontWeight: 700, color: '#92400e' }}>✓ {b}</span>
-            ))}
-          </div>
-          <a href="https://ibigpartners.com/" target="_blank" rel="noopener noreferrer" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '15px 36px', borderRadius: 12, fontSize: 16, fontWeight: 900,
-            background: '#FFD000', color: '#111', textDecoration: 'none',
-            boxShadow: '0 4px 20px rgba(255,208,0,0.4)',
-          }}>
-            Devenir partenaire →
-          </a>
-        </div>
-      </section>
+      <IBIGPartnersSection />
 
       {/* ── CONTACT / DÉMO ── */}
       <section id="contact" style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: '#fff' }}>
@@ -844,73 +948,76 @@ export default function LandingPage() {
           <p style={{ fontSize: 16, color: '#6b7280', marginBottom: 36, lineHeight: 1.7 }}>
             Un expert IBIG Soft vous présente GESTMONEY en 30 minutes.
           </p>
-          <form onSubmit={e => { e.preventDefault(); alert('Demande enregistrée ! Notre équipe vous contactera dans les 24h.'); }}
-            style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
-            {[
-              { name: 'prenom', placeholder: 'Prénom *', type: 'text', required: true },
-              { name: 'nom', placeholder: 'Nom *', type: 'text', required: true },
-              { name: 'entreprise', placeholder: 'Entreprise *', type: 'text', required: true },
-              { name: 'email', placeholder: 'Email professionnel *', type: 'email', required: true },
-              { name: 'telephone', placeholder: 'Téléphone / WhatsApp', type: 'tel', required: false },
-            ].map(f => (
-              <input key={f.name} type={f.type} placeholder={f.placeholder} required={f.required} style={{
+          {demoStatus === 'success' ? (
+            <div style={{
+              background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 16,
+              padding: '32px 24px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+              <p style={{ fontWeight: 700, color: '#15803d', fontSize: 18, margin: '0 0 8px' }}>Demande envoyée !</p>
+              <p style={{ color: '#166534', fontSize: 15, margin: 0 }}>
+                Notre équipe vous contactera dans les 24 heures.
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleDemoSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
+              {[
+                { name: 'prenom', placeholder: 'Prénom *', type: 'text', required: true },
+                { name: 'nom', placeholder: 'Nom *', type: 'text', required: true },
+                { name: 'entreprise', placeholder: 'Entreprise *', type: 'text', required: true },
+                { name: 'email', placeholder: 'Email professionnel *', type: 'email', required: true },
+                { name: 'telephone', placeholder: 'Téléphone / WhatsApp', type: 'tel', required: false },
+              ].map(f => (
+                <input key={f.name} name={f.name} type={f.type} placeholder={f.placeholder} required={f.required} style={{
+                  width: '100%', background: '#f9fafb', border: '1.5px solid #d1d5db',
+                  borderRadius: 12, padding: '13px 16px', color: '#111', fontSize: 14, outline: 'none',
+                  fontFamily: 'inherit', boxSizing: 'border-box',
+                }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#009E00'; e.currentTarget.style.background = '#f0fdf4'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#f9fafb'; }}
+                />
+              ))}
+              <textarea name="message" placeholder="Décrivez votre projet" rows={3} style={{
                 width: '100%', background: '#f9fafb', border: '1.5px solid #d1d5db',
                 borderRadius: 12, padding: '13px 16px', color: '#111', fontSize: 14, outline: 'none',
-                fontFamily: 'inherit', boxSizing: 'border-box',
+                fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box',
               }}
-                onFocus={e => { e.currentTarget.style.borderColor = '#009E00'; e.currentTarget.style.background = '#f0fdf4'; }}
-                onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#f9fafb'; }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#009E00'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; }}
               />
-            ))}
-            <textarea placeholder="Décrivez votre projet" rows={3} style={{
-              width: '100%', background: '#f9fafb', border: '1.5px solid #d1d5db',
-              borderRadius: 12, padding: '13px 16px', color: '#111', fontSize: 14, outline: 'none',
-              fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box',
-            }}
-              onFocus={e => { e.currentTarget.style.borderColor = '#009E00'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; }}
-            />
-            <button type="submit" style={{
-              padding: '15px', borderRadius: 12, border: 'none',
-              background: '#009E00', color: '#fff', fontSize: 16, fontWeight: 900,
-              cursor: 'pointer', fontFamily: 'inherit',
-              boxShadow: '0 4px 16px rgba(0,158,0,0.3)',
-            }}>
-              Demander une démo →
-            </button>
-          </form>
+              {demoStatus === 'error' && (
+                <p style={{ color: '#dc2626', fontSize: 13, margin: 0, textAlign: 'center' }}>
+                  {demoError || 'Une erreur est survenue. Veuillez réessayer.'}
+                </p>
+              )}
+              <button type="submit" disabled={demoStatus === 'loading'} style={{
+                padding: '15px', borderRadius: 12, border: 'none',
+                background: demoStatus === 'loading' ? '#86efac' : '#009E00',
+                color: '#fff', fontSize: 16, fontWeight: 900,
+                cursor: demoStatus === 'loading' ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+                boxShadow: '0 4px 16px rgba(0,158,0,0.3)',
+              }}>
+                {demoStatus === 'loading' ? 'Envoi en cours…' : 'Demander une démo →'}
+              </button>
+            </form>
+          )}
           <p style={{ marginTop: 14, fontSize: 12, color: '#9ca3af' }}>Réponse sous 24h · Aucun engagement · Données protégées</p>
         </div>
       </section>
 
+      {/* ── SÉCURITÉ VITRINE ── */}
+      <SécuritéVitrineSection />
+
+      {/* ── AVANTAGES IBIG SOFT ── */}
+      <AvantagesIBIGSection />
+
+      {/* ── FAQ (composant) ── */}
+      <FAQSection />
+
       {/* ── CTA FINAL ── */}
-      <section style={{ padding: 'clamp(80px,10vh,120px) clamp(16px,4vw,48px)', textAlign: 'center', background: 'linear-gradient(160deg,#012d10,#009E00 60%,#00c400)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle,rgba(255,208,0,0.15) 0%,transparent 65%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 640, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 900, marginBottom: 20, color: '#fff', letterSpacing: '-0.02em' }}>
-            Prêt à digitaliser<br />votre réseau Mobile Money ?
-          </h2>
-          <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.8)', marginBottom: 44, lineHeight: 1.7 }}>
-            Essai gratuit 14 jours · Aucune carte bancaire · 7 jours de grâce après échéance · Résiliation sans frais.
-          </p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/register" style={{
-              padding: '16px clamp(24px,4vw,44px)', borderRadius: 12, fontSize: 16, fontWeight: 900,
-              background: '#FFD000', color: '#111', textDecoration: 'none',
-              boxShadow: '0 4px 24px rgba(255,208,0,0.5)',
-            }}>
-              ⚡ Démarrer gratuitement →
-            </Link>
-            <a href="#contact" style={{
-              padding: '16px clamp(24px,4vw,44px)', borderRadius: 12, fontSize: 16, fontWeight: 700,
-              background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.4)',
-              color: '#fff', textDecoration: 'none',
-            }}>
-              📅 Démo personnalisée
-            </a>
-          </div>
-        </div>
-      </section>
+      <CTAFinalSection />
 
       {/* ── Écosystème IBIG SOFT (« Nos solutions ») ── */}
       {/* Injecté par /ibigsoft-universal.js (détection auto = gestmoney).    */}
@@ -952,10 +1059,10 @@ export default function LandingPage() {
         }
       `}</style>
 
-      {/* Bulle SARA — chat commercial public (bas droite) */}
-      <SaraBubble />
-      {/* Bulle WhatsApp — contact humain (bas gauche, si numéro configuré) */}
-      <WhatsAppBubble />
+      {/* Bouton flottant SARA — chat commercial public (bas droite) */}
+      <SARAfloatingButton />
+      {/* Bouton flottant WhatsApp — contact humain (bas gauche, si numéro configuré) */}
+      <WhatsAppFlottant />
 
       {/* Script universel IBIG SOFT, limité à la section « Nos solutions ».
           data-render="solutions" : on n'injecte PAS le footer universel, le

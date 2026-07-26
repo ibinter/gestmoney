@@ -104,6 +104,14 @@ export class AgenciesController {
     return this.agenciesService.remove(id, tenantId, userId);
   }
 
+  @Get(':id/dashboard')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
+  @ApiOperation({ summary: 'Tableau de bord complet d\'une agence (KPIs, agents, transactions)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agence' })
+  getDashboard(@Param('id') id: string, @TenantId() tenantId: string) {
+    return this.agenciesService.getDashboard(id, tenantId);
+  }
+
   @Get(':id/statistics')
   @ApiOperation({ summary: 'Statistiques d\'une agence (nb agents, float total...)' })
   @ApiParam({ name: 'id', description: 'ID de l\'agence' })

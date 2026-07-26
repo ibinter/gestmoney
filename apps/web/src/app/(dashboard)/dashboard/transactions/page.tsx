@@ -70,7 +70,8 @@ export default function TransactionsPage() {
   const [dateFin, setDateFin] = useState('');
   const [selectionnees, setSelectionnees] = useState<string[]>([]);
   const [modalOuvert, setModalOuvert] = useState<TypeTransaction | null>(null);
-  const [formTx, setFormTx] = useState({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '', agentId: '' });
+  const [formTx, setFormTx] = useState({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '', agentId: '', devise: 'XOF' });
+  const [montantXOFApercu, setMontantXOFApercu] = useState<number | null>(null);
   const [erreurTx, setErreurTx] = useState('');
   const [succesTx, setSuccesTx] = useState('');
   const [page, setPage] = useState(1);
@@ -80,6 +81,16 @@ export default function TransactionsPage() {
 
   // Reset page on filter change
   useEffect(() => { setPage(1); }, [search, filtreType, filtreOperateur, filtreStatut, dateDebut, dateFin]);
+
+  // Aperçu montant XOF quand la devise est étrangère
+  useEffect(() => {
+    const montant = parseFloat(formTx.montant);
+    if (!montant || formTx.devise === 'XOF') { setMontantXOFApercu(null); return; }
+    fetch(`/api/devises/convertir?montant=${montant}&de=${formTx.devise}&vers=XOF`)
+      .then((r) => r.json())
+      .then((d) => setMontantXOFApercu(typeof d.resultat === 'number' ? Math.round(d.resultat) : null))
+      .catch(() => setMontantXOFApercu(null));
+  }, [formTx.montant, formTx.devise]);
 
   const creerTransaction = useCreateTransaction();
   const validerTransaction = useValiderTransaction();
@@ -110,9 +121,11 @@ export default function TransactionsPage() {
         clientNom: formTx.clientNom || undefined,
         clientTel: formTx.clientTel || undefined,
         agentId: formTx.agentId || undefined,
+        devise: formTx.devise !== 'XOF' ? formTx.devise : undefined,
       });
       setSuccesTx(t.transactions.form.success);
-      setFormTx({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '', agentId: '' });
+      setFormTx({ operateur: 'orange_money', montant: '', clientNom: '', clientTel: '', agentId: '', devise: 'XOF' });
+      setMontantXOFApercu(null);
       setTimeout(() => { setModalOuvert(null); setSuccesTx(''); }, 1500);
     } catch {
       setErreurTx(t.common.createError);
@@ -395,6 +408,13 @@ export default function TransactionsPage() {
                   <td>
                     <div className="gm-action-btns">
                       <button className="gm-icon-btn" title={t.transactions.table.viewDetail} onClick={() => setTransactionSelectionnee(tx)}>👁</button>
+                      <button
+                        className="gm-icon-btn"
+                        title="Télécharger le reçu PDF"
+                        onClick={() => window.open(`/api/transactions/${tx.id}/recu`, '_blank')}
+                      >
+                        📄
+                      </button>
                       {tx.statut === 'pending' && (
                         <button
                           className="gm-icon-btn"
@@ -443,7 +463,7 @@ export default function TransactionsPage() {
                 {STATUT_LABELS[transactionSelectionnee.statut]}
               </Badge>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div className="bg-surface rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">{t.common.type}</p>
                 <p className="font-semibold">{TYPE_LABELS[transactionSelectionnee.type]}</p>
@@ -541,15 +561,37 @@ export default function TransactionsPage() {
             onChange={(e) => setFormTx((f) => ({ ...f, operateur: e.target.value }))}
             options={Object.entries(OPERATEURS).map(([v, o]) => ({ value: v, label: `${o.logo} ${o.label}` }))}
           />
-          <Input
-            label={t.transactions.form.amountRequired}
-            type="number"
-            placeholder="0"
-            value={formTx.montant}
-            onChange={(e) => setFormTx((f) => ({ ...f, montant: e.target.value }))}
-            icone={<span className="text-xs font-bold">F</span>}
-            required
-          />
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Input
+                label={t.transactions.form.amountRequired}
+                type="number"
+                placeholder="0"
+                value={formTx.montant}
+                onChange={(e) => setFormTx((f) => ({ ...f, montant: e.target.value }))}
+                icone={<span className="text-xs font-bold">{formTx.devise === 'XOF' ? 'F' : formTx.devise.slice(0, 1)}</span>}
+                required
+              />
+            </div>
+            <div className="min-w-[110px] pb-0">
+              <label className="gm-label">Devise</label>
+              <select
+                className="gm-input"
+                value={formTx.devise}
+                onChange={(e) => setFormTx((f) => ({ ...f, devise: e.target.value }))}
+              >
+                <option value="XOF">XOF (F CFA)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="USD">USD ($)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+            </div>
+          </div>
+          {montantXOFApercu !== null && formTx.devise !== 'XOF' && (
+            <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2 -mt-1">
+              ≈ {montantXOFApercu.toLocaleString('fr-FR')} XOF (taux indicatif)
+            </p>
+          )}
           <Input
             label={t.transactions.form.clientPhone}
             type="tel"

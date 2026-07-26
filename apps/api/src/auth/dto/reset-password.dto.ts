@@ -40,3 +40,19 @@ export class Verify2FADto {
   @IsString()
   code: string;
 }
+
+export class Desactiver2FADto {
+  @ApiProperty({ description: 'Mot de passe actuel pour confirmer la désactivation' })
+  @IsString()
+  motDePasse: string;
+}
+
+export class LoginVerify2FADto {
+  @ApiProperty({ description: 'Token temporaire reçu lors du login (5 min)' })
+  @IsString()
+  tempToken: string;
+
+  @ApiProperty({ example: '123456', description: 'Code TOTP ou code de secours' })
+  @IsString()
+  code: string;
+}

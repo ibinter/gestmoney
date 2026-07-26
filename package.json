@@ -28,6 +28,7 @@
     "db:push": "turbo run db:push",
     "db:migrate": "turbo run db:migrate",
     "db:seed": "tsx packages/database/src/seeds/seed.ts",
+    "db:seed-demo": "tsx packages/database/src/seeds/seed-demo-runner.ts",
     "db:studio": "pnpm --filter @gestmoney/database db:studio",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",

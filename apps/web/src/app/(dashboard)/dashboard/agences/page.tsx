@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -192,6 +193,9 @@ export default function AgencesPage() {
 
               <div className="gm-agence-actions">
                 <button type="button" className="gm-agence-btn gm-primary" onClick={() => setAgenceVue(a)}>{t.agences.actions.viewDetails}</button>
+                <Link href={`/dashboard/agences/${a.id}`} className="gm-agence-btn" style={{ textDecoration: 'none', textAlign: 'center' }}>
+                  Tableau de bord
+                </Link>
                 <button
                   type="button"
                   className="gm-agence-btn"
@@ -264,11 +268,11 @@ export default function AgencesPage() {
 
       <Modal ouvert={modalOuvert} onFermer={() => { setModalOuvert(false); setForm(FORM_INIT); setErreur(''); setSucces(''); }} titre={t.agences.modal.title} taille="md">
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label={t.agences.modal.nomLabel} placeholder={t.agences.modal.nomPlaceholder} value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} required />
             <Input label={t.agences.modal.codeLabel} placeholder={t.agences.modal.codePlaceholder} value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} required />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label={t.agences.modal.villeLabel} placeholder={t.agences.modal.villePlaceholder} value={form.ville} onChange={(e) => setForm((f) => ({ ...f, ville: e.target.value }))} required />
             <Input label={t.agences.modal.telephoneLabel} type="tel" placeholder={t.agences.modal.telephonePlaceholder} value={form.telephone} onChange={(e) => setForm((f) => ({ ...f, telephone: e.target.value }))} />
           </div>
@@ -293,7 +297,7 @@ export default function AgencesPage() {
       <Modal ouvert={!!agenceVue} onFermer={() => setAgenceVue(null)} titre={agenceVue ? agenceVue.nom : ''} taille="md">
         {agenceVue && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
                 [t.agences.modal.codeLabel, agenceVue.code || '—'],
                 [t.agences.modal.villeLabel, agenceVue.ville || '—'],

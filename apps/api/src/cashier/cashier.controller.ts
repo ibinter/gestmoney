@@ -27,6 +27,9 @@ import {
   Min,
 } from 'class-validator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleType } from '../common/enums/role.enum';
 import {
   CashierService,
   CaisseEntryDto,
@@ -58,7 +61,7 @@ class EcritureRequest implements CaisseEntryDto {
  */
 @ApiTags('Caisse')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('caisse')
 export class CashierController {
   constructor(private readonly cashierService: CashierService) {}
@@ -93,6 +96,7 @@ export class CashierController {
   }
 
   @Post('ecritures')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: 'Ajouter une écriture (entrée ou sortie) manuelle' })
   @ApiResponse({ status: 201, description: 'Écriture enregistrée' })
   @ApiResponse({ status: 400, description: 'Caisse non ouverte' })
@@ -101,6 +105,7 @@ export class CashierController {
   }
 
   @Post('open')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: 'Ouverture de caisse' })
   @ApiResponse({ status: 400, description: 'Caisse déjà ouverte / aucun agent rattaché' })
   open(@Body() dto: OpenCaisseRequest, @Req() req: any) {
@@ -108,6 +113,7 @@ export class CashierController {
   }
 
   @Post('close')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: "Clôture de caisse avec calcul d'écart" })
   close(@Body() dto: CloseCaisseRequest, @Req() req: any) {
     return this.cashierService.close(req.user.tenantId, req.user.id, dto);

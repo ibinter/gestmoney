@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { LicencesService, ajouterJours, ajouterMois } from './licences.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { StatutLicence } from './dto/licences.dto';
 import { LICENCES_CONFIG_KEY, LicencesConfig } from './licences.config';
 
@@ -43,6 +44,9 @@ const mockPrisma: any = {
     create: jest.fn(),
     count: jest.fn(),
     findMany: jest.fn(),
+  },
+  user: {
+    findMany: jest.fn().mockResolvedValue([]),
   },
   paiement: {
     count: jest.fn(),
@@ -96,6 +100,7 @@ describe('LicencesService', () => {
         // Le service publie les transitions de licence sur le bus ; un double
         // suffit ici, les abonnés ne font pas partie de ce test unitaire.
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        { provide: NotificationsService, useValue: { sendEmail: jest.fn() } },
       ],
     }).compile();
 

@@ -6,7 +6,7 @@
   "start_url": "/dashboard",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#111111",
+  "background_color": "#0a2e15",
   "theme_color": "#009E00",
   "lang": "fr",
   "dir": "ltr",
@@ -63,6 +63,13 @@
     }
   ],
   "shortcuts": [
+    {
+      "name": "Tableau de bord",
+      "short_name": "Dashboard",
+      "description": "Accéder au tableau de bord",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+    },
     {
       "name": "Transactions",
       "short_name": "Transactions",

@@ -4,6 +4,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { KycDossierModal } from '@/components/ui/KycDossierModal';
+import { useKycDossierClient } from '@/hooks/useKycDossiers';
 import {
   GmPageHeader,
   GmButton,
@@ -80,6 +82,10 @@ export default function ClientsPage() {
   const [formClient, setFormClient] = useState(FORM_INIT_CLIENT);
   const [erreurClient, setErreurClient] = useState('');
   const [succesClient, setSuccesClient] = useState('');
+
+  // --- Nouvelle modale KYC 3 étapes ---
+  const [kycModalOuvert, setKycModalOuvert] = useState(false);
+  const { data: kycDossierClient } = useKycDossierClient(kycModalOuvert && clientVu ? clientVu.id : null);
 
   // --- État du flux KYC (modale détail) ---
   const [kycFichier, setKycFichier] = useState<{ dataUrl: string; type: string; name: string } | null>(null);
@@ -468,7 +474,7 @@ export default function ClientsPage() {
         taille="md"
       >
         <form className="space-y-4" onSubmit={handleSubmitClient}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label={t.clients.modal.firstNameRequired} placeholder={t.common.firstName} value={formClient.prenom} onChange={(e) => setFormClient((f) => ({ ...f, prenom: e.target.value }))} required />
             <Input label={t.clients.modal.lastNameRequired} placeholder={t.common.lastName} value={formClient.nom} onChange={(e) => setFormClient((f) => ({ ...f, nom: e.target.value }))} required />
           </div>
@@ -538,6 +544,15 @@ export default function ClientsPage() {
                 </div>
               )}
 
+              {/* Bouton KYC complet (3 étapes) */}
+              <Button
+                type="button"
+                variante="ghost"
+                onClick={() => setKycModalOuvert(true)}
+              >
+                Dossier KYC complet (3 étapes)
+              </Button>
+
               <input
                 type="file"
                 accept="image/*,application/pdf"
@@ -589,6 +604,17 @@ export default function ClientsPage() {
           </div>
         )}
       </Modal>
+
+      {/* Modale KYC 3 étapes */}
+      {kycModalOuvert && clientVu && (
+        <KycDossierModal
+          clientId={clientVu.id}
+          clientNom={`${clientVu.prenom} ${clientVu.nom}`}
+          dossier={kycDossierClient ?? null}
+          estAdmin={estAdmin}
+          onClose={() => setKycModalOuvert(false)}
+        />
+      )}
     </>
   );
 }

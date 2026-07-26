@@ -155,6 +155,92 @@ export function useAuditFinancial(limit = 20) {
   });
 }
 
+// ─── Types étendus pour la page Audit ────────────────────────────────────────
+
+export interface AuditLogFull extends AuditLogEntry {
+  ipAddress?: string | null;
+  entityId?: string | null;
+  oldValues?: unknown | null;
+  newValues?: unknown | null;
+}
+
+export interface AuditLogsResult {
+  data: AuditLogFull[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AuditStatsExtended {
+  total: number;
+  byAction: { action: string; count: number }[];
+  byUser: { userId: string | null; count: number }[];
+  byResource: { resource: string; count: number }[];
+  daily: { date: string; count: number }[];
+}
+
+export interface AuditFiltres {
+  userId?: string;
+  action?: string;
+  resource?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** GET /audit/logs — journal filtré avec pagination serveur. */
+export function useAuditLogs(filtres: AuditFiltres = {}) {
+  return useQuery({
+    queryKey: ['audit', 'logs', filtres] as const,
+    queryFn: async (): Promise<AuditLogsResult> => {
+      const params: Record<string, unknown> = {};
+      if (filtres.userId) params.userId = filtres.userId;
+      if (filtres.action) params.action = filtres.action;
+      if (filtres.resource) params.resource = filtres.resource;
+      if (filtres.startDate) params.startDate = filtres.startDate;
+      if (filtres.endDate) params.endDate = filtres.endDate;
+      if (filtres.search) params.search = filtres.search;
+      params.page = filtres.page ?? 1;
+      params.limit = filtres.limit ?? 20;
+
+      const res = await api.get('/audit/logs', { params });
+      const d = res.data ?? {};
+      return {
+        data: Array.isArray(d.data) ? d.data : [],
+        total: Number(d.total ?? 0),
+        page: Number(d.page ?? 1),
+        limit: Number(d.limit ?? 20),
+      };
+    },
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+/** GET /audit/stats étendu (byResource + daily). */
+export function useAuditStatsExtended(jours = 30) {
+  return useQuery({
+    queryKey: ['audit', 'stats-ext', jours] as const,
+    queryFn: async (): Promise<AuditStatsExtended> => {
+      const res = await api.get('/audit/stats', {
+        params: { startDate: isoIlYa(jours), endDate: new Date().toISOString() },
+      });
+      const d = res.data ?? {};
+      return {
+        total: Number(d.total ?? 0),
+        byAction: Array.isArray(d.byAction) ? d.byAction : [],
+        byUser: Array.isArray(d.byUser) ? d.byUser : [],
+        byResource: Array.isArray(d.byResource) ? d.byResource : [],
+        daily: Array.isArray(d.daily) ? d.daily : [],
+      };
+    },
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
 /** Statut du moteur IA SARA (providers configurés). */
 export function useAiStatus() {
   return useQuery({

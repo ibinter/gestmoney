@@ -19,6 +19,9 @@ import { seedFloatAccounts } from "./data/float-accounts.seed";
 import { seedTransactions } from "./data/transactions.seed";
 import { seedChartOfAccounts } from "./data/chart-of-accounts.seed";
 import { seedJournalEntries } from "./data/journal-entries.seed";
+import { seedPaymentMethodConfigs } from "./data/payment-method-configs.seed";
+import { seedTauxChange } from "./data/taux-change.seed";
+import { seedKnowledgeBase } from "./data/knowledge-base.seed";
 
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
@@ -110,6 +113,36 @@ async function main() {
     accounts
   );
 
+  // ── 11. PAYMENT METHOD CONFIGS ────────────────────────────────────────────
+  console.log("\n[ 11/12 ] Moyens de paiement Mobile Money IBIG");
+  await seedPaymentMethodConfigs(prisma);
+
+  // ── 11b. TAUX DE CHANGE ───────────────────────────────────────────────────
+  console.log("\n[ 11b ] Taux de change (XOF → EUR/USD/GBP/CNY)");
+  await seedTauxChange(prisma);
+
+  // ── 12. BASE DOCUMENTAIRE SARA ────────────────────────────────────────────
+  console.log("\n[ 12/13 ] Base documentaire SARA (RAG)");
+  await seedKnowledgeBase(prisma);
+
+  // ── 13. VERSION INITIALE ──────────────────────────────────────────────────
+  console.log("\n[ 13/13 ] Version logiciel initiale");
+  await prisma.versionLogiciel.upsert({
+    where: { id: 'seed-version-1-0-0' },
+    update: {},
+    create: {
+      id: 'seed-version-1-0-0',
+      version: '1.0.0',
+      titre: 'Lancement officiel GESTMONEY',
+      description:
+        'Première version publique de GESTMONEY : gestion des transactions, agents, flottes, commissions, comptabilité OHADA et assistant SARA.',
+      type: 'MAJEURE',
+      publiee: true,
+      publishedAt: new Date(),
+    },
+  });
+  console.log('     Version 1.0.0 créée');
+
   // ── RÉSUMÉ ─────────────────────────────────────────────────────────────────
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -125,6 +158,8 @@ async function main() {
   console.log(`║  Comptes float   : ${floatAccounts.length}`.padEnd(52) + "║");
   console.log(`║  Transactions    : ${transactions.length}`.padEnd(52) + "║");
   console.log(`║  Comptes SYSCO.  : ${accounts.length}`.padEnd(52) + "║");
+  console.log(`║  Moyens paiement : 4 (Mobile Money IBIG)`.padEnd(52) + "║");
+  console.log(`║  Version logiciel: 1 (1.0.0 Lancement)`.padEnd(52) + "║");
   console.log("╚═══════════════════════════════════════════════════╝");
 
   console.log("\nComptes de connexion démo :");

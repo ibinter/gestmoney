@@ -93,6 +93,87 @@ img, video { height: auto; }
   .gm-pag-info, .gm-selected-count, .gm-breadcrumb { overflow-wrap: anywhere; }
 }
 
+/* ── Variables sémantiques GESTMONEY — light (défaut) ─────────────────── */
+/* Utilisées par les pages dashboard qui ne veulent pas de logique dark: */
+:root {
+  --card-bg:      #ffffff;
+  --text-primary: #111827;
+  --text-muted:   #6b7280;
+  --border-color: #e5e7eb;
+  --bg-page:      #f0f2f7;
+  --surface:      #f9fafb;
+
+  /* --color-* : alias sémantiques utilisés notamment par la page KYC */
+  --color-success:       #16a34a;
+  --color-success-light: #dcfce7;
+  --color-warning:       #d97706;
+  --color-warning-light: #fef3c7;
+  --color-info:          #2563eb;
+  --color-info-light:    #dbeafe;
+  --color-danger:        #dc2626;
+  --color-danger-light:  #fee2e2;
+  --color-border:        #e5e7eb;
+  --color-text-muted:    #6b7280;
+  --color-surface-3:     #f3f4f6;
+}
+
+/* ── Variables sémantiques dark (classe .dark via next-themes) ──────── */
+.dark {
+  --card-bg:      #1f2937;
+  --text-primary: #f9fafb;
+  --text-muted:   #9ca3af;
+  --border-color: #374151;
+  --bg-page:      #111827;
+  --surface:      #1f2937;
+
+  --color-success:       #4ade80;
+  --color-success-light: rgba(22,163,74,.20);
+  --color-warning:       #fbbf24;
+  --color-warning-light: rgba(217,119,6,.20);
+  --color-info:          #60a5fa;
+  --color-info-light:    rgba(37,99,235,.20);
+  --color-danger:        #f87171;
+  --color-danger-light:  rgba(220,38,38,.20);
+  --color-border:        #374151;
+  --color-text-muted:    #9ca3af;
+  --color-surface-3:     #374151;
+
+  /* Overrides du système de design gm- en dark mode */
+  --gm-bg:         #111827;
+  --gm-white:      #1f2937;
+  --gm-dark:       #f9fafb;
+  --gm-dark-2:     #d1d5db;
+  --gm-text:       #f9fafb;
+  --gm-text-2:     #9ca3af;
+  --gm-border:     #374151;
+  --gm-card-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+/* ── @media fallback : préférence OS dark (complète next-themes) ─────── */
+/* Actif quand enableSystem=true ou si le JS est désactivé. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --card-bg:      #1f2937;
+    --text-primary: #f9fafb;
+    --text-muted:   #9ca3af;
+    --border-color: #374151;
+    --bg-page:      #111827;
+    --surface:      #1f2937;
+
+    --color-success:       #4ade80;
+    --color-success-light: rgba(22,163,74,.20);
+    --color-warning:       #fbbf24;
+    --color-warning-light: rgba(217,119,6,.20);
+    --color-info:          #60a5fa;
+    --color-info-light:    rgba(37,99,235,.20);
+    --color-danger:        #f87171;
+    --color-danger-light:  rgba(220,38,38,.20);
+    --color-border:        #374151;
+    --color-text-muted:    #9ca3af;
+    --color-surface-3:     #374151;
+  }
+}
+
 /* ── Dark mode overrides pour les couleurs statiques GESTMONEY ── */
 .dark .bg-white          { background-color: hsl(0 0% 12%); }
 .dark .bg-surface        { background-color: hsl(0 0% 10%); }

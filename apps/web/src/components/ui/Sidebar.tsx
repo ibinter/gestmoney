@@ -19,6 +19,7 @@ import {
   Users,
   Coins,
   BarChart3,
+  BarChart2,
   X,
   Vault,
   UserRound,
@@ -37,6 +38,14 @@ import {
   ShieldAlert,
   CreditCard,
   Radio,
+  FileUp,
+  Webhook,
+  KeyRound,
+  AlertCircle,
+  Banknote,
+  UserCheck,
+  ClipboardList,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useNotificationCount } from '@/hooks/useNotifications';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -91,32 +100,91 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/dashboard/clients',  label: 'Clients',       icone: UserRound,  badgeKey: null },
       { href: '/dashboard/stock',    label: 'Stock',         icone: Package,    badgeKey: null },
       { href: '/dashboard/operateurs', label: 'Opérateurs',  icone: Radio,      badgeKey: null, roles: ROLES_BACKOFFICE },
+      { href: '/dashboard/import',     label: 'Import XLSX', icone: FileUp,     badgeKey: null, roles: ROLES_MANAGER },
     ],
   },
   {
     label: 'Finance & Analyse',
     items: [
       { href: '/dashboard/commissions',  label: 'Commissions',  icone: Coins,    badgeKey: null },
-      { href: '/dashboard/performances', label: 'Performances', icone: TrendingUp, badgeKey: null },
-      { href: '/dashboard/rapports',     label: 'Rapports & BI',icone: BarChart3,  badgeKey: null },
+      { href: '/dashboard/devises',      label: 'Taux de change', icone: ArrowRightLeft, badgeKey: null, roles: ROLES_BACKOFFICE },
+      { href: '/dashboard/performances',    label: 'Performances',    icone: TrendingUp, badgeKey: null },
+      { href: '/dashboard/rapports',        label: 'Rapports & BI',   icone: BarChart3,  badgeKey: null },
+      { href: '/dashboard/rapport-mensuel', label: 'Rapport mensuel', icone: BarChart2,  badgeKey: null, roles: ROLES_BACKOFFICE },
       { href: '/dashboard/comptabilite', label: 'Comptabilité', icone: BookText,   badgeKey: null, roles: ROLES_BACKOFFICE },
     ],
   },
   {
     label: 'Administration',
     items: [
-      { href: '/dashboard/notifications', label: 'Notifications', icone: Bell,        badgeKey: 'notifs' },
-      { href: '/dashboard/administration', label: 'Administration', icone: SlidersHorizontal, badgeKey: null, roles: ROLES_BACKOFFICE },
-      { href: '/dashboard/ia-fraude',     label: 'Audit & Alertes', icone: ShieldAlert, badgeKey: null, roles: ROLES_BACKOFFICE },
-      { href: '/dashboard/settings',      label: 'Paramètres',    icone: Settings,    badgeKey: null, roles: ROLES_MANAGER },
+      { href: '/dashboard/notifications', label: 'Notifications',  icone: Bell,              badgeKey: 'notifs' },
+      { href: '/dashboard/alertes',       label: 'Alertes',        icone: AlertCircle,       badgeKey: null,     roles: ROLES_ADMIN },
+      { href: '/dashboard/audit',         label: 'Audit',          icone: ClipboardList,     badgeKey: null,     roles: ROLES_ADMIN },
+      { href: '/dashboard/webhooks',      label: 'Webhooks',       icone: Webhook,           badgeKey: null,     roles: ROLES_ADMIN },
+      { href: '/dashboard/api-keys',      label: 'Clés API',       icone: KeyRound,          badgeKey: null,     roles: ROLES_ADMIN },
+      { href: '/dashboard/kyc',           label: 'KYC',            icone: UserCheck,         badgeKey: null,     roles: ROLES_MANAGER },
+      { href: '/dashboard/administration', label: 'Administration', icone: SlidersHorizontal, badgeKey: null,    roles: ROLES_BACKOFFICE },
+      { href: '/dashboard/ia-fraude',     label: 'Audit & Alertes', icone: ShieldAlert,      badgeKey: null,     roles: ROLES_BACKOFFICE },
+      { href: '/dashboard/settings',      label: 'Paramètres',     icone: Settings,          badgeKey: null,     roles: ROLES_MANAGER },
       { href: '/dashboard/abonnement',    label: 'Abonnement',    icone: CreditCard,  badgeKey: null },
       { href: '/dashboard/profile',       label: 'Mon profil',    icone: User,        badgeKey: null },
       { href: '/dashboard/support',       label: 'Support',       icone: MessageSquare, badgeKey: null },
-      { href: '/dashboard/guide',          label: 'Guide',         icone: BookOpen,    badgeKey: null },
+      { href: '/dashboard/guide',          label: 'Guide & Académie', icone: BookOpen, badgeKey: null },
       { href: '/dashboard/aide',          label: "Centre d'aide", icone: HelpCircle,  badgeKey: null },
     ],
   },
 ];
+
+// ── Pastille santé API ─────────────────────────────────────────────────────────
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+
+function HealthDot({ compact }: { compact: boolean }) {
+  const [ok, setOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/health`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+        if (!cancelled) setOk(res.ok);
+      } catch {
+        if (!cancelled) setOk(false);
+      }
+    };
+    check();
+    const timer = setInterval(check, 30_000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, []);
+
+  const color = ok === null ? '#9ca3af' : ok ? '#009E00' : '#dc2626';
+  const label = ok === null ? 'Vérification…' : ok ? 'Systèmes opérationnels' : 'Service dégradé';
+
+  return (
+    <a
+      href="/status"
+      title={label}
+      aria-label={`État des services : ${label}`}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, textDecoration: 'none', flexShrink: 0 }}
+    >
+      <span
+        style={{
+          display: 'inline-block',
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          backgroundColor: color,
+          boxShadow: ok ? `0 0 0 2px ${color}33` : undefined,
+          flexShrink: 0,
+        }}
+      />
+      {!compact && (
+        <span style={{ fontSize: 11, color, fontWeight: 500, whiteSpace: 'nowrap' }}>
+          {ok === null ? '' : ok ? 'OK' : 'KO'}
+        </span>
+      )}
+    </a>
+  );
+}
 
 // ── Tooltip compact ────────────────────────────────────────────────────────────
 function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
@@ -205,19 +273,29 @@ export function Sidebar({
     '/dashboard/agences':       t.nav.agences,
     '/dashboard/agents':        t.nav.agents,
     '/dashboard/clients':       t.nav.clients,
+    '/dashboard/kyc':           'Vérif. KYC',
     '/dashboard/stock':         t.nav.stock,
     '/dashboard/comptabilite':  t.nav.comptabilite,
     '/dashboard/administration': t.nav.administration,
     '/dashboard/ia-fraude':     t.nav.iaFraude,
     '/dashboard/abonnement':    t.nav.abonnement,
     '/dashboard/commissions':   t.nav.commissions,
+    '/dashboard/devises':       'Taux de change',
     '/dashboard/performances':  t.nav.performances,
-    '/dashboard/rapports':      t.nav.rapports,
+    '/dashboard/rapports':        t.nav.rapports,
+    '/dashboard/rapport-mensuel': 'Rapport mensuel',
     '/dashboard/notifications': t.nav.notifications,
     '/dashboard/settings':      t.nav.settings,
     '/dashboard/profile':       t.nav.profile,
     '/dashboard/support':       t.nav.support,
     '/dashboard/aide':          t.nav.aide,
+    '/dashboard/import':        t.nav.import,
+    '/dashboard/guide':         t.nav.guide,
+    '/dashboard/webhooks':      t.nav.webhooks,
+    '/dashboard/alertes':       t.nav.alertes,
+    '/dashboard/audit':         t.nav.audit,
+    '/dashboard/devises':       t.nav.devises,
+    '/dashboard/kyc':           t.nav.kyc,
   };
 
   const sectionLabels = [t.nav.principal, t.nav.reseau, t.nav.finance, t.nav.compte];
@@ -419,7 +497,12 @@ export function Sidebar({
       {/* ── Footer ─────────────────────────────────────────────── */}
       <div className={clsx('gm-sidebar-footer', compact && '!justify-center !px-0')}>
         <span aria-hidden="true">🪙</span>
-        {!compact && <span>GESTMONEY v1.0 — IBIG SOFT</span>}
+        {!compact && (
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            GESTMONEY v1.0 — IBIG SOFT
+          </span>
+        )}
+        <HealthDot compact={compact} />
       </div>
     </>
   );

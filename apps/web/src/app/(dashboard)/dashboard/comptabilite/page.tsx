@@ -19,8 +19,12 @@ import {
   useBalanceVerification,
   useCompteResultat,
   useBilan,
+  useCompteResultatOhada,
+  useBilanAnnuel,
+  useCloturerExercice,
   versNombre,
   type PosteBilan,
+  type ExerciceFiscal,
 } from '@/hooks/useComptabilite';
 import { formatDate } from '@/lib/formatters';
 import { clsx } from 'clsx';
@@ -47,14 +51,15 @@ function sommePostes(postes: PosteBilan[] | undefined): number {
   return (postes ?? []).reduce((acc, p) => acc + versNombre(p.montant), 0);
 }
 
-type Onglet = 'grandlivre' | 'balance' | 'resultat' | 'bilan' | 'plan';
+type Onglet = 'exercices' | 'grandlivre' | 'balance' | 'resultat' | 'bilan' | 'plan';
 
-const onglets = (t: Translations): { cle: Onglet; label: string }[] => [
-  { cle: 'grandlivre', label: t.comptabilite.onglets.grandlivre },
-  { cle: 'balance', label: t.comptabilite.onglets.balance },
-  { cle: 'resultat', label: t.comptabilite.onglets.resultat },
-  { cle: 'bilan', label: t.comptabilite.onglets.bilan },
-  { cle: 'plan', label: t.comptabilite.onglets.plan },
+const onglets = (_t: Translations): { cle: Onglet; label: string }[] => [
+  { cle: 'exercices', label: 'Exercices' },
+  { cle: 'grandlivre', label: _t.comptabilite.onglets.grandlivre },
+  { cle: 'balance', label: _t.comptabilite.onglets.balance },
+  { cle: 'resultat', label: _t.comptabilite.onglets.resultat },
+  { cle: 'bilan', label: _t.comptabilite.onglets.bilan },
+  { cle: 'plan', label: _t.comptabilite.onglets.plan },
 ];
 
 /** Bandeau générique chargement / erreur / vide, sans jamais afficher de chiffres factices. */
@@ -96,11 +101,227 @@ function EtatBloc({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+// ─── Section compte de résultat (exploitation / financier / exceptionnel) ────
+
+interface LigneOhada { compte: string; libelle: string; montant: string }
+
+function SectionResultat({
+  titre,
+  charges,
+  produits,
+  totalCharges,
+  totalProduits,
+  resultat,
+}: {
+  titre: string;
+  charges: LigneOhada[];
+  produits: LigneOhada[];
+  totalCharges: string;
+  totalProduits: string;
+  resultat: string;
+}) {
+  const net = versNombre(resultat);
+  return (
+    <div
+      style={{
+        marginBottom: 16,
+        border: '1px solid var(--gm-border)',
+        borderRadius: 8,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: '10px 16px',
+          background: 'var(--gm-surface-2, rgba(0,0,0,0.04))',
+          fontWeight: 700,
+          fontSize: 13,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <span>{titre}</span>
+        <span
+          style={{
+            color: net >= 0 ? 'var(--gm-success)' : 'var(--gm-danger)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {net >= 0 ? '+' : ''}
+          {montant(resultat)} XOF
+        </span>
+      </div>
+      <div className="gm-cr-grid" style={{ gap: 0 }}>
+        <div className="gm-cr-col" style={{ borderRight: '1px solid var(--gm-border)' }}>
+          <div className="gm-cr-header gm-cr-header-produits">Produits</div>
+          {produits.length === 0 ? (
+            <div className="gm-cr-row">
+              <span style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>Aucun produit</span>
+            </div>
+          ) : (
+            produits.map((p) => (
+              <div className="gm-cr-row" key={p.compte}>
+                <span>
+                  {p.compte} — {p.libelle}
+                </span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{montant(p.montant)}</span>
+              </div>
+            ))
+          )}
+          <div className="gm-cr-total gm-cr-total-produits">
+            <span>Total produits</span>
+            <span>{montant(totalProduits)} XOF</span>
+          </div>
+        </div>
+        <div className="gm-cr-col">
+          <div className="gm-cr-header gm-cr-header-charges">Charges</div>
+          {charges.length === 0 ? (
+            <div className="gm-cr-row">
+              <span style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>Aucune charge</span>
+            </div>
+          ) : (
+            charges.map((c) => (
+              <div className="gm-cr-row" key={c.compte}>
+                <span>
+                  {c.compte} — {c.libelle}
+                </span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{montant(c.montant)}</span>
+              </div>
+            ))
+          )}
+          <div className="gm-cr-total gm-cr-total-charges">
+            <span>Total charges</span>
+            <span>{montant(totalCharges)} XOF</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de confirmation de clôture ────────────────────────────────────────
+
+function ModalCloture({
+  exercice,
+  onConfirm,
+  onCancel,
+  loading,
+  erreur,
+}: {
+  exercice: ExerciceFiscal;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+  erreur: string | null;
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        style={{
+          background: 'var(--gm-surface)',
+          border: '1px solid var(--gm-border)',
+          borderRadius: 12,
+          padding: '28px 32px',
+          maxWidth: 480,
+          width: '90%',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        }}
+      >
+        <h3 style={{ margin: '0 0 12px', fontSize: 17, color: 'var(--gm-text)' }}>
+          Clôturer l&apos;exercice {exercice.label}
+        </h3>
+        <p style={{ fontSize: 13, color: 'var(--gm-text-2)', margin: '0 0 16px', lineHeight: 1.6 }}>
+          Cette opération est <strong>irréversible</strong>. Elle va&nbsp;:
+        </p>
+        <ul style={{ fontSize: 13, color: 'var(--gm-text-2)', margin: '0 0 16px', paddingLeft: 20, lineHeight: 1.8 }}>
+          <li>Vérifier l&apos;équilibre de la balance (débit = crédit)</li>
+          <li>Vérifier l&apos;absence de transactions en attente</li>
+          <li>Calculer le résultat net (Produits − Charges)</li>
+          <li>Générer l&apos;écriture de report à nouveau (compte 120/129)</li>
+          <li>Verrouiller définitivement l&apos;exercice</li>
+        </ul>
+        {erreur && (
+          <div
+            style={{
+              background: 'rgba(var(--gm-danger-rgb), 0.1)',
+              border: '1px solid var(--gm-danger)',
+              borderRadius: 6,
+              padding: '10px 14px',
+              marginBottom: 16,
+              fontSize: 13,
+              color: 'var(--gm-danger)',
+            }}
+          >
+            {erreur}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 6,
+              border: '1px solid var(--gm-border)',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: 13,
+              color: 'var(--gm-text)',
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 6,
+              border: 'none',
+              background: 'var(--gm-danger)',
+              color: '#fff',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: 13,
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? 'Clôture en cours…' : 'Confirmer la clôture'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ComptabilitePage() {
   const t = useT();
   const ONGLETS = onglets(t);
-  const [onglet, setOnglet] = useState<Onglet>('grandlivre');
+  const [onglet, setOnglet] = useState<Onglet>('exercices');
   const [exerciceId, setExerciceId] = useState<string>('');
+
+  // Clôture OHADA
+  const [exerciceACloture, setExerciceACloture] = useState<ExerciceFiscal | null>(null);
+  const [erreurCloture, setErreurCloture] = useState<string | null>(null);
+  const cloturerMutation = useCloturerExercice();
+
+  // Année sélectionnée pour les rapports annuels
+  const anneeActuelle = new Date().getFullYear();
+  const [anneeSelectionnee, setAnneeSelectionnee] = useState<number>(anneeActuelle);
+  const compteResultatOhada = useCompteResultatOhada(anneeSelectionnee);
+  const bilanAnnuel = useBilanAnnuel(anneeSelectionnee);
 
   const exercices = useExercicesFiscaux();
   const exerciceCourant = useMemo(
@@ -238,6 +459,386 @@ export default function ComptabilitePage() {
             {o.label}
           </button>
         ))}
+      </div>
+
+      {/* ── Exercices fiscaux + clôture OHADA ─────────────────────────────── */}
+      <div className={clsx('gm-tab-panel', onglet === 'exercices' && 'gm-active')}>
+        <div className="gm-table-wrap">
+          <div className="gm-table-toolbar">
+            <div className="gm-table-toolbar-left">
+              <strong style={{ fontSize: 14 }}>Exercices comptables</strong>
+            </div>
+          </div>
+
+          <EtatBloc
+            chargement={exercices.isLoading}
+            erreur={exercices.error}
+            vide={(exercices.data?.length ?? 0) === 0}
+            messageVide="Aucun exercice comptable enregistré."
+          />
+
+          {!exercices.isLoading && !exercices.isError && (exercices.data?.length ?? 0) > 0 && (
+            <GmTableWrap>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Exercice</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Statut</th>
+                    <th>Clôturé le</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(exercices.data ?? []).map((ex) => {
+                    const estClos = ex.status === 'CLOSED';
+                    return (
+                      <tr key={ex.id}>
+                        <td style={{ fontWeight: 600 }}>{ex.label}</td>
+                        <td>{formatDate(ex.startDate)}</td>
+                        <td>{formatDate(ex.endDate)}</td>
+                        <td>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '2px 10px',
+                              borderRadius: 20,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: estClos ? 'rgba(107,114,128,0.15)' : 'rgba(16,185,129,0.15)',
+                              color: estClos ? 'var(--gm-text-2)' : 'var(--gm-success)',
+                            }}
+                          >
+                            {estClos ? 'CLOS' : 'OUVERT'}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--gm-text-2)', fontSize: 13 }}>
+                          {ex.closedAt ? formatDate(ex.closedAt) : '—'}
+                        </td>
+                        <td>
+                          {!estClos && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setErreurCloture(null);
+                                setExerciceACloture(ex);
+                              }}
+                              style={{
+                                padding: '5px 14px',
+                                borderRadius: 6,
+                                border: '1px solid var(--gm-danger)',
+                                background: 'transparent',
+                                color: 'var(--gm-danger)',
+                                cursor: 'pointer',
+                                fontSize: 12,
+                                fontWeight: 600,
+                              }}
+                            >
+                              Clôturer
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </GmTableWrap>
+          )}
+        </div>
+
+        {/* ── Section Bilan annuel ────────────────────────────────────────── */}
+        <div className="gm-table-wrap" style={{ marginTop: 24 }}>
+          <div className="gm-table-toolbar" style={{ flexWrap: 'wrap', gap: 10 }}>
+            <div className="gm-table-toolbar-left">
+              <strong style={{ fontSize: 14 }}>Bilan annuel OHADA</strong>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label htmlFor="annee-bilan" style={{ fontSize: 13, color: 'var(--gm-text-2)' }}>
+                Année :
+              </label>
+              <select
+                id="annee-bilan"
+                className="gm-filter-select"
+                value={anneeSelectionnee}
+                onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
+              >
+                {Array.from({ length: 5 }, (_, i) => anneeActuelle - i).map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={bilanAnnuel.isLoading || bilanAnnuel.isError || !bilanAnnuel.data}
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/accounting/bilan/${anneeSelectionnee}/pdf`, { credentials: 'include' });
+                    if (!res.ok) return;
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                  } catch { /* silencieux */ }
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: '1px solid var(--gm-primary)',
+                  background: 'var(--gm-primary)',
+                  color: '#fff',
+                  cursor: bilanAnnuel.isLoading || bilanAnnuel.isError ? 'not-allowed' : 'pointer',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  opacity: bilanAnnuel.isLoading || bilanAnnuel.isError ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                Télécharger PDF
+              </button>
+            </div>
+          </div>
+
+          <EtatBloc
+            chargement={bilanAnnuel.isLoading}
+            erreur={bilanAnnuel.error}
+          />
+
+          {!bilanAnnuel.isLoading && !bilanAnnuel.isError && bilanAnnuel.data && (
+            <>
+              <div className="gm-bilan-grid">
+                <div className="gm-bilan-col gm-bilan-actif">
+                  <div className="gm-bilan-header">ACTIF</div>
+                  {(
+                    [
+                      ['Immobilisations', bilanAnnuel.data.actif.immobilisations],
+                      ['Stocks', bilanAnnuel.data.actif.stocks],
+                      ['Créances', bilanAnnuel.data.actif.creances],
+                      ['Trésorerie', bilanAnnuel.data.actif.tresorerie],
+                    ] as [string, PosteBilan[]][]
+                  ).map(([section, postes]) => (
+                    <React.Fragment key={section}>
+                      <div className="gm-bilan-section">{section}</div>
+                      {(postes ?? []).length === 0 ? (
+                        <div className="gm-bilan-row">
+                          <span style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>Aucun poste</span>
+                        </div>
+                      ) : (
+                        postes.map((p) => (
+                          <div className="gm-bilan-row" key={p.accountNumber}>
+                            <span>
+                              {p.accountNumber} — {p.label}
+                            </span>
+                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {montant(p.montant)} XOF
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </React.Fragment>
+                  ))}
+                  <div className="gm-bilan-total">
+                    <span>Total Actif</span>
+                    <span>{montant(bilanAnnuel.data.actif.totalActif)} XOF</span>
+                  </div>
+                </div>
+                <div className="gm-bilan-col gm-bilan-passif">
+                  <div className="gm-bilan-header">PASSIF</div>
+                  {(
+                    [
+                      ['Capitaux propres', bilanAnnuel.data.passif.capitaux],
+                      ['Dettes', bilanAnnuel.data.passif.dettes],
+                    ] as [string, PosteBilan[]][]
+                  ).map(([section, postes]) => (
+                    <React.Fragment key={section}>
+                      <div className="gm-bilan-section">{section}</div>
+                      {(postes ?? []).length === 0 ? (
+                        <div className="gm-bilan-row">
+                          <span style={{ color: 'var(--gm-text-2)', fontSize: 12 }}>Aucun poste</span>
+                        </div>
+                      ) : (
+                        postes.map((p) => (
+                          <div className="gm-bilan-row" key={p.accountNumber}>
+                            <span>
+                              {p.accountNumber} — {p.label}
+                            </span>
+                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {montant(p.montant)} XOF
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </React.Fragment>
+                  ))}
+                  <div className="gm-bilan-total">
+                    <span>Total Passif</span>
+                    <span>{montant(bilanAnnuel.data.passif.totalPassif)} XOF</span>
+                  </div>
+                </div>
+              </div>
+              {!bilanAnnuel.data.isBalanced && (
+                <div className="gm-balance-check" style={{ color: 'var(--gm-danger)' }}>
+                  Bilan déséquilibré : écart de {montant(bilanAnnuel.data.difference)} XOF
+                </div>
+              )}
+              {bilanAnnuel.data.isBalanced && (
+                <div className="gm-balance-check" style={{ color: 'var(--gm-success)' }}>
+                  Bilan équilibré — Total actif = Total passif
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ── Section Compte de résultat OHADA ───────────────────────────── */}
+        <div className="gm-table-wrap" style={{ marginTop: 24 }}>
+          <div className="gm-table-toolbar">
+            <div className="gm-table-toolbar-left">
+              <strong style={{ fontSize: 14 }}>
+                Compte de résultat OHADA — {anneeSelectionnee}
+              </strong>
+            </div>
+            <button
+              type="button"
+              disabled={compteResultatOhada.isLoading || compteResultatOhada.isError || !compteResultatOhada.data}
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/accounting/compte-resultat/${anneeSelectionnee}/pdf`, { credentials: 'include' });
+                  if (!res.ok) return;
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  window.open(url, '_blank');
+                } catch { /* silencieux */ }
+              }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: '1px solid var(--gm-primary)',
+                background: 'var(--gm-primary)',
+                color: '#fff',
+                cursor: compteResultatOhada.isLoading || compteResultatOhada.isError ? 'not-allowed' : 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                opacity: compteResultatOhada.isLoading || compteResultatOhada.isError ? 0.5 : 1,
+              }}
+            >
+              Télécharger PDF
+            </button>
+          </div>
+
+          <EtatBloc
+            chargement={compteResultatOhada.isLoading}
+            erreur={compteResultatOhada.error}
+          />
+
+          {!compteResultatOhada.isLoading && !compteResultatOhada.isError && compteResultatOhada.data && (
+            <div style={{ padding: '8px 0' }}>
+              {/* Exploitation */}
+              <SectionResultat
+                titre="Résultat d'exploitation"
+                charges={compteResultatOhada.data.chargesExploitation}
+                produits={compteResultatOhada.data.produitsExploitation}
+                totalCharges={compteResultatOhada.data.totalChargesExploitation}
+                totalProduits={compteResultatOhada.data.totalProduitsExploitation}
+                resultat={compteResultatOhada.data.resultatExploitation}
+              />
+              {/* Financier */}
+              <SectionResultat
+                titre="Résultat financier"
+                charges={compteResultatOhada.data.chargesFinancieres}
+                produits={compteResultatOhada.data.produitsFinanciers}
+                totalCharges={compteResultatOhada.data.totalChargesFinancieres}
+                totalProduits={compteResultatOhada.data.totalProduitsFinanciers}
+                resultat={compteResultatOhada.data.resultatFinancier}
+              />
+              {/* Exceptionnel */}
+              <SectionResultat
+                titre="Résultat exceptionnel"
+                charges={compteResultatOhada.data.chargesExceptionnelles}
+                produits={compteResultatOhada.data.produitsExceptionnels}
+                totalCharges={compteResultatOhada.data.totalChargesExceptionnelles}
+                totalProduits={compteResultatOhada.data.totalProduitsExceptionnels}
+                resultat={compteResultatOhada.data.resultatExceptionnel}
+              />
+              {/* Synthèse */}
+              <div
+                style={{
+                  margin: '16px 0 0',
+                  padding: '16px 20px',
+                  background: 'var(--gm-surface-alt, var(--gm-surface))',
+                  border: '1px solid var(--gm-border)',
+                  borderRadius: 8,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <span>Résultat avant impôt</span>
+                  <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    {montant(compteResultatOhada.data.resultatAvantImpot)} XOF
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10, color: 'var(--gm-text-2)' }}>
+                  <span>Impôt sur les bénéfices (69x)</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    − {montant(compteResultatOhada.data.impotBenefices)} XOF
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    padding: '8px 0 0',
+                    borderTop: '2px solid var(--gm-border)',
+                    color: versNombre(compteResultatOhada.data.resultatNet) >= 0
+                      ? 'var(--gm-success)'
+                      : 'var(--gm-danger)',
+                  }}
+                >
+                  <span>RESULTAT NET</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {versNombre(compteResultatOhada.data.resultatNet) >= 0 ? '+' : ''}
+                    {montant(compteResultatOhada.data.resultatNet)} XOF
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--gm-text-2)', marginTop: 4 }}>
+                  {versNombre(compteResultatOhada.data.resultatNet) >= 0
+                    ? 'Bénéfice de l\'exercice'
+                    : 'Perte de l\'exercice'}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal de confirmation */}
+        {exerciceACloture && (
+          <ModalCloture
+            exercice={exerciceACloture}
+            loading={cloturerMutation.isPending}
+            erreur={erreurCloture}
+            onCancel={() => {
+              setExerciceACloture(null);
+              setErreurCloture(null);
+            }}
+            onConfirm={async () => {
+              const annee = new Date(exerciceACloture.startDate).getFullYear();
+              setErreurCloture(null);
+              try {
+                await cloturerMutation.mutateAsync(annee);
+                setExerciceACloture(null);
+              } catch (err: unknown) {
+                const msg =
+                  (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+                  'Une erreur est survenue lors de la clôture.';
+                setErreurCloture(msg);
+              }
+            }}
+          />
+        )}
       </div>
 
       {/* ── Grand livre / journal ──────────────────────────────────────────── */}

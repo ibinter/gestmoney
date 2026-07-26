@@ -11,6 +11,7 @@ import {
   CreateTicketMessageDto,
 } from './dto/ticket.dto';
 import { TicketStatut } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * Module support (tickets) — utilisateur courant. Chaque utilisateur gère ses
@@ -20,7 +21,12 @@ import { TicketStatut } from '@prisma/client';
 export class SupportService {
   private readonly logger = new Logger(SupportService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly SUPPORT_EMAIL = 'gestmoney@ibigsoft.com';
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private genererNumero(): string {
     // Identifiant lisible et unique sans dépendre d'un compteur (pas de course).
@@ -167,6 +173,62 @@ export class SupportService {
       },
     });
     this.logger.log(`Ticket ${ticket.numero} créé par ${userId}`);
+
+    // Email de confirmation au créateur du ticket
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    }).catch(() => null);
+
+    if (user?.email) {
+      void this.notifications.sendEmail({
+        to: user.email,
+        subject: `Ticket ${ticket.numero} créé — ${dto.objet}`,
+        body: [
+          `Bonjour ${user.firstName ?? ''},`,
+          '',
+          `Votre ticket d'assistance a bien été créé.`,
+          '',
+          `Numéro : ${ticket.numero}`,
+          `Objet  : ${dto.objet}`,
+          `Statut : NOUVEAU`,
+          '',
+          'Notre équipe traitera votre demande dans les meilleurs délais.',
+          '',
+          "L'équipe Support GESTMONEY",
+        ].join('\n'),
+        tenantId: tenantId ?? 'platform',
+      });
+    }
+
+    // Notification interne à l'équipe support
+    void this.notifications.sendEmail({
+      to: this.SUPPORT_EMAIL,
+      subject: `[TICKET] ${ticket.numero} — ${dto.objet}`,
+      body: [
+        `Nouveau ticket créé par ${userId}.`,
+        '',
+        `Numéro   : ${ticket.numero}`,
+        `Objet    : ${dto.objet}`,
+        `Catégorie: ${dto.categorie ?? 'N/A'}`,
+        `Priorité : ${dto.priorite ?? 'NORMALE'}`,
+        '',
+        `Description :`,
+        dto.description,
+      ].join('\n'),
+      tenantId: tenantId ?? 'platform',
+    });
+
+    // Notification in-app au créateur
+    void this.notifications.creerInApp(
+      userId,
+      tenantId ?? 'platform',
+      'SUPPORT',
+      `Ticket ${ticket.numero} créé`,
+      `Votre demande "${dto.objet}" a bien été enregistrée. Notre équipe vous répond rapidement.`,
+      `/dashboard/support`,
+    );
+
     return this.toDto(ticket);
   }
 
@@ -213,6 +275,24 @@ export class SupportService {
       where: { id },
       data: { statut },
     });
+
+    // Notification in-app sur changement de statut significatif
+    if (statut === 'RESOLU' || statut === 'FERME' || statut === 'EN_COURS') {
+      const libelle: Record<string, string> = {
+        RESOLU: 'résolu',
+        FERME: 'fermé',
+        EN_COURS: 'pris en charge',
+      };
+      void this.notifications.creerInApp(
+        userId,
+        ticket.tenantId ?? 'platform',
+        'SUPPORT',
+        `Ticket ${ticket.numero} ${libelle[statut] ?? statut}`,
+        `Le statut de votre ticket "${ticket.objet}" a été mis à jour : ${libelle[statut] ?? statut}.`,
+        `/dashboard/support`,
+      );
+    }
+
     return this.toDto(updated);
   }
 

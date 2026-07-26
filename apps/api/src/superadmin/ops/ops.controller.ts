@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { OpsService } from './ops.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -106,5 +106,20 @@ export class OpsController {
     @Query('dateFin') dateFin?: string,
   ) {
     return this.opsService.analytics({ dateDebut, dateFin });
+  }
+
+  // ─── SEED DÉMO ────────────────────────────────────────────────────────────
+
+  @Post('seed-demo')
+  @ApiOperation({
+    summary: 'Créer le tenant de démonstration (SUPER_ADMIN uniquement)',
+    description:
+      'Idempotent. Crée un tenant slug=demo-client avec 3 agences, 8 agents, ' +
+      '50 clients, 200 transactions sur 30 jours, 15 écritures comptables, ' +
+      '3 tickets support et une licence PROFESSIONAL (25 jours). ' +
+      'Connexion : demo@gestmoney.ibigsoft.com / Demo@2026',
+  })
+  seedDemo() {
+    return this.opsService.seedDemo();
   }
 }

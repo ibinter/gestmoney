@@ -34,7 +34,23 @@ import { NetworksModule } from "./networks/networks.module";
 import { SupportModule } from "./support/support.module";
 import { CrmModule } from "./superadmin/crm/crm.module";
 import { OpsModule } from "./superadmin/ops/ops.module";
+import { TenantsAdminModule } from "./superadmin/tenants/tenants.module";
+import { DocumentVerificationModule } from "./document-verification/document-verification.module";
+import { PublicLeadsModule } from "./public-leads/public-leads.module";
+import { ImportModule } from "./import/import.module";
+import { BackupModule } from "./backup/backup.module";
+import { OnboardingModule } from "./onboarding/onboarding.module";
+import { VersionsModule } from "./versions/versions.module";
+import { CampaignsModule } from "./campaigns/campaigns.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
+import { AlertesModule } from "./alertes/alertes.module";
+import { PushModule } from "./push/push.module";
+import { WebhooksModule } from "./webhooks/webhooks.module";
+import { ApiKeysModule } from "./api-keys/api-keys.module";
+import { HealthModule } from "./health/health.module";
+import { DevisesModule } from "./devises/devises.module";
 import { LicenceGuard } from "./licences/licence.guard";
+import { TenantGuard } from "./common/guards/tenant.guard";
 import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
 
 @Module({
@@ -87,6 +103,21 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     SupportModule,
     CrmModule,
     OpsModule,
+    TenantsAdminModule,
+    PublicLeadsModule,
+    DocumentVerificationModule,
+    ImportModule,
+    BackupModule,
+    OnboardingModule,
+    VersionsModule,
+    AnalyticsModule,
+    CampaignsModule,
+    WebhooksModule,
+    ApiKeysModule,
+    DevisesModule,
+    AlertesModule,
+    PushModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [
@@ -106,6 +137,11 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     // Ses dépendances sont résolues dans ce contexte : `LicencesService` est
     // exporté par `LicencesModule`, `JwtService` par `AuthModule`.
     { provide: APP_GUARD, useClass: LicenceGuard },
+    // ── Isolation multi-tenant à l'échelle de TOUTE l'application ────────────
+    // Complète le middleware : vérifie, après authentification JWT, que
+    // l'utilisateur appartient bien au tenant résolu par le middleware.
+    // Les super-admins sont exemptés (accès transversal légitime).
+    { provide: APP_GUARD, useClass: TenantGuard },
     // ── Journalisation d'audit à l'échelle de TOUTE l'application ───────────
     // Enregistré en global : toute mutation métier réussie et authentifiée est
     // tracée (§27). `AuditService` est fourni par `AuditModule`, importé plus

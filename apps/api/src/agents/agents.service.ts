@@ -99,10 +99,16 @@ export class AgentsService {
     });
 
     await this.logAudit('CREATE', createdBy, tenantId, { agentId: agent.id });
+    // Onboarding : marquer etape3 (1er agent ajouté) en fire-and-forget
+    this.prisma.onboardingStep.upsert({
+      where:  { tenantId },
+      create: { tenantId, etape3: true },
+      update: { etape3: true },
+    }).catch(() => { /* non bloquant */ });
     return agent;
   }
 
-  async findAll(query: QueryAgentDto, tenantId: string) {
+  async findAll(query: QueryAgentDto, tenantId: string, forcedAgenceId?: string | null) {
     const p = Number(query.page) || 1;
     const l = Number(query.limit) || 20;
     const { search, agencyId, networkId, status, sortBy = 'createdAt', sortOrder = 'desc' } = query;
@@ -117,7 +123,12 @@ export class AgentsService {
       ];
     }
 
-    if (agencyId) where.agencyId = agencyId;
+    // Isolation agence : forcer le filtre si l'appelant est scopé
+    if (forcedAgenceId) {
+      where.agencyId = forcedAgenceId;
+    } else if (agencyId) {
+      where.agencyId = agencyId;
+    }
     if (status) where.status = status;
     if (networkId) where.agency = { networkId };
 

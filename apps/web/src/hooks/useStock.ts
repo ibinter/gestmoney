@@ -247,3 +247,162 @@ export function useModifierProduit() {
     onSuccess: invalider,
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ARTICLES STOCK (nouveau modèle ArticleStock simplifié)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type CategorieArticle = 'CONSOMMABLE' | 'EQUIPEMENT' | 'FOURNITURE';
+
+export interface ArticleStock {
+  id: string;
+  reference: string;
+  nom: string;
+  description?: string;
+  categorie?: CategorieArticle;
+  unite: string;
+  prixUnitaire: number;
+  quantite: number;
+  seuilAlerte: number;
+  actif: boolean;
+  valeur: number;
+  enRupture: boolean;
+  sousSeuil: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MouvementArticle {
+  id: string;
+  articleId: string;
+  type: 'ENTREE' | 'SORTIE' | 'AJUSTEMENT' | 'INVENTAIRE';
+  quantite: number;
+  quantiteAvant: number;
+  quantiteApres: number;
+  motif?: string;
+  reference?: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface StatsStock {
+  totalArticles: number;
+  valeurTotale: number;
+  enRupture: number;
+  sousSeuil: number;
+}
+
+export const ARTICLE_KEYS = {
+  all: ['articles-stock'] as const,
+  liste: (params?: unknown) => ['articles-stock', 'liste', params ?? null] as const,
+  detail: (id: string) => ['articles-stock', 'detail', id] as const,
+  mouvements: (id: string, params?: unknown) => ['articles-stock', 'mouvements', id, params ?? null] as const,
+  stats: () => ['articles-stock', 'stats'] as const,
+};
+
+export function useArticlesStock(params?: {
+  page?: number;
+  limit?: number;
+  categorie?: string;
+  alerteSeulement?: boolean;
+  search?: string;
+}) {
+  return useQuery({
+    queryKey: ARTICLE_KEYS.liste(params),
+    queryFn: async (): Promise<ListePaginee<ArticleStock>> => {
+      const res = await api.get('/stock', { params });
+      return versListe<ArticleStock>(res.data);
+    },
+  });
+}
+
+export function useStatsStock() {
+  return useQuery({
+    queryKey: ARTICLE_KEYS.stats(),
+    queryFn: async (): Promise<StatsStock> => {
+      const res = await api.get('/stock/stats');
+      return res.data as StatsStock;
+    },
+  });
+}
+
+export function useMouvementsArticle(articleId: string, params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ARTICLE_KEYS.mouvements(articleId, params),
+    queryFn: async (): Promise<ListePaginee<MouvementArticle>> => {
+      const res = await api.get(`/stock/${articleId}/mouvements`, { params });
+      return versListe<MouvementArticle>(res.data);
+    },
+    enabled: !!articleId,
+  });
+}
+
+function useInvalidationArticles() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: ARTICLE_KEYS.all });
+}
+
+export interface ArticleInput {
+  reference: string;
+  nom: string;
+  description?: string;
+  categorie?: CategorieArticle;
+  unite?: string;
+  prixUnitaire?: number;
+  seuilAlerte?: number;
+}
+
+export function useCreerArticle() {
+  const invalider = useInvalidationArticles();
+  return useMutation({
+    mutationFn: async (dto: ArticleInput): Promise<ArticleStock> => {
+      const res = await api.post('/stock', dto);
+      return res.data as ArticleStock;
+    },
+    onSuccess: invalider,
+  });
+}
+
+export function useModifierArticle() {
+  const invalider = useInvalidationArticles();
+  return useMutation({
+    mutationFn: async ({ id, ...dto }: Partial<ArticleInput> & { id: string }): Promise<ArticleStock> => {
+      const res = await api.put(`/stock/${id}`, dto);
+      return res.data as ArticleStock;
+    },
+    onSuccess: invalider,
+  });
+}
+
+export function useEntreeArticle() {
+  const invalider = useInvalidationArticles();
+  return useMutation({
+    mutationFn: async ({ id, quantite, motif, reference }: { id: string; quantite: number; motif?: string; reference?: string }) => {
+      const res = await api.post(`/stock/${id}/entree`, { quantite, motif, reference });
+      return res.data;
+    },
+    onSuccess: invalider,
+  });
+}
+
+export function useSortieArticle() {
+  const invalider = useInvalidationArticles();
+  return useMutation({
+    mutationFn: async ({ id, quantite, motif, reference }: { id: string; quantite: number; motif?: string; reference?: string }) => {
+      const res = await api.post(`/stock/${id}/sortie`, { quantite, motif, reference });
+      return res.data;
+    },
+    onSuccess: invalider,
+  });
+}
+
+export function useAjustementArticle() {
+  const invalider = useInvalidationArticles();
+  return useMutation({
+    mutationFn: async ({ id, nouvelleQuantite, motif }: { id: string; nouvelleQuantite: number; motif?: string }) => {
+      const res = await api.post(`/stock/${id}/ajustement`, { nouvelleQuantite, motif });
+      return res.data;
+    },
+    onSuccess: invalider,
+  });
+}

@@ -123,21 +123,23 @@ const MOCK_STATS: DashboardStatsExtended = {
 export function useDashboardStats() {
   const [stats, setStats] = useState<DashboardStatsExtended | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMock, setIsMock] = useState(false);
+  const [isError, setIsError] = useState(false);
+  // isMock conservé pour compatibilité avec les consommateurs existants,
+  // mais il est toujours false désormais : aucun fallback fictif.
+  const isMock = false;
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
+    setIsError(false);
     try {
       const res = await api.get('/dashboard/extended-stats');
       const raw = res.data?.data ?? res.data ?? {};
-      // Mapper les données API vers notre interface
-      setStats({ ...MOCK_STATS, ...raw });
-      setIsMock(false);
+      setStats(raw as DashboardStatsExtended);
     } catch {
-      // [MOCK] Backend inaccessible — utilisation des données de démonstration
-      setStats(MOCK_STATS);
-      setIsMock(true);
+      // Backend inaccessible — on expose l'erreur, pas de données fictives.
+      setStats(null);
+      setIsError(true);
     } finally {
       setIsLoading(false);
       setLastUpdated(new Date().toISOString());
@@ -148,5 +150,5 @@ export function useDashboardStats() {
     fetchStats();
   }, [fetchStats]);
 
-  return { stats, isLoading, isMock, lastUpdated, refresh: fetchStats };
+  return { stats, isLoading, isError, isMock, lastUpdated, refresh: fetchStats };
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normaliserPagination } from '../../common/utils/pagination';
+import { seedDemoTenant } from '../../../../../packages/database/src/seeds/demo.seed';
 
 /**
  * Service de consultation (LECTURE SEULE) pour la console SuperAdmin :
@@ -409,5 +410,17 @@ export class OpsService {
       tauxRebond: null,
       tauxConversion: null,
     };
+  }
+
+  // ─── SEED DÉMO ───────────────────────────────────────────────────────────
+
+  /**
+   * Crée (ou vérifie l'existence de) un tenant de démonstration complet :
+   * 3 agences, 8 agents, 50 clients, 200 transactions, journal comptable,
+   * tickets support, licence PRO. Idempotent grâce aux upserts.
+   */
+  async seedDemo() {
+    const rapport = await seedDemoTenant(this.prisma as any);
+    return { ok: true, rapport };
   }
 }

@@ -6,11 +6,10 @@
 // Rôles : SUPER_ADMIN / ADMIN | MANAGER | AGENT/CAISSIER | AUDITEUR
 // ============================================================
 import React, { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { MiniChart } from '@/components/ui/MiniChart';
 import { SkeletonCard } from '@/components/ui/Skeleton';
-import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { useAuthStore } from '@/store/authStore';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import type { Transaction } from '@/hooks/useDashboardStats';
@@ -29,6 +28,26 @@ import {
   GmTableWrap,
   type GmTrend,
 } from '@/components/gm';
+
+// Chargement différé des composants lourds (onboarding wizard + analytics)
+// pour ne pas bloquer le rendu initial du dashboard
+const OnboardingChecklist = dynamic(
+  () => import('@/components/onboarding/OnboardingChecklist').then((m) => ({ default: m.OnboardingChecklist })),
+  { ssr: false, loading: () => null }
+);
+const OnboardingTour = dynamic(
+  () => import('@/components/onboarding/OnboardingTour').then((m) => ({ default: m.OnboardingTour })),
+  { ssr: false, loading: () => null }
+);
+const OnboardingWizard = dynamic(
+  () => import('@/components/ui/OnboardingWizard').then((m) => ({ default: m.OnboardingWizard })),
+  { ssr: false, loading: () => null }
+);
+import { useOnboardingWizard } from '@/components/ui/OnboardingWizard';
+const SectionAnalytiques = dynamic(
+  () => import('@/components/dashboard/SectionAnalytiques').then((m) => ({ default: m.SectionAnalytiques })),
+  { ssr: false, loading: () => <div className="skeleton h-64 rounded-xl" /> }
+);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -96,6 +115,38 @@ function GrilleSquelette({ n = 4 }: { n?: number }) {
     <GmCardGrid>
       {[...Array(n)].map((_, i) => <SkeletonCard key={i} />)}
     </GmCardGrid>
+  );
+}
+
+/** État d'erreur API — affiché quand le backend est inaccessible. */
+function ErreurStats() {
+  const { refresh } = useDashboardStats();
+  return (
+    <div style={{
+      padding: '40px 24px', textAlign: 'center',
+      background: 'var(--gm-surface, #fff)',
+      border: '1.5px solid var(--gm-danger-subtle, #fecaca)',
+      borderRadius: 16, margin: '16px 0',
+    }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+      <p style={{ fontWeight: 800, fontSize: 16, color: 'var(--gm-danger, #dc2626)', marginBottom: 8 }}>
+        Impossible de charger les statistiques
+      </p>
+      <p style={{ fontSize: 14, color: 'var(--gm-text-muted, #6b7280)', marginBottom: 20 }}>
+        Le serveur est temporairement inaccessible. Vérifiez votre connexion puis réessayez.
+      </p>
+      <button
+        onClick={() => refresh()}
+        style={{
+          padding: '10px 24px', borderRadius: 10, border: 'none',
+          background: 'var(--gm-primary, #009E00)', color: '#fff',
+          fontWeight: 700, fontSize: 14, cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        🔄 Réessayer
+      </button>
+    </div>
   );
 }
 
@@ -217,12 +268,13 @@ function CarteSparkline({ data }: { data: number[] }) {
 // ─── Vue SUPER_ADMIN / ADMIN ─────────────────────────────────────────────────
 
 function DashboardAdmin() {
-  const { stats, isLoading } = useDashboardStats();
+  const { stats, isLoading, isError } = useDashboardStats();
   const router = useRouter();
   const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={6} />;
+  if (isError || !stats) return <ErreurStats />;
 
   const alertes = [
     (stats?.alertesFloatBas ?? 0) > 0 && `${stats?.alertesFloatBas} ${t.dashboard.labels.floatLow}`,
@@ -394,6 +446,9 @@ function DashboardAdmin() {
         {t.dashboard.recentActivity}
       </GmSectionTitle>
       <TableauTransactions transactions={(stats?.transactionsRecentes ?? []).slice(0, 10)} />
+
+      {/* Section analytiques (graphiques 30 jours) */}
+      <SectionAnalytiques />
     </>
   );
 }
@@ -401,12 +456,13 @@ function DashboardAdmin() {
 // ─── Vue MANAGER ─────────────────────────────────────────────────────────────
 
 function DashboardManager() {
-  const { stats, isLoading } = useDashboardStats();
+  const { stats, isLoading, isError } = useDashboardStats();
   const router = useRouter();
   const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={3} />;
+  if (isError || !stats) return <ErreurStats />;
 
   return (
     <>
@@ -484,6 +540,9 @@ function DashboardManager() {
           </table>
         </div>
       </GmTableWrap>
+
+      {/* Section analytiques (graphiques 30 jours) */}
+      <SectionAnalytiques />
     </>
   );
 }
@@ -491,12 +550,13 @@ function DashboardManager() {
 // ─── Vue AGENT / CAISSIER ────────────────────────────────────────────────────
 
 function DashboardAgent() {
-  const { stats, isLoading } = useDashboardStats();
+  const { stats, isLoading, isError } = useDashboardStats();
   const router = useRouter();
   const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={3} />;
+  if (isError || !stats) return <ErreurStats />;
 
   const floatBas = (stats?.monFloat ?? 0) < 100000;
 
@@ -566,12 +626,13 @@ function DashboardAgent() {
 // ─── Vue AUDITEUR / VIEWER ───────────────────────────────────────────────────
 
 function DashboardAuditeur() {
-  const { stats, isLoading } = useDashboardStats();
+  const { stats, isLoading, isError } = useDashboardStats();
   const router = useRouter();
   const t = useT();
   const go = (href: string) => (e: React.MouseEvent) => { e.stopPropagation(); router.push(href); };
 
   if (isLoading) return <GrilleSquelette n={3} />;
+  if (isError || !stats) return <ErreurStats />;
 
   return (
     <>
@@ -636,9 +697,130 @@ function DashboardAuditeur() {
 
 // ─── Composant principal ───────────────────────────────────────────────────────
 
+// ─── Bannière onboarding ──────────────────────────────────────────────────────
+
+function BanniereOnboarding({ etat, onOpen }: { etat: ReturnType<typeof useOnboardingWizard>['etat']; onOpen: () => void }) {
+  const router = useRouter();
+  if (!etat || etat.termine) return null;
+  const restantes = etat.total - etat.completees;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      flexWrap: 'wrap', gap: 12,
+      padding: '12px 20px',
+      background: 'linear-gradient(90deg, #f0fdf0 0%, #e6fff0 100%)',
+      border: '1.5px solid #bbf7d0',
+      borderRadius: 14, marginBottom: 20,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 20 }}>⚡</span>
+        <div>
+          <span style={{ fontWeight: 700, fontSize: 14, color: '#166534' }}>
+            Vous avez {restantes} étape{restantes > 1 ? 's' : ''} restante{restantes > 1 ? 's' : ''}
+          </span>
+          <span style={{ fontSize: 13, color: '#4ade80', marginLeft: 8 }}>
+            — Continuez la configuration de votre réseau
+          </span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={onOpen}
+          style={{
+            padding: '7px 16px', borderRadius: 9,
+            background: '#009E00', color: '#fff',
+            fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Continuer la configuration →
+        </button>
+        <button
+          onClick={() => router.push('/dashboard/onboarding')}
+          style={{
+            padding: '7px 14px', borderRadius: 9,
+            background: 'transparent', color: '#166534',
+            fontWeight: 500, fontSize: 13,
+            border: '1.5px solid #86efac',
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Voir le guide
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bouton rapport mensuel avec sélecteur mois/année ────────────────────────
+
+function RapportMensuelBtn() {
+  const now = new Date();
+  const [mois, setMois] = React.useState(now.getMonth() + 1);
+  const [annee, setAnnee] = React.useState(now.getFullYear());
+  const [open, setOpen] = React.useState(false);
+
+  const telecharger = () => {
+    window.open(`/api/analytics/rapport-mensuel?annee=${annee}&mois=${mois}`, '_blank');
+    setOpen(false);
+  };
+
+  const moisLabels = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  ];
+  const annees = [now.getFullYear() - 1, now.getFullYear()];
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <GmButton petit variante="outline" onClick={() => setOpen((o) => !o)}>
+        📅 Rapport mensuel
+      </GmButton>
+      {open && (
+        <div style={{
+          position: 'absolute', right: 0, top: '110%', zIndex: 200,
+          background: 'var(--gm-surface)', border: '1px solid var(--gm-border)',
+          borderRadius: 10, padding: '14px 16px', minWidth: 200,
+          boxShadow: '0 4px 24px rgba(0,0,0,.12)',
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: 'var(--gm-text-1)' }}>
+            Rapport mensuel PDF
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: 'var(--gm-text-2)', display: 'block', marginBottom: 3 }}>Mois</label>
+            <select
+              value={mois}
+              onChange={(e) => setMois(parseInt(e.target.value, 10))}
+              style={{ width: '100%', fontSize: 12, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--gm-border)', background: 'var(--gm-bg)', color: 'var(--gm-text-1)' }}
+            >
+              {moisLabels.map((m, i) => (
+                <option key={i + 1} value={i + 1}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: 'var(--gm-text-2)', display: 'block', marginBottom: 3 }}>Année</label>
+            <select
+              value={annee}
+              onChange={(e) => setAnnee(parseInt(e.target.value, 10))}
+              style={{ width: '100%', fontSize: 12, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--gm-border)', background: 'var(--gm-bg)', color: 'var(--gm-text-1)' }}
+            >
+              {annees.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          <GmButton petit onClick={telecharger} style={{ width: '100%' }}>
+            ⬇ Télécharger
+          </GmButton>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { refresh, isLoading, isMock, lastUpdated } = useDashboardStats();
+  const { etat: onboardingEtat, visible: wizardVisible, dismiss: wizardDismiss, open: wizardOpen } = useOnboardingWizard();
   const router = useRouter();
   const t = useT();
   const [mounted, setMounted] = React.useState(false);
@@ -699,9 +881,18 @@ export default function DashboardPage() {
             >
               📊 {t.dashboard.reportsButton}
             </GmButton>
+            <RapportMensuelBtn />
           </>
         }
       />
+
+      {/* Wizard d'onboarding (modal, 1ère connexion) */}
+      {isAdmin && wizardVisible && (
+        <OnboardingWizard onClose={wizardDismiss} />
+      )}
+
+      {/* Bannière "étapes restantes" */}
+      {isAdmin && <BanniereOnboarding etat={onboardingEtat} onOpen={wizardOpen} />}
 
       {/* Checklist d'onboarding (nouveaux comptes uniquement) */}
       {isAdmin && <OnboardingChecklist />}

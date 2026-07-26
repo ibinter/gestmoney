@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AccountingController } from './accounting.controller';
 import { AccountingService } from './accounting.service';
 import { AccountingListener } from './listeners/accounting.listener';
+import { PdfModule } from '../pdf/pdf.module';
 
 /**
  * Module Comptabilité SYSCOHADA pour GESTMONEY
@@ -19,6 +20,7 @@ import { AccountingListener } from './listeners/accounting.listener';
  * EventEmitterModule est @Global() — le listener est câblé automatiquement.
  */
 @Module({
+  imports: [PdfModule],
   controllers: [AccountingController],
   providers: [AccountingService, AccountingListener],
   exports: [AccountingService],

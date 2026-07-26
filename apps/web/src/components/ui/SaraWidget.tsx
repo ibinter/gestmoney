@@ -149,6 +149,11 @@ function Markdown({ texte }: { texte: string }) {
 
 // ─── Composant principal ───────────────────────────────────────────────────────
 
+/** Génère un identifiant de session stable pour la durée de vie du composant. */
+function genSessionId(): string {
+  return `int_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export function SaraWidget() {
   const [ouvert, setOuvert] = useState(false);
   const [minimise, setMinimise] = useState(false);
@@ -164,6 +169,8 @@ export function SaraWidget() {
   const [enTraitement, setEnTraitement] = useState(false);
   const [nbNonLus, setNbNonLus] = useState(0);
   const [langue, setLangue] = useState<'fr' | 'en'>('fr');
+  // sessionId stable pour toute la session — permet la mémoire de conversation côté API
+  const sessionId = useRef<string>(genSessionId());
   const fin = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthStore();
@@ -208,8 +215,9 @@ export function SaraWidget() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: q,
+          sessionId: sessionId.current,
           userId: user?.id,
-          contexte: 'SUPPORT',
+          contexte: 'INTERNE',
           langue: langueDetectee,
         }),
       });
@@ -239,6 +247,8 @@ export function SaraWidget() {
   }, [saisie, enTraitement, user?.id, ouvert]);
 
   const reinitialiser = () => {
+    // Nouveau sessionId = nouvelle conversation côté API (pas de mélange d'historique)
+    sessionId.current = genSessionId();
     setMessages([{
       id: 'init-new',
       role: 'assistant',

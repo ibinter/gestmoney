@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TransactionsService } from './transactions.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   AgentNotFoundException,
   AgentSuspendedException,
@@ -9,6 +10,7 @@ import {
   TransactionNotCancellableException,
   TransactionNotFoundException,
 } from '../common/exceptions/business.exceptions';
+import { ForbiddenException } from '@nestjs/common';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -25,8 +27,8 @@ const mockAgent = {
 const mockFloatAccount = {
   id: 'float-uuid-1',
   agentId: 'agent-uuid-1',
-  operateur: 'ORANGE_MONEY',
-  solde: 100000,
+  operatorCode: 'ORANGE_MONEY',
+  balance: 100000,
   tenantId: 'tenant-1',
 };
 
@@ -50,9 +52,19 @@ const mockTransaction = {
 const mockPrisma = {
   agent: {
     findFirst: jest.fn(),
+    update: jest.fn(),
   },
   floatAccount: {
     findFirst: jest.fn(),
+  },
+  network: {
+    findUnique: jest.fn(),
+  },
+  customer: {
+    updateMany: jest.fn(),
+  },
+  onboardingStep: {
+    upsert: jest.fn().mockResolvedValue({}),
   },
   transaction: {
     create: jest.fn(),
@@ -86,6 +98,7 @@ describe('TransactionsService', () => {
         TransactionsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: NotificationsService, useValue: { sendEmail: jest.fn(), creerInApp: jest.fn() } },
       ],
     }).compile();
 
@@ -106,6 +119,7 @@ describe('TransactionsService', () => {
     const userId = 'user-1';
 
     it('devrait créer une transaction DEPOT avec succès', async () => {
+      mockPrisma.network.findUnique.mockResolvedValue({ id: 'network-1' });
       mockPrisma.agent.findFirst.mockResolvedValue(mockAgent);
       mockPrisma.transaction.create.mockResolvedValue(mockTransaction);
       mockPrisma.auditLog.create.mockResolvedValue({});
@@ -122,6 +136,7 @@ describe('TransactionsService', () => {
     });
 
     it('devrait lever AgentNotFoundException si agent inexistant', async () => {
+      mockPrisma.network.findUnique.mockResolvedValue({ id: 'network-1' });
       mockPrisma.agent.findFirst.mockResolvedValue(null);
 
       await expect(service.create(dto, tenantId, userId)).rejects.toThrow(
@@ -132,6 +147,7 @@ describe('TransactionsService', () => {
     it('devrait lever AgentSuspendedException si agent suspendu', async () => {
       // Le service lit le champ Prisma anglais `status` ('SUSPENDED'),
       // pas l'alias FR `statut`.
+      mockPrisma.network.findUnique.mockResolvedValue({ id: 'network-1' });
       mockPrisma.agent.findFirst.mockResolvedValue({
         ...mockAgent,
         status: 'SUSPENDED',
@@ -143,10 +159,11 @@ describe('TransactionsService', () => {
     });
 
     it('devrait vérifier le float pour un RETRAIT et lever InsufficientFloatException', async () => {
+      mockPrisma.network.findUnique.mockResolvedValue({ id: 'network-1' });
       mockPrisma.agent.findFirst.mockResolvedValue(mockAgent);
       mockPrisma.floatAccount.findFirst.mockResolvedValue({
         ...mockFloatAccount,
-        solde: 10000, // insuffisant pour 50000
+        balance: 10000, // insuffisant pour 50000
       });
 
       const retraitDto = { ...dto, type: 'RETRAIT' as const };
@@ -156,6 +173,7 @@ describe('TransactionsService', () => {
     });
 
     it('devrait autoriser un RETRAIT si float suffisant', async () => {
+      mockPrisma.network.findUnique.mockResolvedValue({ id: 'network-1' });
       mockPrisma.agent.findFirst.mockResolvedValue(mockAgent);
       mockPrisma.floatAccount.findFirst.mockResolvedValue(mockFloatAccount);
       mockPrisma.transaction.aggregate.mockResolvedValue({ _sum: { montant: 0 } });
@@ -218,6 +236,110 @@ describe('TransactionsService', () => {
       await expect(
         service.cancel('txn-uuid-1', 'tenant-1', 'user-1'),
       ).rejects.toThrow(TransactionNotCancellableException);
+    });
+  });
+
+  // ─── complete (valider) ──────────────────────────────────────────────────────
+
+  describe('complete()', () => {
+    const completedTx = {
+      ...mockTransaction,
+      status: 'COMPLETED',
+      completedAt: new Date(),
+      agentId: 'agent-uuid-1',
+      receiverPhone: '+22507XXXXXXXX',
+    };
+
+    it('devrait passer le statut à COMPLETED (VALIDEE)', async () => {
+      mockPrisma.transaction.findFirst.mockResolvedValue(mockTransaction);
+      mockPrisma.transaction.update.mockResolvedValue(completedTx);
+      mockPrisma.agent.update.mockResolvedValue({});
+      mockPrisma.customer.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.auditLog.create.mockResolvedValue({});
+
+      const result = await service.complete('txn-uuid-1', 'tenant-1', 'user-1');
+
+      expect(result.status).toBe('COMPLETED');
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'transaction.completed',
+        expect.any(Object),
+      );
+    });
+
+    it("devrait créer une entrée dans le journal d'audit lors de la validation", async () => {
+      mockPrisma.transaction.findFirst.mockResolvedValue(mockTransaction);
+      mockPrisma.transaction.update.mockResolvedValue(completedTx);
+      mockPrisma.agent.update.mockResolvedValue({});
+      mockPrisma.customer.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.auditLog.create.mockResolvedValue({});
+
+      await service.complete('txn-uuid-1', 'tenant-1', 'user-1');
+
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: 'UPDATE',
+            resource: 'Transaction',
+            resourceId: 'txn-uuid-1',
+          }),
+        }),
+      );
+    });
+
+    it('devrait lever BadRequestException si la transaction est déjà COMPLETED', async () => {
+      mockPrisma.transaction.findFirst.mockResolvedValue({
+        ...mockTransaction,
+        status: 'COMPLETED',
+      });
+
+      const { BadRequestException } = await import('@nestjs/common');
+      await expect(
+        service.complete('txn-uuid-1', 'tenant-1', 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── isolation agence ────────────────────────────────────────────────────────
+
+  describe('isolation agence', () => {
+    const tenantId = 'tenant-1';
+
+    it("un AGENT ne voit que les transactions de son agence (findAll forcé sur agencyId)", async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await service.findAll({} as any, tenantId, 'agence-uuid-1');
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId, agencyId: 'agence-uuid-1' }),
+        }),
+      );
+    });
+
+    it("un NETWORK_ADMIN voit toutes les transactions (pas de filtre agencyId forcé)", async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await service.findAll({} as any, tenantId); // pas d'agenceId
+
+      const call = mockPrisma.transaction.findMany.mock.calls[0][0];
+      expect(call.where).not.toHaveProperty('agencyId');
+    });
+
+    it("create rejette si l'agence du DTO ne correspond pas à l'agence de l'agent", async () => {
+      const dto = {
+        montant: 10000,
+        type: 'DEPOT' as const,
+        operateur: 'ORANGE_MONEY' as const,
+        agentId: 'agent-uuid-1',
+        clientPhone: '+22507XXXXXXXX',
+        agencyId: 'autre-agence-uuid', // agence différente de celle de l'agent
+      };
+
+      await expect(
+        service.create(dto as any, tenantId, 'user-1', 'agence-uuid-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

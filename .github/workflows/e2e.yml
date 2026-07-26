@@ -1,0 +1,110 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  # Permet de déclencher manuellement
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL_TEST || 'postgresql://postgres:postgres@localhost:5432/gestmoney_test' }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET || 'e2e-test-secret-key-32chars-long!!' }}
+      E2E_BASE_URL: http://localhost:3000
+      E2E_API_URL: http://localhost:3001
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gestmoney_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @gestmoney/web exec playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        run: pnpm --filter @gestmoney/database prisma generate
+
+      - name: Run DB migrations
+        run: pnpm --filter @gestmoney/database prisma migrate deploy
+
+      - name: Seed test data
+        run: pnpm --filter @gestmoney/database ts-node src/seeds/seed.ts
+
+      - name: Build API
+        run: pnpm --filter @gestmoney/api build
+
+      - name: Start API (background)
+        run: |
+          pnpm --filter @gestmoney/api start:prod &
+          echo $! > /tmp/api.pid
+          # Attendre que l'API soit prête
+          timeout 30 bash -c 'until curl -sf http://localhost:3001/health; do sleep 2; done'
+
+      - name: Build Web
+        run: pnpm --filter @gestmoney/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+      - name: Start Web (background)
+        run: |
+          pnpm --filter @gestmoney/web start &
+          echo $! > /tmp/web.pid
+          timeout 30 bash -c 'until curl -sf http://localhost:3000; do sleep 2; done'
+
+      - name: Run E2E tests
+        run: pnpm --filter @gestmoney/web e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always() # Toujours uploader, même en cas d'échec
+        with:
+          name: playwright-report-${{ github.run_number }}
+          path: apps/web/playwright-report/
+          retention-days: 30
+
+      - name: Upload test screenshots (failures only)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots-${{ github.run_number }}
+          path: apps/web/test-results/
+          retention-days: 7
+
+      - name: Stop background servers
+        if: always()
+        run: |
+          kill $(cat /tmp/api.pid) 2>/dev/null || true
+          kill $(cat /tmp/web.pid) 2>/dev/null || true

@@ -7,7 +7,7 @@
 // écritures serait gravement trompeur. En cas d'erreur, la requête
 // échoue et la page affiche un état d'erreur explicite.
 // ============================================================
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 // ─── Types (calqués sur apps/api/src/accounting/interfaces) ──────────────────
@@ -238,6 +238,77 @@ export function useBilan(fiscalYearId?: string) {
         params: nettoyer({ fiscalYearId }),
       });
       return res.data;
+    },
+  });
+}
+
+// ─── Types OHADA avancés ─────────────────────────────────────────────────────
+
+export interface LigneOhada {
+  compte: string;
+  libelle: string;
+  montant: string;
+}
+
+export interface CompteResultatOhada {
+  annee: number;
+  periode: { debut: string; fin: string };
+  chargesExploitation: LigneOhada[];
+  produitsExploitation: LigneOhada[];
+  chargesFinancieres: LigneOhada[];
+  produitsFinanciers: LigneOhada[];
+  chargesExceptionnelles: LigneOhada[];
+  produitsExceptionnels: LigneOhada[];
+  totalChargesExploitation: string;
+  totalProduitsExploitation: string;
+  totalChargesFinancieres: string;
+  totalProduitsFinanciers: string;
+  totalChargesExceptionnelles: string;
+  totalProduitsExceptionnels: string;
+  resultatExploitation: string;
+  resultatFinancier: string;
+  resultatExceptionnel: string;
+  resultatAvantImpot: string;
+  impotBenefices: string;
+  resultatNet: string;
+}
+
+// ─── Requêtes OHADA par année ─────────────────────────────────────────────────
+
+/** Compte de résultat OHADA par classe — GET /accounting/compte-resultat/:annee */
+export function useCompteResultatOhada(annee: number | null) {
+  return useQuery({
+    queryKey: ['comptabilite', 'compte-resultat-ohada', annee],
+    queryFn: async (): Promise<CompteResultatOhada> => {
+      const res = await api.get(`/accounting/compte-resultat/${annee}`);
+      return res.data;
+    },
+    enabled: annee !== null,
+  });
+}
+
+/** Bilan annuel OHADA — GET /accounting/bilan/:annee */
+export function useBilanAnnuel(annee: number | null) {
+  return useQuery({
+    queryKey: ['comptabilite', 'bilan-annuel', annee],
+    queryFn: async (): Promise<Bilan & { annee: number }> => {
+      const res = await api.get(`/accounting/bilan/${annee}`);
+      return res.data;
+    },
+    enabled: annee !== null,
+  });
+}
+
+/** Mutation clôture exercice — POST /accounting/cloturer/:annee */
+export function useCloturerExercice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (annee: number) => {
+      const res = await api.post(`/accounting/cloturer/${annee}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comptabilite', 'exercices'] });
     },
   });
 }

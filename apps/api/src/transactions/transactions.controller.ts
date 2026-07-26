@@ -22,19 +22,30 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { AgencyScopeGuard } from '../common/guards/agency-scope.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleType } from '../common/enums/role.enum';
+import { JwtOrApiKeyGuard, RequirePermission } from '../api-keys/guards/jwt-or-apikey.guard';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { QueryTransactionDto } from './dto/query-transaction.dto';
 import { TransactionStatsQueryDto } from './dto/transaction-stats.dto';
 import { TransactionsService } from './transactions.service';
+import { PdfService } from '../pdf/pdf.service';
 
 @ApiTags('Transactions')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtOrApiKeyGuard, AgencyScopeGuard, RolesGuard)
 @Controller('transactions')
 export class TransactionsController {
-  constructor(private readonly transactionsService: TransactionsService) {}
+  constructor(
+    private readonly transactionsService: TransactionsService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Post()
+  @RequirePermission('transactions:write')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: 'Créer une nouvelle transaction' })
   @ApiResponse({ status: 201, description: 'Transaction créée avec succès' })
   @ApiResponse({ status: 400, description: 'Données invalides ou float insuffisant' })
@@ -42,14 +53,17 @@ export class TransactionsController {
   create(@Body() dto: CreateTransactionDto, @Req() req: any) {
     const tenantId: string = req.user.tenantId;
     const userId: string = req.user.id;
-    return this.transactionsService.create(dto, tenantId, userId);
+    // agenceId enrichi par AgencyScopeGuard pour AGENCY_MANAGER/AGENT
+    return this.transactionsService.create(dto, tenantId, userId, req.user.agenceId);
   }
 
   @Get()
+  @RequirePermission('transactions:read')
   @ApiOperation({ summary: 'Lister les transactions avec filtres avancés' })
   @ApiResponse({ status: 200, description: 'Liste paginée des transactions' })
   findAll(@Query() query: QueryTransactionDto, @Req() req: any) {
-    return this.transactionsService.findAll(query, req.user.tenantId);
+    // agenceId enrichi par AgencyScopeGuard — null pour les admins (pas de scope)
+    return this.transactionsService.findAll(query, req.user.tenantId, req.user.agenceId);
   }
 
   @Get('stats/today')
@@ -84,6 +98,7 @@ export class TransactionsController {
   }
 
   @Post('bulk-import')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Importer des transactions depuis un fichier CSV' })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Résultat de l\'import' })
@@ -93,6 +108,26 @@ export class TransactionsController {
     @Req() req: any,
   ) {
     return this.transactionsService.bulkImport(file, req.user.tenantId, req.user.id);
+  }
+
+  @Get(':id/recu')
+  @ApiOperation({ summary: 'Générer et télécharger le reçu PDF d\'une transaction' })
+  @ApiParam({ name: 'id', description: 'ID de la transaction (UUID)' })
+  @ApiResponse({ status: 200, description: 'Reçu PDF de la transaction' })
+  @ApiResponse({ status: 404, description: 'Transaction introuvable' })
+  async downloadRecu(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    const tenantId: string = req.user.tenantId;
+    const pdfBuffer = await this.pdfService.genererRecuTransaction(id, tenantId);
+    // Récupérer la référence pour le nom du fichier
+    const tx = await this.transactionsService.findOne(id, tenantId);
+    const reference = (tx as any).reference ?? id;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="recu-${reference}.html"`);
+    res.send(pdfBuffer);
   }
 
   @Get(':id')
@@ -105,6 +140,7 @@ export class TransactionsController {
   }
 
   @Post(':id/complete')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: 'Valider (compléter) une transaction en attente' })
   @ApiParam({ name: 'id', description: 'ID de la transaction' })
   @ApiResponse({ status: 201, description: 'Transaction complétée (commission calculée)' })
@@ -114,6 +150,7 @@ export class TransactionsController {
   }
 
   @Post(':id/cancel')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Annuler une transaction en attente' })
   @ApiParam({ name: 'id', description: 'ID de la transaction' })
   @ApiResponse({ status: 200, description: 'Transaction annulée' })
@@ -123,6 +160,7 @@ export class TransactionsController {
   }
 
   @Post(':id/reverse')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Reverser une transaction complétée' })
   @ApiParam({ name: 'id', description: 'ID de la transaction' })
   @ApiResponse({ status: 200, description: 'Transaction reversée' })

@@ -6,13 +6,16 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { HrService } from './hr.service';
@@ -29,18 +32,26 @@ import {
 } from './dto/leave-request.dto';
 import { CheckInDto, CheckOutDto, AttendanceQueryDto } from './dto/attendance.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleType } from '../common/enums/role.enum';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
+import { PdfService } from '../pdf/pdf.service';
 
 @ApiTags('RH — Ressources Humaines')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('hr')
 export class HrController {
-  constructor(private readonly hrService: HrService) {}
+  constructor(
+    private readonly hrService: HrService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   // ─── Employees ────────────────────────────────────────────────────────────
 
   @Get('employees')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Liste des employés avec filtres' })
   @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'ON_LEAVE', 'SUSPENDED', 'TERMINATED'] })
   @ApiQuery({ name: 'agencyId', required: false })
@@ -65,12 +76,14 @@ export class HrController {
   }
 
   @Post('employees')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Créer un nouvel employé' })
   createEmployee(@Body() dto: CreateEmployeeDto, @CurrentUser() user: CurrentUserData) {
     return this.hrService.createEmployee(dto, user.tenantId, user.id);
   }
 
   @Get('employees/:id')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Profil complet d\'un employé' })
   @ApiParam({ name: 'id', description: 'UUID de l\'employé' })
   findEmployee(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
@@ -78,6 +91,7 @@ export class HrController {
   }
 
   @Patch('employees/:id')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Modifier les informations d\'un employé' })
   @ApiParam({ name: 'id' })
   updateEmployee(
@@ -89,6 +103,7 @@ export class HrController {
   }
 
   @Post('employees/:id/terminate')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Procéder à la fin de contrat d\'un employé (audit loggé)' })
   @ApiParam({ name: 'id' })
   terminateEmployee(
@@ -102,6 +117,7 @@ export class HrController {
   // ─── Contracts ────────────────────────────────────────────────────────────
 
   @Get('contracts')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Liste des contrats actifs' })
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'active', required: false, type: Boolean })
@@ -117,6 +133,7 @@ export class HrController {
   }
 
   @Post('contracts')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Créer un nouveau contrat de travail' })
   createContract(@Body() dto: ContractDto, @CurrentUser() user: CurrentUserData) {
     return this.hrService.createContract(dto, user.tenantId, user.id);
@@ -125,6 +142,7 @@ export class HrController {
   // ─── Payroll ──────────────────────────────────────────────────────────────
 
   @Get('payroll')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Fiches de paie mensuelles' })
   @ApiQuery({ name: 'year', type: Number })
   @ApiQuery({ name: 'month', type: Number })
@@ -150,12 +168,13 @@ export class HrController {
       'Calcule : salaire brut, CNSS salarié (6,3%), CNSS patronal (15,2%), IGR progressif, ' +
       'commissions du mois. Génère une écriture SYSCOHADA compte 421.',
   })
-  // @Roles('HR_MANAGER', 'ADMIN')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   generatePayroll(@Body() dto: GeneratePayrollDto, @CurrentUser() user: CurrentUserData) {
     return this.hrService.generatePayroll(dto, user.tenantId, user.id);
   }
 
   @Post('payroll/:id/validate')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Valider une fiche de paie (audit loggé)' })
   @ApiParam({ name: 'id', description: 'UUID de la fiche de paie' })
   validatePayroll(
@@ -169,6 +188,7 @@ export class HrController {
   // ─── Leaves ───────────────────────────────────────────────────────────────
 
   @Get('leaves')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Liste des demandes de congé' })
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
@@ -181,12 +201,14 @@ export class HrController {
   }
 
   @Post('leaves')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Soumettre une demande de congé (vérifie solde OHADA 30j/an)' })
   createLeave(@Body() dto: LeaveRequestDto, @CurrentUser() user: CurrentUserData) {
     return this.hrService.createLeaveRequest(dto, user.tenantId, user.id);
   }
 
   @Patch('leaves/:id/approve')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Approuver une demande de congé' })
   @ApiParam({ name: 'id' })
   approveLeave(
@@ -198,6 +220,7 @@ export class HrController {
   }
 
   @Patch('leaves/:id/reject')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Rejeter une demande de congé (raison obligatoire)' })
   @ApiParam({ name: 'id' })
   rejectLeave(
@@ -211,6 +234,7 @@ export class HrController {
   // ─── Attendance ───────────────────────────────────────────────────────────
 
   @Get('attendance')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Registre des présences / absences' })
   @ApiQuery({ name: 'employeeId', required: false })
   @ApiQuery({ name: 'from', required: false, description: 'Date ISO 8601' })
@@ -220,14 +244,47 @@ export class HrController {
   }
 
   @Post('attendance/checkin')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: 'Pointer l\'entrée (avec géolocalisation optionnelle)' })
   checkIn(@Body() dto: CheckInDto, @CurrentUser() user: CurrentUserData) {
     return this.hrService.checkIn(dto, user.id);
   }
 
   @Post('attendance/checkout')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: 'Pointer la sortie (calcule heures normales + supplémentaires)' })
   checkOut(@Body() dto: CheckOutDto, @CurrentUser() user: CurrentUserData) {
     return this.hrService.checkOut(dto, user.id);
+  }
+
+  // ─── Bulletin de paie PDF ─────────────────────────────────────────────────
+
+  @Get('agents/:agentId/bulletin/:annee/:mois/pdf')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
+  @ApiOperation({
+    summary: 'Bulletin de paie mensuel PDF pour un agent',
+    description: 'Génère le bulletin de paie (salaire de base + commissions du mois, retenues CNSS 6,3% et IGR Côte d\'Ivoire). Ouvrir dans le navigateur pour imprimer.',
+  })
+  @ApiParam({ name: 'agentId', description: 'UUID de l\'agent' })
+  @ApiParam({ name: 'annee', description: 'Année (ex: 2025)' })
+  @ApiParam({ name: 'mois', description: 'Mois 1-12 (ex: 6 pour juin)' })
+  @ApiResponse({ status: 200, description: 'Bulletin de paie HTML prêt à imprimer' })
+  @ApiResponse({ status: 404, description: 'Agent introuvable' })
+  async getBulletinPaie(
+    @Param('agentId') agentId: string,
+    @Param('annee') annee: string,
+    @Param('mois') mois: string,
+    @CurrentUser() user: CurrentUserData,
+    @Res() res: Response,
+  ) {
+    const anneeNum = parseInt(annee, 10);
+    const moisNum = parseInt(mois, 10);
+    const buffer = await this.pdfService.genererBulletinPaiePdf(user.tenantId, agentId, moisNum, anneeNum);
+    res.set({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Disposition': `inline; filename="bulletin-${agentId}-${annee}-${mois.padStart(2, '0')}.html"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 }

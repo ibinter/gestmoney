@@ -1,9 +1,18 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Prisma, PurchaseOrderStatus, StockMovementType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto, ProductCategory } from './dto/create-product.dto';
 import { MovementReason, MovementType, StockMovementDto } from './dto/stock-movement.dto';
 import { PurchaseOrderDto } from './dto/purchase-order.dto';
+import {
+  AjustementStockDto,
+  CreerArticleDto,
+  EntreeStockDto,
+  ModifierArticleDto,
+  SortieStockDto,
+  TypeMouvementArticle,
+} from './dto/article-stock.dto';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -668,6 +677,286 @@ export class StockService {
     ]);
 
     return { data: rows.map(toPurchaseOrder), total, page: p, limit: l };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODULE ARTICLES STOCK (modèle ArticleStock + MouvementArticle)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async listerArticles(
+    tenantId: string,
+    opts?: {
+      page?: number;
+      limit?: number;
+      categorie?: string;
+      alerteSeulement?: boolean;
+      search?: string;
+    },
+  ) {
+    const { page: p, limit: l } = pagination(opts?.page, opts?.limit, 20);
+    const where: Prisma.ArticleStockWhereInput = { tenantId, actif: true };
+    if (opts?.categorie) where.categorie = opts.categorie;
+    if (opts?.search) {
+      where.OR = [
+        { nom: { contains: opts.search, mode: 'insensitive' } },
+        { reference: { contains: opts.search, mode: 'insensitive' } },
+      ];
+    }
+    if (opts?.alerteSeulement) {
+      // quantite <= seuilAlerte — Prisma ne supporte pas la comparaison inter-colonnes,
+      // on filtre côté service après récupération allégée.
+    }
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.articleStock.count({ where }),
+      this.prisma.articleStock.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (p - 1) * l,
+        take: l,
+      }),
+    ]);
+
+    let data = rows.map((r) => ({
+      ...r,
+      prixUnitaire: num(r.prixUnitaire),
+      valeur: num(r.prixUnitaire) * r.quantite,
+      enRupture: r.quantite === 0,
+      sousSeuil: r.quantite <= r.seuilAlerte,
+    }));
+
+    if (opts?.alerteSeulement) {
+      data = data.filter((d) => d.sousSeuil);
+    }
+
+    return { data, total, page: p, limit: l };
+  }
+
+  async getArticle(id: string, tenantId: string) {
+    const row = await this.prisma.articleStock.findFirst({ where: { id, tenantId } });
+    if (!row) throw new NotFoundException(`Article ${id} introuvable`);
+    return { ...row, prixUnitaire: num(row.prixUnitaire), valeur: num(row.prixUnitaire) * row.quantite };
+  }
+
+  async creerArticle(tenantId: string, dto: CreerArticleDto) {
+    const row = await this.prisma.articleStock.create({
+      data: {
+        tenantId,
+        reference: dto.reference,
+        nom: dto.nom,
+        description: dto.description,
+        categorie: dto.categorie,
+        unite: dto.unite ?? 'pièce',
+        prixUnitaire: new Prisma.Decimal(dto.prixUnitaire ?? 0),
+        seuilAlerte: dto.seuilAlerte ?? 5,
+        quantite: 0,
+        actif: true,
+      },
+    });
+    this.logger.log(`Article créé: ${row.nom} (${row.reference})`);
+    return { ...row, prixUnitaire: num(row.prixUnitaire), valeur: 0 };
+  }
+
+  async modifierArticle(id: string, tenantId: string, dto: ModifierArticleDto) {
+    const existant = await this.prisma.articleStock.findFirst({ where: { id, tenantId } });
+    if (!existant) throw new NotFoundException(`Article ${id} introuvable`);
+
+    const data: Prisma.ArticleStockUpdateInput = {};
+    if (dto.nom !== undefined) data.nom = dto.nom;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.categorie !== undefined) data.categorie = dto.categorie;
+    if (dto.unite !== undefined) data.unite = dto.unite;
+    if (dto.prixUnitaire !== undefined) data.prixUnitaire = new Prisma.Decimal(dto.prixUnitaire);
+    if (dto.seuilAlerte !== undefined) data.seuilAlerte = dto.seuilAlerte;
+    if (dto.actif !== undefined) data.actif = dto.actif;
+
+    const row = await this.prisma.articleStock.update({ where: { id }, data });
+    return { ...row, prixUnitaire: num(row.prixUnitaire), valeur: num(row.prixUnitaire) * row.quantite };
+  }
+
+  async entree(articleId: string, tenantId: string, dto: EntreeStockDto, userId: string) {
+    const article = await this.prisma.articleStock.findFirst({ where: { id: articleId, tenantId } });
+    if (!article) throw new NotFoundException(`Article ${articleId} introuvable`);
+
+    const quantiteAvant = article.quantite;
+    const quantiteApres = quantiteAvant + dto.quantite;
+
+    const [updated, mouvement] = await this.prisma.$transaction([
+      this.prisma.articleStock.update({
+        where: { id: articleId },
+        data: { quantite: quantiteApres },
+      }),
+      this.prisma.mouvementArticle.create({
+        data: {
+          articleId,
+          tenantId,
+          type: TypeMouvementArticle.ENTREE,
+          quantite: dto.quantite,
+          quantiteAvant,
+          quantiteApres,
+          motif: dto.motif,
+          reference: dto.reference,
+          userId,
+        },
+      }),
+    ]);
+
+    this.logger.log(`Entrée stock: +${dto.quantite} sur article ${article.nom}`);
+    return { article: { ...updated, prixUnitaire: num(updated.prixUnitaire) }, mouvement };
+  }
+
+  async sortie(articleId: string, tenantId: string, dto: SortieStockDto, userId: string) {
+    const article = await this.prisma.articleStock.findFirst({ where: { id: articleId, tenantId } });
+    if (!article) throw new NotFoundException(`Article ${articleId} introuvable`);
+    if (article.quantite < dto.quantite) {
+      throw new BadRequestException(
+        `Stock insuffisant : ${article.quantite} disponible(s), ${dto.quantite} demandé(s)`,
+      );
+    }
+
+    const quantiteAvant = article.quantite;
+    const quantiteApres = quantiteAvant - dto.quantite;
+
+    const [updated, mouvement] = await this.prisma.$transaction([
+      this.prisma.articleStock.update({
+        where: { id: articleId },
+        data: { quantite: quantiteApres },
+      }),
+      this.prisma.mouvementArticle.create({
+        data: {
+          articleId,
+          tenantId,
+          type: TypeMouvementArticle.SORTIE,
+          quantite: -dto.quantite,
+          quantiteAvant,
+          quantiteApres,
+          motif: dto.motif,
+          reference: dto.reference,
+          userId,
+        },
+      }),
+    ]);
+
+    this.logger.log(`Sortie stock: -${dto.quantite} sur article ${article.nom}`);
+    return { article: { ...updated, prixUnitaire: num(updated.prixUnitaire) }, mouvement };
+  }
+
+  async ajustement(articleId: string, tenantId: string, dto: AjustementStockDto, userId: string) {
+    const article = await this.prisma.articleStock.findFirst({ where: { id: articleId, tenantId } });
+    if (!article) throw new NotFoundException(`Article ${articleId} introuvable`);
+
+    const quantiteAvant = article.quantite;
+    const diff = dto.nouvelleQuantite - quantiteAvant;
+
+    const [updated, mouvement] = await this.prisma.$transaction([
+      this.prisma.articleStock.update({
+        where: { id: articleId },
+        data: { quantite: dto.nouvelleQuantite },
+      }),
+      this.prisma.mouvementArticle.create({
+        data: {
+          articleId,
+          tenantId,
+          type: TypeMouvementArticle.AJUSTEMENT,
+          quantite: diff,
+          quantiteAvant,
+          quantiteApres: dto.nouvelleQuantite,
+          motif: dto.motif,
+          userId,
+        },
+      }),
+    ]);
+
+    this.logger.log(`Ajustement stock: article ${article.nom} : ${quantiteAvant} → ${dto.nouvelleQuantite}`);
+    return { article: { ...updated, prixUnitaire: num(updated.prixUnitaire) }, mouvement };
+  }
+
+  async historiqueMovements(articleId: string, tenantId: string, opts?: { page?: number; limit?: number }) {
+    const article = await this.prisma.articleStock.findFirst({ where: { id: articleId, tenantId } });
+    if (!article) throw new NotFoundException(`Article ${articleId} introuvable`);
+
+    const { page: p, limit: l } = pagination(opts?.page, opts?.limit, 30);
+    const where = { articleId, tenantId };
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.mouvementArticle.count({ where }),
+      this.prisma.mouvementArticle.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (p - 1) * l,
+        take: l,
+      }),
+    ]);
+
+    return { data: rows, total, page: p, limit: l };
+  }
+
+  async statsStock(tenantId: string) {
+    const articles = await this.prisma.articleStock.findMany({
+      where: { tenantId, actif: true },
+    });
+
+    let valeurTotale = 0;
+    let enRupture = 0;
+    let sousSeuil = 0;
+
+    for (const a of articles) {
+      valeurTotale += num(a.prixUnitaire) * a.quantite;
+      if (a.quantite === 0) enRupture++;
+      else if (a.quantite <= a.seuilAlerte) sousSeuil++;
+    }
+
+    return {
+      totalArticles: articles.length,
+      valeurTotale,
+      enRupture,
+      sousSeuil,
+    };
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async verifierSeuilsAlerte() {
+    this.logger.log('Vérification des seuils de stock...');
+    const tenants = await this.prisma.tenant.findMany({ select: { id: true } });
+
+    for (const { id: tenantId } of tenants) {
+      const articles = await this.prisma.articleStock.findMany({
+        where: { tenantId, actif: true },
+      });
+
+      const sousSeuilArticles = articles.filter((a) => a.quantite > 0 && a.quantite <= a.seuilAlerte);
+      const ruptures = articles.filter((a) => a.quantite === 0);
+
+      for (const art of ruptures) {
+        await this.prisma.alerteEmise.create({
+          data: {
+            tenantId,
+            type: 'STOCK_RUPTURE',
+            titre: `Rupture de stock : ${art.nom}`,
+            detail: `L'article ${art.nom} (${art.reference}) est en rupture totale.`,
+            severite: 'CRITIQUE',
+          },
+        }).catch(() => null);
+      }
+
+      for (const art of sousSeuilArticles) {
+        await this.prisma.alerteEmise.create({
+          data: {
+            tenantId,
+            type: 'STOCK_BAS',
+            titre: `Stock bas : ${art.nom}`,
+            detail: `${art.nom} (${art.reference}) : ${art.quantite} ${art.unite} restant(s), seuil = ${art.seuilAlerte}.`,
+            severite: 'AVERTISSEMENT',
+          },
+        }).catch(() => null);
+      }
+
+      if (ruptures.length + sousSeuilArticles.length > 0) {
+        this.logger.warn(
+          `Tenant ${tenantId} — ${ruptures.length} rupture(s), ${sousSeuilArticles.length} article(s) sous seuil`,
+        );
+      }
+    }
   }
 
   // ─── Valorisation ────────────────────────────────────────────────────────────

@@ -23,9 +23,16 @@ const SUPERADMIN_NAV = [
   {
     label: 'Plateforme',
     items: [
+      { href: '/superadmin/campaigns', label: 'Campagnes email', icon: '📨' },
       { href: '/superadmin/licences', label: 'Licences', icon: '🔑' },
       { href: '/superadmin/emails', label: 'Emails', icon: '📧' },
       { href: '/superadmin/sara', label: 'SARA — IA', icon: '🤖' },
+    ],
+  },
+  {
+    label: 'Support',
+    items: [
+      { href: '/superadmin/impersonation', label: 'Impersonation', icon: '🎭' },
     ],
   },
 ];

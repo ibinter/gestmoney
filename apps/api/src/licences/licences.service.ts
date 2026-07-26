@@ -14,6 +14,7 @@ import {
   TenantStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { LICENCES_CONFIG_KEY, LicencesConfig } from './licences.config';
 import { LICENCE_EVENTS } from './licences.events';
 import {
@@ -93,6 +94,7 @@ export class LicencesService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -434,6 +436,33 @@ export class LicencesService {
           agentId,
         },
       });
+
+      // Notification email aux administrateurs du tenant suspendu (fire-and-forget)
+      const admins = await tx.user.findMany({
+        where: { tenantId },
+        select: { email: true, firstName: true },
+        take: 5,
+      });
+      for (const admin of admins) {
+        void this.notifications.sendEmail({
+          to: admin.email,
+          subject: 'Votre compte GESTMONEY a été suspendu',
+          body: [
+            `Bonjour ${admin.firstName ?? ''},`,
+            '',
+            'Votre accès à la plateforme GESTMONEY a été suspendu.',
+            motif ? `Motif : ${motif}` : '',
+            '',
+            'Pour régulariser votre situation, contactez notre équipe :',
+            'gestmoney@ibigsoft.com',
+            '',
+            "L'équipe GESTMONEY — IBIG Soft",
+          ]
+            .filter((l) => l !== null)
+            .join('\n'),
+          tenantId,
+        });
+      }
 
       return this.construireStatut(misAJour);
     });

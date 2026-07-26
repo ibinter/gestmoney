@@ -11,6 +11,8 @@ export interface AuditLogEntry {
   entityType?: string | null;
   entityId?: string | null;
   details?: any;
+  oldValues?: any;
+  newValues?: any;
   ipAddress?: string | null;
   userAgent?: string | null;
   createdAt: Date;
@@ -107,6 +109,8 @@ export class AuditService {
       entityType: l.resource,
       entityId: l.resourceId,
       details: l.newValues ?? l.oldValues ?? null,
+      oldValues: l.oldValues ?? null,
+      newValues: l.newValues ?? null,
       ipAddress: l.ipAddress,
       userAgent: l.userAgent,
       createdAt: l.createdAt,
@@ -123,6 +127,8 @@ export class AuditService {
     tenantId: string,
     ipAddress?: string,
     userAgent?: string,
+    /** État de la ressource AVANT la mutation — requis pour la traçabilité complète. */
+    oldValues?: any,
   ): Promise<void> {
     const auditAction = this.toAction(action);
     if (!auditAction) {
@@ -138,6 +144,9 @@ export class AuditService {
           action: auditAction,
           resource,
           newValues: data ?? {},
+          // Capture l'état avant mutation pour permettre la reconstruction
+          // de l'historique et la détection de modifications frauduleuses.
+          ...(oldValues !== undefined && { oldValues }),
           ipAddress,
           userAgent,
         },
@@ -168,6 +177,10 @@ export class AuditService {
         ...(startDate && { gte: new Date(startDate) }),
         ...(endDate && { lte: new Date(endDate) }),
       };
+    }
+    // Recherche libre dans le champ description ou les valeurs JSON
+    if (filters.search) {
+      where.description = { contains: filters.search, mode: 'insensitive' };
     }
 
     const skip = (p - 1) * l;
@@ -307,32 +320,62 @@ export class AuditService {
     tenantId: string,
     period: { start: Date; end: Date },
     format: 'CSV' | 'PDF',
-  ): Promise<Buffer> {
+    filtres?: { action?: string; userId?: string; resource?: string; search?: string },
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const where: Prisma.AuditLogWhereInput = {
+      tenantId,
+      createdAt: { gte: period.start, lte: period.end },
+    };
+
+    if (filtres?.action) {
+      const a = this.toAction(filtres.action);
+      if (a) where.action = a;
+    }
+    if (filtres?.userId) where.userId = filtres.userId;
+    if (filtres?.resource) where.resource = filtres.resource;
+    if (filtres?.search) where.description = { contains: filtres.search, mode: 'insensitive' };
+
     const data = await this.prisma.auditLog.findMany({
-      where: {
-        tenantId,
-        createdAt: { gte: period.start, lte: period.end },
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 10000,
+      include: { user: { select: { email: true, firstName: true, lastName: true } } },
     });
 
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+    const filename = `audit-${tenantId.slice(0, 8)}-${dateSuffix}.csv`;
+
     if (format === 'CSV') {
-      const headers = ['ID', 'Date', 'Action', 'Utilisateur', 'Entité', 'Détails'];
-      const rows = data.map((l) =>
-        [
-          l.id,
+      /** Échappe une valeur CSV : entoure de guillemets si nécessaire. */
+      const esc = (v: unknown): string => {
+        const s = v == null ? '' : String(v);
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      };
+
+      const headers = ['Date', 'Utilisateur', 'Email', 'Action', 'Ressource', 'ID Ressource', 'Détail', 'IP'];
+      const rows = data.map((l) => {
+        const nom = l.user ? `${l.user.firstName ?? ''} ${l.user.lastName ?? ''}`.trim() : l.userId ?? '';
+        const email = l.user?.email ?? '';
+        const detail = l.description ?? JSON.stringify(l.newValues ?? {});
+        return [
           l.createdAt.toISOString(),
+          nom,
+          email,
           l.action,
-          l.userId ?? '',
-          l.resource ?? '',
-          JSON.stringify(l.newValues ?? {}),
-        ].join(','),
-      );
-      return Buffer.from([headers.join(','), ...rows].join('\n'), 'utf-8');
+          l.resource,
+          l.resourceId ?? '',
+          detail,
+          l.ipAddress ?? '',
+        ].map(esc).join(',');
+      });
+
+      const buffer = Buffer.from([headers.join(','), ...rows].join('\r\n'), 'utf-8');
+      return { buffer, filename };
     }
 
-    // PDF (HTML)
+    // HTML fallback
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Journal d'audit</title>
 <style>body{font-family:Arial,sans-serif;margin:40px}table{width:100%;border-collapse:collapse}
 th{background:#1a5276;color:white;padding:6px}td{padding:6px;border-bottom:1px solid #ddd;font-size:12px}</style>
@@ -343,7 +386,7 @@ th{background:#1a5276;color:white;padding:6px}td{padding:6px;border-bottom:1px s
 <tr><th>Date</th><th>Action</th><th>Utilisateur</th><th>Entité</th></tr>
 ${data.map((l) => `<tr><td>${l.createdAt.toLocaleString('fr-FR')}</td><td>${l.action}</td><td>${l.userId ?? '-'}</td><td>${l.resource ?? '-'}</td></tr>`).join('')}
 </table></body></html>`;
-    return Buffer.from(html, 'utf-8');
+    return { buffer: Buffer.from(html, 'utf-8'), filename: filename.replace('.csv', '.html') };
   }
 
   // ─── Statistiques ─────────────────────────────────────────────────────────────
@@ -351,14 +394,14 @@ ${data.map((l) => `<tr><td>${l.createdAt.toLocaleString('fr-FR')}</td><td>${l.ac
   async getStats(tenantId: string, period: { start: Date; end: Date }) {
     const where = { tenantId, createdAt: { gte: period.start, lte: period.end } };
 
-    const [total, byAction, byUser] = await Promise.all([
+    const [total, byAction, byUser, byResource, daily] = await Promise.all([
       this.prisma.auditLog.count({ where }),
       this.prisma.auditLog.groupBy({
         by: ['action'],
         where,
         _count: { id: true },
         orderBy: { _count: { id: 'desc' } },
-        take: 20,
+        take: 10,
       }),
       this.prisma.auditLog.groupBy({
         by: ['userId'],
@@ -367,12 +410,35 @@ ${data.map((l) => `<tr><td>${l.createdAt.toLocaleString('fr-FR')}</td><td>${l.ac
         orderBy: { _count: { id: 'desc' } },
         take: 10,
       }),
+      this.prisma.auditLog.groupBy({
+        by: ['resource'],
+        where,
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 10,
+      }),
+      // Activité journalière : requête SQL brute pour éviter le GROUP BY DATE
+      // non supporté nativement par Prisma groupBy.
+      this.prisma.$queryRaw<{ date: string; count: bigint }[]>`
+        SELECT DATE("created_at") AS date, COUNT(*)::integer AS count
+        FROM audit_logs
+        WHERE tenant_id = ${tenantId}
+          AND created_at >= ${period.start}
+          AND created_at <= ${period.end}
+        GROUP BY DATE("created_at")
+        ORDER BY date ASC
+      `,
     ]);
 
     return {
       total,
       byAction: byAction.map((r) => ({ action: r.action as string, count: r._count.id })),
       byUser: byUser.map((r) => ({ userId: r.userId, count: r._count.id })),
+      byResource: byResource.map((r) => ({ resource: r.resource, count: r._count.id })),
+      daily: daily.map((r) => ({
+        date: String(r.date).slice(0, 10),
+        count: Number(r.count),
+      })),
     };
   }
 

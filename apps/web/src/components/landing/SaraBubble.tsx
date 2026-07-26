@@ -49,7 +49,7 @@ export function SaraBubble() {
       const data = await res.json().catch(() => ({}));
       const reponse =
         data?.response ??
-        "Désolée, je suis momentanément indisponible. Écrivez-nous à contact@ibigsoft.com.";
+        "Désolée, je suis momentanément indisponible. Écrivez-nous à gestmoney@ibigsoft.com.";
       setMessages((m) => [...m, { role: 'assistant', contenu: reponse }]);
     } catch {
       setMessages((m) => [
@@ -57,7 +57,7 @@ export function SaraBubble() {
         {
           role: 'assistant',
           contenu:
-            "Je rencontre un problème technique. Réessayez dans un instant ou écrivez à contact@ibigsoft.com.",
+            "Je rencontre un problème technique. Réessayez dans un instant ou écrivez à gestmoney@ibigsoft.com.",
         },
       ]);
     } finally {

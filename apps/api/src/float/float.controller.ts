@@ -10,6 +10,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { AgencyScopeGuard } from '../common/guards/agency-scope.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleType } from '../common/enums/role.enum';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -28,7 +32,7 @@ import { FloatThresholdDto } from './dto/float-threshold.dto';
 
 @ApiTags('Float')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AgencyScopeGuard, RolesGuard)
 @Controller('float')
 export class FloatController {
   constructor(private readonly floatService: FloatService) {}
@@ -43,7 +47,9 @@ export class FloatController {
     @Query('agenceId') agenceId?: string,
     @Query('operateur') operateur?: string,
   ) {
-    return this.floatService.getFloatAccounts(req.user.tenantId, agenceId, operateur);
+    // Isolation : pour AGENCY_MANAGER/AGENT, forcer leur agenceId (enrichi par AgencyScopeGuard)
+    const effectiveAgenceId: string | undefined = req.user.agenceId ?? agenceId;
+    return this.floatService.getFloatAccounts(req.user.tenantId, effectiveAgenceId, operateur);
   }
 
   @Get('network/summary')
@@ -91,6 +97,7 @@ export class FloatController {
   }
 
   @Post('replenish')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER, RoleType.AGENT)
   @ApiOperation({ summary: 'Créer une demande de réapprovisionnement' })
   @ApiResponse({ status: 201, description: 'Demande créée' })
   requestReplenishment(@Body() dto: ReplenishmentRequestDto, @Req() req: any) {
@@ -98,6 +105,7 @@ export class FloatController {
   }
 
   @Patch('replenish/:id/approve')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Approuver une demande de réapprovisionnement' })
   @ApiParam({ name: 'id', description: 'ID de la demande' })
   @ApiResponse({ status: 200, description: 'Demande approuvée et float crédité' })
@@ -110,6 +118,7 @@ export class FloatController {
   }
 
   @Patch('replenish/:id/reject')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Rejeter une demande de réapprovisionnement' })
   @ApiParam({ name: 'id', description: 'ID de la demande' })
   @ApiResponse({ status: 200, description: 'Demande rejetée' })
@@ -122,6 +131,7 @@ export class FloatController {
   }
 
   @Post('thresholds')
+  @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: "Définir les seuils d'alerte pour un compte float" })
   @ApiResponse({ status: 201, description: 'Seuils mis à jour' })
   setThresholds(@Body() dto: FloatThresholdDto, @Req() req: any) {

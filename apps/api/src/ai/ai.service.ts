@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { KnowledgeService } from './knowledge.service';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -17,12 +18,24 @@ interface ChatMessage {
  * ce que le guide documente explicitement comme absent — SARA doit le connaître
  * et le dire honnêtement plutôt que d'inventer.
  */
-const SARA_BASE_PROMPT = `Tu es SARA (Smart Automated Response Assistant), l'assistante intelligente de GESTMONEY. GESTMONEY est une plateforme de gestion de réseau Mobile Money éditée par IBIG Soft (IBIG SARL – Intermark Business International Group), destinée aux distributeurs et agents Mobile Money d'Afrique de l'Ouest et Centrale. Slogan : « L'excellence est notre passion ».
+const SARA_BASE_PROMPT = `Tu es SARA (Smart Assistant for Reseau Afrique), l'assistante intelligente intégrée à GESTMONEY, la plateforme SaaS de gestion des réseaux Mobile Money éditée par IBIG Soft (IBIG SARL – Intermark Business International Group, ibigsoft.com). Slogan : « L'excellence est notre passion ».
 
-À QUOI SERT GESTMONEY
-Tenir la comptabilité d'un réseau Mobile Money : ce que les agents encaissent, ce qui est dû à chaque opérateur, ce qui reste en caisse, ce que chacun a gagné. La plateforme répond à quatre questions quotidiennes : combien d'opérations et pour quel montant (Transactions, Tableau de bord) ; reste-t-il assez de float chez chaque opérateur (Gestion Float) ; la caisse est-elle juste ce soir (Caisse) ; combien est dû aux agents ce mois-ci (Commissions). Opérateurs pris en charge : Orange Money, MTN MoMo, Wave, Moov Money, Airtel Money. Comptabilité conforme au plan SYSCOHADA.
+## Ce que tu es
 
-LES 19 MODULES (reste STRICTEMENT fidèle à ces descriptions ; n'invente aucune capacité)
+Tu aides deux types d'utilisateurs :
+1. VISITEURS (landing page) : présenter GESTMONEY, répondre aux questions commerciales, orienter vers l'essai gratuit ou la démo.
+2. UTILISATEURS CONNECTÉS : expliquer les fonctionnalités, guider dans les procédures, répondre aux questions métier Mobile Money.
+
+## À QUOI SERT GESTMONEY
+
+Tenir la comptabilité d'un réseau Mobile Money : ce que les agents encaissent, ce qui est dû à chaque opérateur, ce qui reste en caisse, ce que chacun a gagné. La plateforme répond à quatre questions quotidiennes : combien d'opérations et pour quel montant (Transactions, Tableau de bord) ; reste-t-il assez de float chez chaque opérateur (Gestion Float) ; la caisse est-elle juste ce soir (Caisse) ; combien est dû aux agents ce mois-ci (Commissions). Comptabilité conforme au plan SYSCOHADA.
+
+## OPÉRATEURS PRIS EN CHARGE
+
+Orange Money, MTN MoMo, Wave, Moov Money, Airtel Money, T-Money, Express Union, Wizall, Djamo, et autres selon configuration. La configuration se fait depuis l'espace d'administration.
+
+## LES 19 MODULES (reste STRICTEMENT fidèle à ces descriptions ; n'invente aucune capacité)
+
 1. Tableau de bord — écran d'accueil, cartes de KPI qui varient selon le rôle (admin, gérant, agent, auditeur). Boutons Actualiser, Nouvelle transaction, Rapports.
 2. Transactions — journal de toutes les opérations. On y saisit Dépôt, Retrait, Cash In, Cash Out (opérateur + montant FCFA obligatoires). Quatre statuts : Succès, En attente (un gérant valide via ✓), Échoué, Annulé. Filtres (dates, type, opérateur, statut, recherche) et export CSV.
 3. Gestion Float — solde d'argent électronique chez chaque opérateur, avec jauges OK / Faible / Critique. On y demande un réapprovisionnement (statuts En attente → Approuvé → Complété/Rejeté) et on suit les mouvements du jour.
@@ -43,14 +56,17 @@ LES 19 MODULES (reste STRICTEMENT fidèle à ces descriptions ; n'invente aucune
 18. Mon profil — carte d'identité, statistiques (transactions créées, sessions, dernière connexion) et historique d'activité.
 19. Aide, support et SARA — Guide utilisateur, FAQ (100 questions), Centre d'aide et Support (ouverture de tickets).
 
-FAITS COMMERCIAUX EXACTS (ne jamais arrondir ni inventer)
+## FAITS COMMERCIAUX EXACTS (ne jamais arrondir ni inventer)
+
 - 4 forfaits : Starter 9 900 XOF/mois, Essentiel 19 900 XOF/mois, Professional 39 900 XOF/mois, Enterprise sur devis.
 - Essai gratuit de 14 jours sans carte bancaire. 2 mois offerts sur l'abonnement annuel.
 - À la fin de l'essai (ou en cas d'impayé), période de grâce de 7 jours avant restriction d'accès.
 - Moyens de paiement pris en charge (s'activent selon le pays et la configuration) : Mobile Money, passerelles (CinetPay, Moneroo, FedaPay, Paystack, Stripe, PayPal), virement national et international, transfert d'argent, espèces en agence, chèque, cryptomonnaie, code prépayé, paiement à la livraison.
-- Contact support : support@ibigsoft.com.
+- Contact support : gestmoney@ibigsoft.com · +225 27 22 27 60 14 · Lun-Sam 8h-18h
+- Programme partenariat IBIG PARTNERS : ibigpartners.com
 
-PROCÉDURES CLÉS (savoir les expliquer pas à pas)
+## PROCÉDURES CLÉS (savoir les expliquer pas à pas)
+
 - Créer une transaction : Transactions → bouton du type (Dépôt/Retrait/Cash In/Cash Out) → opérateur + montant FCFA (>0) → Valider. Le montant doit être strictement positif.
 - Réapprovisionner un float : Gestion Float → + Réapprovisionnement → opérateur + montant XOF → Envoyer. La demande doit être approuvée PUIS exécutée chez l'opérateur ; le float n'est crédité qu'au statut « Complété ».
 - Valider une commission : Commissions → choisir la période → cocher les lignes → ✅ Valider (calculées) puis 💳 Payer (validées) → confirmer le montant total récapitulé.
@@ -58,7 +74,8 @@ PROCÉDURES CLÉS (savoir les expliquer pas à pas)
 - Gérer un agent : Agents → + Créer un agent (l'agence doit exister d'abord) ; Suspendre/Activer coupe ou rétablit l'accès.
 - S'abonner / payer : Abonnement & paiement → choisir le moyen (à ce jour seul le code prépayé est opérationnel ; les autres apparaissent à mesure que l'administrateur les configure) → le paiement s'affiche dans Mes paiements. Un moyen manuel exige un justificatif validé par un administrateur (pas instantané).
 
-CE QUI N'EXISTE PAS — HONNÊTETÉ ABSOLUE (le point le plus important : ne JAMAIS présenter ces éléments comme fonctionnels)
+## CE QUI N'EXISTE PAS — HONNÊTETÉ ABSOLUE (le point le plus important : ne JAMAIS présenter ces éléments comme fonctionnels)
+
 - AUCUN moteur de détection de fraude. La page Audit & Alertes ne calcule aucun score de risque : elle signale seulement un volume d'activité inhabituel (« activité excessive »). Une alerte n'est PAS une accusation de fraude. Ne jamais présenter cette page comme de la détection de fraude.
 - Les 8 écrans Super Admin (prospects, offres, paiements, licences, analytics, emails, démonstrations, sara) sont des MAQUETTES à données figées, sans backend : rien n'y est enregistré, aucune décision ne doit en découler.
 - Certains boutons sont sans effet : « Exporter » de la Caisse ne produit aucun fichier ; « Voir détails » d'une agence, « Voir » d'un agent, « Voir »/« Vérifier KYC » d'un client, et « Paramètres » de la page Notifications ne sont pas branchés.
@@ -67,28 +84,83 @@ CE QUI N'EXISTE PAS — HONNÊTETÉ ABSOLUE (le point le plus important : ne JAM
 - Non disponibles : taux/barèmes de commission configurables (les périodes sont figées sur 2024) ; seuils d'alerte float modifiables ; catalogue produits créé depuis la page Stock ; export/saisie d'écriture manuelle en Comptabilité ; TAFIRE, tableau de flux de trésorerie, annexes et clôture d'exercice ; suivi de santé système dans Administration.
 - Le graphique d'évolution de Performances montre toujours les 7 derniers jours ; l'objectif de taux de succès (95 %) est une valeur de référence fixe.
 
-RÈGLES DE COMPORTEMENT
-- Français par défaut ; anglais si l'utilisateur écrit en anglais.
-- Rester exacte, concise et bienveillante. Ne jamais communiquer de données personnelles entre clients. Ne jamais t'engager contractuellement au nom d'IBIG Soft.
+## TES GARDE-FOUS
+
+- Ne jamais inventer de données financières, de chiffres de clients réels, de certifications non obtenues.
+- Ne jamais promettre des fonctionnalités non disponibles.
+- Si tu ne sais pas ou que la réponse sort du périmètre documenté ici : dire honnêtement "Je ne dispose pas de cette information, contactez notre équipe : gestmoney@ibigsoft.com".
+- Ne jamais donner de conseils juridiques, fiscaux ou financiers spécifiques.
+- Pour les questions sur l'état d'un paiement ou d'un ticket : "Connectez-vous à votre espace client pour consulter votre tableau de bord".
 - Sécurité : GESTMONEY ne demande JAMAIS le code secret Mobile Money ni le mot de passe d'un utilisateur — le rappeler si on te le propose.
-- Si tu ne connais pas la réponse ou qu'elle sort du périmètre documenté ici, DIS-LE et renvoie vers support@ibigsoft.com. N'invente jamais une fonctionnalité, un tarif ou une procédure.`;
+- Ne jamais communiquer de données personnelles entre clients. Ne jamais t'engager contractuellement au nom d'IBIG Soft.
+
+## TON STYLE
+
+- Réponses courtes et directes (maximum 3 paragraphes sauf si l'utilisateur demande des détails).
+- Français par défaut ; anglais si l'utilisateur écrit en anglais.
+- Ton professionnel mais chaleureux, jamais condescendant.
+- Utiliser des listes à puces pour les réponses longues.
+- Terminer les réponses commerciales par une suggestion d'action : essai, démo, contact.`;
 
 const SARA_CONTEXT_PROMPTS: Record<string, string> = {
   PUBLIC: `
 
-CONTEXTE : PROSPECT (page de vente publique). Ton commercial mais honnête. Mets en avant la valeur (comptabilité Mobile Money centralisée, float, caisse, commissions, conformité SYSCOHADA) et oriente vers l'essai gratuit de 14 jours sans carte ou une démonstration. Reste sur les bénéfices et les faits commerciaux ; ne donne pas de détails d'utilisation interne écran par écran. Ne survends jamais : si une capacité n'existe pas, ne la promets pas. Propose de contacter l'équipe (support@ibigsoft.com) pour un devis Enterprise ou une démo.`,
+CONTEXTE : PROSPECT (page de vente publique). Ton commercial mais honnête. Mets en avant la valeur (comptabilité Mobile Money centralisée, float, caisse, commissions, conformité SYSCOHADA) et oriente vers l'essai gratuit de 14 jours sans carte ou une démonstration. Reste sur les bénéfices et les faits commerciaux ; ne donne pas de détails d'utilisation interne écran par écran. Ne survends jamais : si une capacité n'existe pas, ne la promets pas. Propose de contacter l'équipe (gestmoney@ibigsoft.com ou +225 27 22 27 60 14, Lun-Sam 8h-18h) pour un devis Enterprise ou une démo.`,
   INTERNE: `
 
 CONTEXTE : UTILISATEUR CONNECTÉ. Ton d'aide opérationnelle « comment faire ». Explique les procédures pas à pas et renvoie vers le module concerné (nom exact du menu). Sois précise sur les champs obligatoires et les statuts. Si l'utilisateur demande une fonctionnalité listée dans « CE QUI N'EXISTE PAS », dis-le clairement et indique l'alternative documentée (ex. corriger une transaction par une opération inverse, exporter depuis Rapports & BI plutôt que la Caisse).`,
   SUPPORT: `
 
-CONTEXTE : SUPPORT. Ton résolution de problème : reformule le symptôme, propose les vérifications concrètes (Actualiser, contrôler le statut, relire le journal). Si le problème dépasse ce qui est documenté ici, ou touche à une donnée du compte que tu ne peux pas voir, escalade explicitement vers support@ibigsoft.com en conseillant d'ouvrir un ticket avec la référence de l'opération, l'heure et le message d'erreur exact.`,
+CONTEXTE : SUPPORT. Ton résolution de problème : reformule le symptôme, propose les vérifications concrètes (Actualiser, contrôler le statut, relire le journal). Si le problème dépasse ce qui est documenté ici, ou touche à une donnée du compte que tu ne peux pas voir, escalade explicitement vers gestmoney@ibigsoft.com ou +225 27 22 27 60 14 (Lun-Sam 8h-18h) en conseillant d'ouvrir un ticket avec la référence de l'opération, l'heure et le message d'erreur exact.`,
 };
 
 /** Construit le prompt système : base de connaissance + bloc propre au contexte. */
 function buildSystemPrompt(contexte: string): string {
   const bloc = SARA_CONTEXT_PROMPTS[contexte] ?? SARA_CONTEXT_PROMPTS.INTERNE;
   return SARA_BASE_PROMPT + bloc;
+}
+
+/**
+ * Réponses statiques de repli quand aucun fournisseur IA n'est configuré ou échoue.
+ * Ces réponses doivent rester EXACTES : tarifs, coordonnées, opérateurs.
+ */
+const REPONSES_STATIQUES: Record<string, string> = {
+  prix: 'GESTMONEY propose 4 formules : **Starter** (9 900 XOF/mois), **Essentiel** (19 900 XOF/mois), **Professional** (39 900 XOF/mois) et **Enterprise** (sur devis). Essai gratuit 14 jours sans carte bancaire, et 2 mois offerts sur l\'abonnement annuel. Souhaitez-vous une démonstration ?',
+  tarif: 'GESTMONEY propose 4 formules : **Starter** (9 900 XOF/mois), **Essentiel** (19 900 XOF/mois), **Professional** (39 900 XOF/mois) et **Enterprise** (sur devis). Essai gratuit 14 jours sans carte bancaire, et 2 mois offerts sur l\'abonnement annuel. Souhaitez-vous une démonstration ?',
+  abonnement: 'GESTMONEY propose 4 formules : **Starter** (9 900 XOF/mois), **Essentiel** (19 900 XOF/mois), **Professional** (39 900 XOF/mois) et **Enterprise** (sur devis). Essai gratuit 14 jours sans carte bancaire, et 2 mois offerts sur l\'abonnement annuel. Souhaitez-vous une démonstration ?',
+  essai: 'L\'essai gratuit dure **14 jours**, sans carte bancaire. Créez votre compte sur gestmoney.ibigsoft.com. Une période de grâce de 7 jours s\'applique à la fin de l\'essai avant restriction d\'accès.',
+  demo: 'Pour demander une **démonstration personnalisée**, écrivez à gestmoney@ibigsoft.com ou appelez le +225 27 22 27 60 14 (Lun-Sam 8h-18h).',
+  contact: 'Notre équipe est disponible **Lun-Sam 8h-18h** au **+225 27 22 27 60 14** ou par email à **gestmoney@ibigsoft.com**.',
+  opérateur: 'GESTMONEY supporte **Orange Money**, **MTN MoMo**, **Moov Money**, **Wave**, **Airtel Money**, **T-Money**, **Express Union**, **Wizall**, **Djamo** et d\'autres selon votre configuration.',
+  operateur: 'GESTMONEY supporte **Orange Money**, **MTN MoMo**, **Moov Money**, **Wave**, **Airtel Money**, **T-Money**, **Express Union**, **Wizall**, **Djamo** et d\'autres selon votre configuration.',
+  orange: 'GESTMONEY prend en charge **Orange Money**, ainsi que MTN MoMo, Wave, Moov Money, Airtel Money, T-Money, Express Union, Wizall, Djamo et plus encore.',
+  mtn: 'GESTMONEY prend en charge **MTN MoMo**, ainsi que Orange Money, Wave, Moov Money, Airtel Money, T-Money, Express Union, Wizall, Djamo et plus encore.',
+  wave: 'GESTMONEY prend en charge **Wave**, ainsi que Orange Money, MTN MoMo, Moov Money, Airtel Money et d\'autres opérateurs.',
+  paiement: 'GESTMONEY accepte de nombreux moyens de paiement : **Mobile Money**, cartes et passerelles (CinetPay, Stripe, PayPal…), virements national et international, transfert d\'argent, espèces en agence, chèque, cryptomonnaie, code prépayé et paiement à la livraison. Chaque moyen s\'active selon votre pays et configuration.',
+  partenaire: 'GESTMONEY dispose d\'un programme de partenariat : **IBIG PARTNERS**. Rendez-vous sur ibigpartners.com pour en savoir plus.',
+  ibigpartners: 'Le programme de partenariat **IBIG PARTNERS** est disponible sur ibigpartners.com. Vous pouvez rejoindre le réseau de revendeurs et partenaires certifiés IBIG Soft.',
+};
+
+/** Catégorise automatiquement la question pour les métriques. */
+function categoriserQuestion(message: string): 'commercial' | 'support' | 'technique' | 'autre' {
+  const q = message.toLowerCase();
+  if (
+    q.includes('prix') || q.includes('tarif') || q.includes('abonnement') ||
+    q.includes('essai') || q.includes('démo') || q.includes('demo') ||
+    q.includes('gratuit') || q.includes('starter') || q.includes('enterprise') ||
+    q.includes('paiement') || q.includes('partenaire')
+  ) return 'commercial';
+  if (
+    q.includes('bug') || q.includes('erreur') || q.includes('problème') ||
+    q.includes('ticket') || q.includes('bloqué') || q.includes('marche pas') ||
+    q.includes('ne fonctionne') || q.includes('aide') || q.includes('support')
+  ) return 'support';
+  if (
+    q.includes('api') || q.includes('intégration') || q.includes('webhook') ||
+    q.includes('développeur') || q.includes('code') || q.includes('sdk') ||
+    q.includes('json') || q.includes('endpoint')
+  ) return 'technique';
+  return 'autre';
 }
 
 @Injectable()
@@ -98,7 +170,32 @@ export class AiService {
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
+    private knowledge: KnowledgeService,
   ) {}
+
+  /**
+   * Charge les N derniers messages d'une session depuis la base pour alimenter
+   * le contexte de conversation. Retourne [] si la table n'existe pas encore.
+   */
+  private async chargerHistorique(sessionId: string, limite = 10): Promise<ChatMessage[]> {
+    try {
+      const rows = await this.prisma.$queryRaw<Array<{ messages: ChatMessage[] }>>`
+        SELECT messages FROM "sara_conversations"
+        WHERE "sessionId" = ${sessionId}
+        ORDER BY "createdAt" ASC
+      `;
+      // Chaque ligne contient [user, assistant] — on les aplatit puis on tronque
+      const historique: ChatMessage[] = [];
+      for (const row of rows) {
+        if (Array.isArray(row.messages)) {
+          historique.push(...row.messages.filter((m) => m.role !== 'system'));
+        }
+      }
+      return historique.slice(-limite);
+    } catch {
+      return [];
+    }
+  }
 
   async chat(message: string, sessionId: string, userId?: string, contexte: string = 'INTERNE') {
     const provider = this.configService.get<string>('SARA_PROVIDER', 'groq');
@@ -106,10 +203,23 @@ export class AiService {
     const temperature = parseFloat(this.configService.get<string>('SARA_TEMPERATURE', '0.7'));
     const maxTokens = parseInt(this.configService.get<string>('SARA_MAX_TOKENS', '2048'));
 
+    // Historique de conversation (max 10 messages précédents)
+    const historique = await this.chargerHistorique(sessionId, 10);
+
+    // RAG : enrichir le prompt système avec le contexte documentaire pertinent
+    const contexteDocumentaire = await this.knowledge.construireContexte(message);
+    const systemPrompt = contexteDocumentaire
+      ? buildSystemPrompt(contexte) + contexteDocumentaire
+      : buildSystemPrompt(contexte);
+
+    // Construction du tableau de messages : system + historique + message courant
     const messages: ChatMessage[] = [
-      { role: 'system', content: buildSystemPrompt(contexte) },
+      { role: 'system', content: systemPrompt },
+      ...historique,
       { role: 'user', content: message },
     ];
+
+    const categorieQuestion = categoriserQuestion(message);
 
     let response: string;
     let totalTokens = 0;
@@ -135,18 +245,39 @@ export class AiService {
       response = this.fallbackResponse(message);
     }
 
-    // Persister la conversation en base
+    // Persister la conversation en base avec la catégorie
     try {
       await this.prisma.$executeRaw`
-        INSERT INTO "sara_conversations" ("id", "sessionId", "context", "messages", "totalTokens", "provider", "modele", "userId", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), ${sessionId}, ${contexte}, ${JSON.stringify([{ role: 'user', content: message }, { role: 'assistant', content: response }])}::jsonb, ${totalTokens}, ${provider}, ${model}, ${userId ?? null}, now(), now())
+        INSERT INTO "sara_conversations" ("id", "sessionId", "context", "messages", "totalTokens", "provider", "modele", "userId", "categorieQuestion", "createdAt", "updatedAt")
+        VALUES (
+          gen_random_uuid(),
+          ${sessionId},
+          ${contexte},
+          ${JSON.stringify([{ role: 'user', content: message }, { role: 'assistant', content: response }])}::jsonb,
+          ${totalTokens},
+          ${provider},
+          ${model},
+          ${userId ?? null},
+          ${categorieQuestion},
+          now(),
+          now()
+        )
         ON CONFLICT DO NOTHING
       `;
     } catch {
-      // Ne pas bloquer si la table n'existe pas encore
+      // Ne pas bloquer si la table n'existe pas encore ou si la colonne categorieQuestion est absente
+      try {
+        await this.prisma.$executeRaw`
+          INSERT INTO "sara_conversations" ("id", "sessionId", "context", "messages", "totalTokens", "provider", "modele", "userId", "createdAt", "updatedAt")
+          VALUES (gen_random_uuid(), ${sessionId}, ${contexte}, ${JSON.stringify([{ role: 'user', content: message }, { role: 'assistant', content: response }])}::jsonb, ${totalTokens}, ${provider}, ${model}, ${userId ?? null}, now(), now())
+          ON CONFLICT DO NOTHING
+        `;
+      } catch {
+        // Silencieux si la table n'existe pas
+      }
     }
 
-    return { response, provider, model, tokens: totalTokens };
+    return { response, provider, model, tokens: totalTokens, categorie: categorieQuestion };
   }
 
   private async callGroq(messages: ChatMessage[], model: string, temperature: number, maxTokens: number) {
@@ -231,25 +362,13 @@ export class AiService {
 
   /**
    * Réponses de repli quand aucun fournisseur IA n'est configuré (pas de clé)
-   * ou qu'il échoue. Ce sont des réponses fixes, mais elles doivent rester
-   * EXACTES : un prospect qui lit un tarif ici le prend pour argent comptant.
-   * Les 4 forfaits actuels sont Starter 9 900, Essentiel 19 900,
-   * Professional 39 900 XOF/mois et Enterprise sur devis.
+   * ou qu'il échoue. Utilise le dictionnaire REPONSES_STATIQUES.
    */
   private fallbackResponse(message: string): string {
     const q = message.toLowerCase();
-    if (q.includes('prix') || q.includes('tarif') || q.includes('abonnement')) {
-      return 'GESTMONEY propose 4 formules : **Starter** (9 900 XOF/mois), **Essentiel** (19 900 XOF/mois), **Professional** (39 900 XOF/mois) et **Enterprise** (sur devis). Essai gratuit 14 jours sans carte bancaire, et 2 mois offerts sur l\'abonnement annuel. Souhaitez-vous une démonstration ?';
+    for (const [cle, reponse] of Object.entries(REPONSES_STATIQUES)) {
+      if (q.includes(cle)) return reponse;
     }
-    if (q.includes('opérateur') || q.includes('operateur') || q.includes('orange') || q.includes('mtn') || q.includes('wave') || q.includes('moov') || q.includes('airtel')) {
-      return 'GESTMONEY prend en charge **Orange Money**, **MTN MoMo**, **Wave**, **Moov Money** et **Airtel Money**. La configuration se fait depuis l\'espace d\'administration.';
-    }
-    if (q.includes('paiement') || q.includes('payer') || q.includes('paye')) {
-      return 'GESTMONEY accepte de nombreux moyens de paiement : Mobile Money, cartes et passerelles (CinetPay, Stripe, PayPal…), virements national et international, transfert d\'argent, espèces en agence, chèque, cryptomonnaie, code prépayé et paiement à la livraison. Chaque moyen s\'active selon votre pays.';
-    }
-    if (q.includes('demo') || q.includes('démo') || q.includes('essai')) {
-      return 'Vous pouvez démarrer un **essai gratuit de 14 jours** sans carte bancaire. Notre équipe peut aussi organiser une démonstration — rendez-vous sur la section Contact.';
-    }
-    return 'Bonjour ! Je suis **SARA**, votre assistante GESTMONEY. Posez-moi vos questions sur la plateforme, les tarifs, les opérateurs ou les moyens de paiement. 💬';
+    return 'Bonjour ! Je suis **SARA**, votre assistante GESTMONEY. Posez-moi vos questions sur la plateforme, les tarifs, les opérateurs ou les fonctionnalités. 💬';
   }
 }

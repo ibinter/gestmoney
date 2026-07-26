@@ -53,6 +53,12 @@ export class AgenciesService {
     });
 
     await this.logAudit('CREATE', createdBy, tenantId, { agencyId: agency.id });
+    // Onboarding : marquer etape2 (1ère agence créée) en fire-and-forget
+    this.prisma.onboardingStep.upsert({
+      where:  { tenantId },
+      create: { tenantId, etape2: true },
+      update: { etape2: true },
+    }).catch(() => { /* non bloquant */ });
     return agency;
   }
 
@@ -171,6 +177,127 @@ export class AgenciesService {
       agentCount,
       activeAgentCount,
       totalFloatBalance: totalFloat._sum.balance || 0,
+    };
+  }
+
+  async getDashboard(agenceId: string, tenantId: string) {
+    const agency = await this.prisma.agency.findFirst({
+      where: { id: agenceId, tenantId },
+      select: { id: true, name: true, code: true, city: true, address: true, status: true },
+    });
+    if (!agency) throw new NotFoundException('Agence non trouvée');
+
+    const now = new Date();
+    const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
+    const il7Jours  = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [kpiTx, agentsRaw, derniersTx, txSemaine] = await Promise.all([
+      // KPIs du mois
+      this.prisma.transaction.aggregate({
+        where: { tenantId, agencyId: agenceId, createdAt: { gte: debutMois }, status: 'COMPLETED' },
+        _count: { id: true },
+        _sum: { amount: true },
+      }),
+
+      // Agents avec float et nb transactions du mois
+      this.prisma.agent.findMany({
+        where: { agencyId: agenceId, tenantId },
+        select: {
+          id: true,
+          agentCode: true,
+          status: true,
+          userId: true,
+          floatAccounts: { select: { balance: true }, take: 1 },
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+
+      // 10 dernières transactions
+      this.prisma.transaction.findMany({
+        where: { tenantId, agencyId: agenceId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          status: true,
+          createdAt: true,
+          reference: true,
+        },
+      }),
+
+      // Transactions par jour sur 7 jours
+      this.prisma.transaction.findMany({
+        where: { tenantId, agencyId: agenceId, createdAt: { gte: il7Jours }, status: 'COMPLETED' },
+        select: { createdAt: true, amount: true },
+      }),
+    ]);
+
+    // Commissions du mois
+    const commissions = await this.prisma.commissionEarning.aggregate({
+      where: { tenantId, agencyId: agenceId, createdAt: { gte: debutMois } },
+      _sum: { amount: true },
+    });
+
+    // Compter les agents actifs
+    const agentsActifs = agentsRaw.filter((a) => a.status === 'ACTIVE').length;
+
+    // Résoudre noms utilisateurs
+    const userIds = agentsRaw.map((a) => a.userId).filter(Boolean);
+    const users   = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    // Nb tx/mois par agent
+    const agentIds = agentsRaw.map((a) => a.id);
+    const txParAgent = await this.prisma.transaction.groupBy({
+      by: ['agentId'],
+      where: { tenantId, agentId: { in: agentIds }, createdAt: { gte: debutMois }, status: 'COMPLETED' },
+      _count: { id: true },
+      _sum: { amount: true },
+    });
+    const txAgentMap = new Map(txParAgent.map((r) => [r.agentId!, r]));
+
+    // Évolution 7 jours
+    const jourMap = new Map<string, { count: number; volume: number }>();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(il7Jours.getTime() + i * 24 * 60 * 60 * 1000);
+      jourMap.set(d.toISOString().slice(0, 10), { count: 0, volume: 0 });
+    }
+    for (const tx of txSemaine) {
+      const key = tx.createdAt.toISOString().slice(0, 10);
+      const entry = jourMap.get(key);
+      if (entry) { entry.count += 1; entry.volume += Number(tx.amount ?? 0); }
+    }
+    const evolution7Jours = Array.from(jourMap.entries()).map(([date, v]) => ({ date, ...v }));
+
+    return {
+      agence: agency,
+      kpis: {
+        nbTransactions: kpiTx._count.id,
+        volume: Number(kpiTx._sum.amount ?? 0),
+        commissions: Number(commissions._sum.amount ?? 0),
+        agentsActifs,
+      },
+      evolution7Jours,
+      agents: agentsRaw.map((a) => {
+        const u  = userMap.get(a.userId);
+        const tx = txAgentMap.get(a.id);
+        return {
+          id: a.id,
+          code: a.agentCode,
+          nom: u ? `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || a.agentCode : a.agentCode,
+          email: u?.email,
+          statut: a.status,
+          float: Number(a.floatAccounts?.[0]?.balance ?? 0),
+          nbTxMois: tx?._count.id ?? 0,
+          volumeMois: Number(tx?._sum.amount ?? 0),
+        };
+      }),
+      derniereTransactions: derniersTx,
     };
   }
 

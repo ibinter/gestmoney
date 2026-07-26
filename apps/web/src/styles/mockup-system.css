@@ -806,6 +806,10 @@ input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--gm-prima
   .gm-op-grid { grid-template-columns: repeat(2, 1fr); }
   .gm-main { padding: calc(var(--gm-topbar-h) + 16px) 16px 40px; }
   .gm-topbar-search { display: none; }
+  /* Responsive : mise en colonne unique sur mobile */
+  .gm-content-grid { grid-template-columns: 1fr; }
+  .gm-agences-grid { grid-template-columns: 1fr; }
+  .gm-page-actions { flex-wrap: wrap; }
 }
 .gm-topbar{position:fixed;top:0;left:0;right:0;height:var(--gm-topbar-h);background:var(--gm-white);border-bottom:1px solid var(--gm-border);display:flex;align-items:center;padding:0 24px;gap:16px;z-index:200;box-shadow:0 1px 8px rgba(0,0,0,0.06)}
 .gm-topbar-search .gm-si{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--gm-text-2)}

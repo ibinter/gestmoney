@@ -47,7 +47,7 @@ export function Modal({ ouvert, onFermer, titre, children, taille = 'md', classN
       {/* Contenu */}
       <div
         className={clsx(
-          'relative bg-white rounded-card shadow-2xl w-full animate-in fade-in zoom-in-95 duration-200',
+          'relative bg-white rounded-card shadow-2xl w-full animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]',
           {
             'max-w-sm': taille === 'sm',
             'max-w-md': taille === 'md',
@@ -59,7 +59,7 @@ export function Modal({ ouvert, onFermer, titre, children, taille = 'md', classN
       >
         {/* Header */}
         {titre && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
             <h2 className="text-lg font-semibold text-text-main">{titre}</h2>
             <button
               onClick={onFermer}
@@ -69,8 +69,8 @@ export function Modal({ ouvert, onFermer, titre, children, taille = 'md', classN
             </button>
           </div>
         )}
-        {/* Body */}
-        <div className="p-6">{children}</div>
+        {/* Body — scrollable sur mobile si le contenu dépasse */}
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

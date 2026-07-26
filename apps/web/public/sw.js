@@ -180,3 +180,51 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
+
+// ── Notifications push entrantes ──────────────────────────────
+// Le payload est du JSON : { title, body, icon, badge, data, vibrate }
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data?.json() ?? {};
+  } catch {
+    data = { title: 'GESTMONEY', body: event.data?.text() ?? '' };
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'GESTMONEY', {
+      body:    data.body    || '',
+      icon:    data.icon    || '/icons/icon-192.svg',
+      badge:   data.badge   || '/icons/icon-192.svg',
+      data:    data.data    || {},
+      vibrate: data.vibrate || [100, 50, 100],
+      // Regroupe les notifications du même type pour ne pas saturer
+      // la barre de notifications sur mobile.
+      tag:     data.tag     || 'gestmoney-notification',
+      renotify: true,
+    })
+  );
+});
+
+// ── Clic sur une notification ─────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/dashboard';
+
+  event.waitUntil(
+    // Si une fenêtre GESTMONEY est déjà ouverte, la focaliser et naviguer.
+    // Sinon, ouvrir un nouvel onglet.
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.focus();
+            client.navigate(url);
+            return;
+          }
+        }
+        return self.clients.openWindow(url);
+      })
+  );
+});

@@ -58,7 +58,14 @@ function LoginContent() {
     if (!email || !motDePasse) { setErreur('Veuillez remplir tous les champs.'); return; }
     setLoading(true);
     try {
-      const { user } = await doLogin(email, motDePasse);
+      const data = await doLogin(email, motDePasse);
+      // Cas 2FA : le serveur retourne un tempToken au lieu des vrais tokens
+      if (data.requires2FA && data.tempToken) {
+        sessionStorage.setItem('gestmoney_temp_token', data.tempToken);
+        router.replace('/login/verify-2fa');
+        return;
+      }
+      const { user } = data;
       login({
         id: user.id,
         nom: user.lastName ?? '',

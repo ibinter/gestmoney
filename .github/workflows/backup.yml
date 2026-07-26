@@ -1,0 +1,24 @@
+name: Manual Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 1 * * *" # 01h00 UTC chaque nuit (en complément du cron NestJS)
+
+jobs:
+  backup:
+    name: Backup base de données (VPS)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger backup via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 185.98.139.38
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            echo "=== Backup GESTMONEY — $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+            /opt/gestmoney/scripts/backup-db.sh
+            echo "=== Backup terminé ==="

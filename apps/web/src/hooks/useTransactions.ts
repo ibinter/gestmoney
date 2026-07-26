@@ -174,6 +174,7 @@ export function useCreateTransaction() {
           // agentId optionnel : si fourni (ex. admin choisissant l'agent),
           // sinon le backend le déduit de l'utilisateur connecté.
           agentId: data.agentId || undefined,
+          devise: (data as any).devise || undefined,
         });
         return mapTransaction(res.data);
       } catch {

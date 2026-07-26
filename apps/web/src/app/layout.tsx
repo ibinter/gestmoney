@@ -2,6 +2,7 @@
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { PwaRegister } from "@/components/ui/PwaRegister";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import "./globals.css";
 // Système de design porté depuis /mockup (classes et variables préfixées `gm-`)
 import "@/styles/mockup-system.css";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>{children}</Providers>
         <PwaRegister />
+        <PWAInstallBanner />
       </body>
     </html>
   );

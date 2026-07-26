@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// ---------------------------------------------------------------------------
+// MODE MAINTENANCE
+// ---------------------------------------------------------------------------
+const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === 'true';
+const MAINTENANCE_BYPASS_IPS = (process.env.MAINTENANCE_BYPASS_IPS || '')
+  .split(',')
+  .map((ip) => ip.trim())
+  .filter(Boolean);
+
 // Routes publiques accessibles sans authentification
 const PUBLIC_ROUTES = [
   '/',
   '/login',
+  '/login/verify-2fa',
   '/register',
   '/forgot-password',
   '/reset-password',
@@ -16,6 +26,10 @@ const PUBLIC_ROUTES = [
   '/cookies',
   '/aide-publique',
   '/contact',
+  '/verify',
+  '/tarifs',
+  '/status',
+  '/offline',
 ];
 
 // Préfixes publics (statiques, API publique)
@@ -57,6 +71,29 @@ function isSuperAdminRoute(pathname: string): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ---------------------------------------------------------------------------
+  // Maintenance mode — rediriger tout le monde sauf /maintenance et les IPs admin
+  // ---------------------------------------------------------------------------
+  if (MAINTENANCE_MODE && pathname !== '/maintenance') {
+    // Laisser passer les ressources statiques (CSS, JS, images…)
+    const isStatic = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
+      || /\.[a-zA-Z0-9]{2,5}$/.test(pathname);
+
+    if (!isStatic) {
+      // Vérifier si l'IP est dans la liste de bypass
+      const clientIp =
+        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        request.headers.get('x-real-ip') ||
+        '';
+
+      const isBypassed = MAINTENANCE_BYPASS_IPS.length > 0 && MAINTENANCE_BYPASS_IPS.includes(clientIp);
+
+      if (!isBypassed) {
+        return NextResponse.redirect(new URL('/maintenance', request.url));
+      }
+    }
+  }
 
   // Laisser passer les routes publiques sans vérification
   if (isPublic(pathname)) {

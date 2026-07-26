@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { verifySync } from 'otplib';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // ─── Mocks globaux ────────────────────────────────────────────────────────────
 
@@ -82,6 +83,10 @@ const mockConfigService = {
   get: jest.fn((key: string, defaultVal?: any) => defaultVal ?? 'test-value'),
 };
 
+const mockNotifications = {
+  sendEmail: jest.fn().mockResolvedValue(undefined),
+};
+
 // ─── Suite de tests ───────────────────────────────────────────────────────────
 
 describe('AuthService', () => {
@@ -96,6 +101,7 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: NotificationsService, useValue: mockNotifications },
       ],
     }).compile();
 
@@ -295,6 +301,150 @@ describe('AuthService', () => {
       await expect(
         service.verify2FA('user-uuid-1', 'tenant-1', dto),
       ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  // ─── register() — email de bienvenue ────────────────────────────────────────
+
+  describe('register() — email de bienvenue', () => {
+    const registerDto = {
+      email: 'nouveau@ibigsoft.ci',
+      password: 'Password123!',
+      firstName: 'Nouveau',
+      lastName: 'Agent',
+      phone: '+22507111111',
+    };
+    const tenantId = 'tenant-1';
+
+    it("devrait envoyer un email de bienvenue après la création du compte", async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('$2b$12$newhash');
+      mockPrisma.role.findFirst.mockResolvedValue({ id: 'role-1', name: 'VIEWER' });
+      mockPrisma.user.create.mockResolvedValue({
+        ...mockUser,
+        email: registerDto.email,
+        firstName: registerDto.firstName,
+        userRoles: [{ role: { name: 'VIEWER' } }],
+      });
+      mockPrisma.session.create.mockResolvedValue({});
+      mockPrisma.auditLog.create.mockResolvedValue({});
+      mockNotifications.sendEmail.mockResolvedValue(undefined);
+
+      await service.register(registerDto, tenantId);
+
+      // sendEmail est fire-and-forget (void), on attend la résolution de la Promise
+      await new Promise(process.nextTick);
+
+      expect(mockNotifications.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: registerDto.email,
+          subject: expect.stringContaining('Bienvenue'),
+        }),
+      );
+    });
+  });
+
+  // ─── forgotPassword() ────────────────────────────────────────────────────────
+
+  describe('forgotPassword()', () => {
+    const dto = { email: 'agent@ibigsoft.ci' };
+    const tenantId = 'tenant-1';
+
+    it("devrait créer un token de réinitialisation en base si l'utilisateur existe", async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+      mockPrisma.session.create.mockResolvedValue({ id: 'session-reset-1' });
+      mockPrisma.auditLog.create.mockResolvedValue({});
+      mockNotifications.sendEmail.mockResolvedValue(undefined);
+
+      await service.forgotPassword(dto, tenantId);
+
+      expect(mockPrisma.session.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: mockUser.id,
+            tenantId,
+            refreshToken: expect.stringMatching(/^RESET_/),
+          }),
+        }),
+      );
+    });
+
+    it("devrait envoyer l'email de réinitialisation si l'utilisateur existe", async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+      mockPrisma.session.create.mockResolvedValue({ id: 'session-reset-1' });
+      mockPrisma.auditLog.create.mockResolvedValue({});
+      mockNotifications.sendEmail.mockResolvedValue(undefined);
+
+      await service.forgotPassword(dto, tenantId);
+
+      await new Promise(process.nextTick);
+
+      expect(mockNotifications.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: dto.email,
+          subject: expect.stringMatching(/r.initialisation/i),
+        }),
+      );
+    });
+
+    it("ne doit pas révéler si l'email existe ou non (même message dans tous les cas)", async () => {
+      // Cas 1 : email inconnu
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      const resultInconnu = await service.forgotPassword(dto, tenantId);
+
+      // Cas 2 : email connu
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+      mockPrisma.session.create.mockResolvedValue({});
+      mockPrisma.auditLog.create.mockResolvedValue({});
+      mockNotifications.sendEmail.mockResolvedValue(undefined);
+      const resultConnu = await service.forgotPassword(dto, tenantId);
+
+      expect((resultInconnu as any).message).toBe((resultConnu as any).message);
+    });
+  });
+
+  // ─── resetPassword() (validateToken) ────────────────────────────────────────
+
+  describe('resetPassword()', () => {
+    it('devrait accepter un token valide et mettre à jour le mot de passe', async () => {
+      const resetSession = {
+        id: 'session-reset-1',
+        userId: mockUser.id,
+        tenantId: 'tenant-1',
+        refreshToken: 'RESET_valid-token',
+        expiresAt: new Date(Date.now() + 3600 * 1000), // valide 1h
+        revokedAt: null,
+        user: mockUser,
+      };
+      mockPrisma.session.findFirst.mockResolvedValue(resetSession);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('$2b$12$newhash');
+      mockPrisma.$transaction.mockResolvedValue([{}, {}, {}]);
+      mockPrisma.auditLog.create.mockResolvedValue({});
+
+      const result = await service.resetPassword(
+        { token: 'valid-token', newPassword: 'NewPass456!' },
+        'tenant-1',
+      );
+
+      expect(result.message).toContain('réinitialisé');
+    });
+
+    it('devrait lever BadRequestException pour un token expiré', async () => {
+      const expiredSession = {
+        id: 'session-reset-2',
+        userId: mockUser.id,
+        tenantId: 'tenant-1',
+        refreshToken: 'RESET_expired-token',
+        expiresAt: new Date(Date.now() - 1000), // expiré
+        revokedAt: null,
+        user: mockUser,
+      };
+      mockPrisma.session.findFirst.mockResolvedValue(expiredSession);
+
+      const { BadRequestException } = await import('@nestjs/common');
+      await expect(
+        service.resetPassword({ token: 'expired-token', newPassword: 'NewPass456!' }, 'tenant-1'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -276,7 +276,7 @@ export default function OperateursPage() {
         taille="md"
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Nom"
               placeholder="Orange Money"
@@ -294,7 +294,7 @@ export default function OperateursPage() {
               required
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Pays"
               placeholder="Côte d'Ivoire"

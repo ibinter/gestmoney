@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import helmet from "helmet";
+import compression from "compression";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cookieParser = require('cookie-parser');
 import { AppModule } from "./app.module";
@@ -27,6 +28,16 @@ async function bootstrap() {
   // Indispensable pour que le rate-limiting (ThrottlerGuard) porte par client
   // et non globalement sur l'IP du proxy (ce qui bloquerait tout le monde).
   app.getHttpAdapter().getInstance().set("trust proxy", 1);
+
+  // Compression HTTP (gzip/br) — réduit la taille des réponses JSON de ~70 %
+  // Placé avant helmet pour couvrir toutes les réponses
+  app.use(compression({
+    filter: (req: any, res: any) => {
+      if (req.headers['x-no-compression']) return false;
+      return compression.filter(req, res);
+    },
+    level: 6, // compromis vitesse / taux de compression
+  }));
 
   // Securite
   app.use(helmet());
@@ -83,29 +94,60 @@ async function bootstrap() {
     })
   );
 
-  // Swagger / OpenAPI
+  // Swagger / OpenAPI — disponible en dev et en staging (pas en prod)
   if (configService.get("NODE_ENV") !== "production") {
     const swaggerConfig = new DocumentBuilder()
       .setTitle("GESTMONEY API")
-      .setDescription("API REST de la plateforme GESTMONEY - Gestion Mobile Money")
-      .setVersion("1.0")
+      .setDescription(`
+API REST de GESTMONEY — Plateforme SaaS de gestion des réseaux Mobile Money.
+
+**Authentification** : Bearer JWT — obtenez un token via \`POST /api/v1/auth/login\`,
+puis cliquez sur le bouton **Authorize** en haut à droite et collez-le.
+
+**Multi-tenant** : le \`tenantId\` est embarqué dans le JWT.
+Le header optionnel \`X-Tenant-ID\` doit correspondre au tenant du JWT.
+
+**Éditeur** : IBIG Soft — gestmoney@ibigsoft.com
+      `)
+      .setVersion("1.0.0")
+      .setContact("IBIG Soft", "https://gestmoney.ibigsoft.com", "gestmoney@ibigsoft.com")
       .addBearerAuth(
-        { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+        { type: "http", scheme: "bearer", bearerFormat: "JWT", in: "header" },
         "JWT-auth"
       )
-      .addTag("auth", "Authentification")
-      .addTag("transactions", "Transactions Mobile Money")
-      .addTag("agents", "Gestion des agents")
-      .addTag("agencies", "Gestion des agences")
-      .addTag("float", "Gestion du float")
-      .addTag("commissions", "Commissions")
-      .addTag("customers", "Clients")
-      .addTag("reports", "Rapports et analytiques")
+      // Même clé utilisée dans certains controllers legacy
+      .addBearerAuth(
+        { type: "http", scheme: "bearer", bearerFormat: "JWT", in: "header" },
+        "access-token"
+      )
+      .addTag("Auth", "Authentification et gestion des sessions")
+      .addTag("Transactions", "Enregistrement et gestion des transactions Mobile Money")
+      .addTag("Float", "Gestion des flottes d'agents")
+      .addTag("Caisse", "Opérations de caisse (cashier)")
+      .addTag("Commissions", "Plans et calculs de commission")
+      .addTag("Comptabilité SYSCOHADA", "Comptabilité OHADA — journaux, bilan, résultat")
+      .addTag("Stock", "Gestion des stocks (SIM, terminaux, accessoires)")
+      .addTag("Customers", "KYC et gestion des clients")
+      .addTag("Agents", "Gestion des agents Mobile Money")
+      .addTag("Agencies", "Gestion des agences")
+      .addTag("Licences", "Abonnements et licences")
+      .addTag("Support", "Tickets de support")
+      .addTag("Notifications", "Notifications email et in-app")
+      .addTag("Import", "Import XLSX/CSV")
+      .addTag("Analytics", "Statistiques et rapports")
+      .addTag("Public", "Endpoints publics (sans authentification)")
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup("api/docs", app, document, {
-      swaggerOptions: { persistAuthorization: true },
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: "none",        // sections fermées par défaut
+        filter: true,                // barre de recherche
+        showRequestDuration: true,   // durée des requêtes de test
+        tryItOutEnabled: false,      // désactive "Try it out" par défaut
+      },
+      customSiteTitle: "GESTMONEY API Docs",
     });
   }
 

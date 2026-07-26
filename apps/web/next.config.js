@@ -15,6 +15,10 @@ const nextConfig = {
       { protocol: 'https', hostname: 'gestmoney.ibigsoft.com' },
     ],
     formats: ['image/avif', 'image/webp'],
+    // Cache côté CDN / navigateur : 7 jours pour les images optimisées
+    minimumCacheTTL: 60 * 60 * 24 * 7,
+    // Breakpoints responsives — couvre mobile → desktop sans sur-génération
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
   },
   async headers() {
     return [
@@ -22,6 +26,7 @@ const nextConfig = {
         // Headers de sécurité sur toutes les pages
         source: '/(.*)',
         headers: [
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
@@ -30,13 +35,9 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           {
-            // CSP en mode RAPPORT SEULEMENT (Report-Only) : elle N'EST PAS bloquante.
-            // Le site est en production ; une CSP trop stricte le casserait. En
-            // Report-Only, les violations sont seulement journalisées par le
-            // navigateur (console) sans bloquer les ressources. Après une période
-            // d'observation sans violation légitime, cette politique pourra être
-            // promue en `Content-Security-Policy` (bloquante).
-            key: 'Content-Security-Policy-Report-Only',
+            // CSP en mode ENFORCED (bloquant). La période d'observation
+            // report-only est terminée ; la politique est promue en mode strict.
+            key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
               // Next.js requiert 'unsafe-inline' / 'unsafe-eval' pour son runtime.

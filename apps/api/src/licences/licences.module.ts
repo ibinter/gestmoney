@@ -6,6 +6,7 @@ import { LicencesService } from './licences.service';
 import { LicencesScheduler } from './licences.scheduler';
 import { LicencesController } from './licences.controller';
 import licencesConfig from './licences.config';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
  * Cycle de vie des licences d'abonnement.
@@ -16,6 +17,7 @@ import licencesConfig from './licences.config';
  */
 @Module({
   imports: [
+    NotificationsModule,
     ConfigModule.forFeature(licencesConfig),
     // `LicenceGuard` vérifie lui-même le JWT (les gardes globales s'exécutent
     // avant `JwtAuthGuard`, donc avant que Passport ne remplisse `req.user`).
