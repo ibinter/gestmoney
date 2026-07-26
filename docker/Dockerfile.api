@@ -66,6 +66,6 @@ USER nestjs
 EXPOSE 3010
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3010/api/v1/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:3010/api/v1/status || exit 1
 
 CMD ["node", "apps/api/dist/main.js"]
