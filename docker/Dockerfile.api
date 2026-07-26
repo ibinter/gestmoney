@@ -26,8 +26,9 @@ RUN pnpm install --no-frozen-lockfile \
     --filter @gestmoney/database \
     --shamefully-hoist
 
-# Générer le client Prisma
-RUN pnpm --filter @gestmoney/database db:generate
+# Générer le client Prisma et compiler le package database en JS
+RUN pnpm --filter @gestmoney/database db:generate && \
+    pnpm --filter @gestmoney/database build
 
 # Avec shamefully-hoist, les binaires pnpm sont dans /app/node_modules/.bin/
 # On ajoute ce répertoire au PATH pour que nest et tsc soient trouvables

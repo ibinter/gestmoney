@@ -132,7 +132,7 @@ function genPhone(i: number): string {
 
 export async function seedDemoTenant(
   prisma: PrismaClient,
-): Promise<Record<string, number>> {
+): Promise<Record<string, number | string>> {
   console.log('\n[DEMO] ▶ Création du tenant de démonstration...');
   const t0 = Date.now();
 
