@@ -146,6 +146,44 @@ export class FloatService {
     });
   }
 
+  async creditFloatById(
+    floatAccountId: string,
+    montant: number,
+    tenantId: string,
+    motif?: string,
+    performedById?: string,
+  ): Promise<void> {
+    const account = await this.prisma.floatAccount.findFirst({
+      where: { id: floatAccountId, tenantId },
+    });
+
+    if (!account) throw new NotFoundException(`Compte float introuvable: ${floatAccountId}`);
+
+    const soldeAvant = this.num(account.balance);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.floatAccount.update({
+        where: { id: floatAccountId },
+        data: { balance: { increment: montant }, lastMovementAt: new Date() },
+      });
+
+      await tx.floatMovement.create({
+        data: {
+          tenantId,
+          floatAccountId,
+          type: 'CREDIT',
+          amount: montant,
+          balanceBefore: soldeAvant,
+          balanceAfter: soldeAvant + montant,
+          currency: account.currency,
+          description: motif ?? 'Crédit float',
+          reference: `FLT-${Date.now()}`,
+          performedById: performedById ?? null,
+        },
+      });
+    });
+  }
+
   // ─── Consultation ─────────────────────────────────────────────────────────────
 
   async getFloatAccounts(tenantId: string, agenceId?: string, operateur?: string) {
@@ -275,19 +313,14 @@ export class FloatService {
     });
 
     if (autoApprove) {
-      // Créditer le float immédiatement
-      const agentId = request.floatAccount?.agentId;
-      const operateur = request.floatAccount?.network?.operatorCode;
-      if (agentId && operateur) {
-        await this.creditFloat(
-          agentId,
-          operateur as MobileMoneyOperator,
-          dto.montantDemande,
-          tenantId,
-          undefined,
-          `Réappro auto-approuvée #${request.id}`,
-        );
-      }
+      // Créditer le float immédiatement (par ID pour supporter les comptes tenant sans agentId)
+      await this.creditFloatById(
+        request.floatAccountId,
+        dto.montantDemande,
+        tenantId,
+        `Réappro auto-approuvée #${request.id}`,
+        userId,
+      );
       const mapped = this.toReplenishment(request);
       this.eventEmitter.emit(FLOAT_EVENTS.REPLENISHMENT_APPROVED, { request: mapped, tenantId });
       return mapped;
@@ -349,8 +382,6 @@ export class FloatService {
     if (!request) throw new NotFoundException(`Demande de réappro introuvable: ${id}`);
 
     const montantApprouve = dto.montantApprouve ?? this.num(request.requestedAmount);
-    const agentId = request.floatAccount?.agentId;
-    const operateur = request.floatAccount?.network?.operatorCode;
 
     const updated = await this.prisma.replenishmentRequest.update({
       where: { id },
@@ -363,17 +394,14 @@ export class FloatService {
       include: this.replenishmentInclude(),
     });
 
-    // Créditer le float (hors transaction Prisma : creditFloat ouvre la sienne)
-    if (agentId && operateur) {
-      await this.creditFloat(
-        agentId,
-        operateur as MobileMoneyOperator,
-        montantApprouve,
-        tenantId,
-        undefined,
-        `Réappro approuvée #${id}`,
-      );
-    }
+    // Créditer le float (par ID pour supporter les comptes tenant sans agentId)
+    await this.creditFloatById(
+      request.floatAccountId,
+      montantApprouve,
+      tenantId,
+      `Réappro approuvée #${id}`,
+      userId,
+    );
 
     const mapped = this.toReplenishment(updated);
     this.eventEmitter.emit(FLOAT_EVENTS.REPLENISHMENT_APPROVED, { request: mapped, tenantId });
