@@ -503,12 +503,13 @@ export default function FloatPage() {
                 return;
               }
               try {
-                await creerDemande.mutateAsync({
+                const reponse = await creerDemande.mutateAsync({
                   operateur: operateurChoisi,
                   montant,
                   commentaire: commentaireReappro || undefined,
                 });
-                setSuccesReappro(t.float.modal.success);
+                const autoApprouve = (reponse as any)?.statut === 'APPROVED';
+                setSuccesReappro(autoApprouve ? t.float.modal.successAutoApproved : t.float.modal.success);
                 setMontantReappro('');
                 setCommentaireReappro('');
                 setTimeout(() => fermerModal(), 1500);

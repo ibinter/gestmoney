@@ -505,6 +505,7 @@ export const fr = {
       operatorRequired: 'Opérateur requis.',
       submitError: 'Erreur lors de la soumission.',
       success: 'Demande soumise avec succès.',
+      successAutoApproved: 'Float rechargé avec succès.',
       submit: 'Envoyer la demande',
     },
   },

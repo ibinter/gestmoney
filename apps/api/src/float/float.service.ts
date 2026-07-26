@@ -238,7 +238,7 @@ export class FloatService {
     dto: ReplenishmentRequestDto,
     tenantId: string,
     userId: string,
-    userRole?: string,
+    userRoles?: string[],
   ) {
     // Le front float est au niveau opérateur (pas d'agent) : si aucun agentId
     // n'est fourni, on résout le compte float du tenant pour cet opérateur.
@@ -254,7 +254,7 @@ export class FloatService {
 
     // SUPER_ADMIN et NETWORK_ADMIN sont eux-mêmes approbateurs : leurs demandes
     // sont auto-approuvées sans passer par la file PENDING.
-    const autoApprove = userRole === 'SUPER_ADMIN' || userRole === 'NETWORK_ADMIN';
+    const autoApprove = userRoles?.includes('SUPER_ADMIN') || userRoles?.includes('NETWORK_ADMIN');
 
     const request = await this.prisma.replenishmentRequest.create({
       data: {
