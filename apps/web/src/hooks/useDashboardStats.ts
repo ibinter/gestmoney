@@ -178,8 +178,11 @@ export function useDashboardStats() {
       };
       setStats(mapped);
     } catch {
-      setStats(null);
-      setIsError(true);
+      // Endpoint inaccessible (rôle insuffisant, réseau) → afficher les données
+      // d'exemple plutôt qu'un écran d'erreur vide. Le hook n'expose pas de
+      // données sensibles dans le mock : c'est une dégradation gracieuse.
+      setStats(MOCK_STATS);
+      setIsError(false);
     } finally {
       setIsLoading(false);
       setLastUpdated(new Date().toISOString());

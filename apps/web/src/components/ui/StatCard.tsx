@@ -33,7 +33,7 @@ export function StatCard({
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider truncate">{titre}</p>
-          <p className={clsx('mt-1 text-2xl font-bold truncate', {
+          <p className={clsx('mt-1 text-2xl font-bold break-words', {
             'text-text-main': couleur === 'default',
             'text-primary': couleur === 'primary',
             'text-success': couleur === 'success',

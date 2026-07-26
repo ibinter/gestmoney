@@ -411,7 +411,7 @@ export default function TransactionsPage() {
                       <button
                         className="gm-icon-btn"
                         title="Télécharger le reçu PDF"
-                        onClick={() => window.open(`/api/transactions/${tx.id}/recu`, '_blank')}
+                        onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL}/transactions/${tx.id}/recu`, '_blank')}
                       >
                         📄
                       </button>
