@@ -15,15 +15,17 @@ COPY packages/ui/package.json ./packages/ui/
 RUN pnpm install --no-frozen-lockfile --filter @gestmoney/web... --filter @gestmoney/shared --filter @gestmoney/ui
 
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/ui/package.json ./packages/ui/
 
 COPY turbo.json ./
 COPY packages/shared/ ./packages/shared/
 COPY packages/ui/ ./packages/ui/
 COPY apps/web/ ./apps/web/
+
+RUN pnpm install --no-frozen-lockfile --filter @gestmoney/web... --filter @gestmoney/shared --filter @gestmoney/ui
 
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_APP_URL
