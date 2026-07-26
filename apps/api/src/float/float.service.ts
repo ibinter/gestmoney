@@ -238,6 +238,7 @@ export class FloatService {
     dto: ReplenishmentRequestDto,
     tenantId: string,
     userId: string,
+    userRole?: string,
   ) {
     // Le front float est au niveau opérateur (pas d'agent) : si aucun agentId
     // n'est fourni, on résout le compte float du tenant pour cet opérateur.
@@ -251,6 +252,10 @@ export class FloatService {
 
     if (!account) throw new FloatAccountNotFoundException(dto.agentId ?? '—', dto.operateur);
 
+    // SUPER_ADMIN et NETWORK_ADMIN sont eux-mêmes approbateurs : leurs demandes
+    // sont auto-approuvées sans passer par la file PENDING.
+    const autoApprove = userRole === 'SUPER_ADMIN' || userRole === 'NETWORK_ADMIN';
+
     const request = await this.prisma.replenishmentRequest.create({
       data: {
         tenantId,
@@ -258,11 +263,35 @@ export class FloatService {
         requestedById: userId,
         requestedAmount: dto.montantDemande,
         currency: account.currency,
-        status: 'PENDING',
+        status: autoApprove ? 'APPROVED' : 'PENDING',
         reason: dto.justification,
+        ...(autoApprove && {
+          approvedAmount: dto.montantDemande,
+          approvedById: userId,
+          approvedAt: new Date(),
+        }),
       },
       include: this.replenishmentInclude(),
     });
+
+    if (autoApprove) {
+      // Créditer le float immédiatement
+      const agentId = request.floatAccount?.agentId;
+      const operateur = request.floatAccount?.network?.operatorCode;
+      if (agentId && operateur) {
+        await this.creditFloat(
+          agentId,
+          operateur as MobileMoneyOperator,
+          dto.montantDemande,
+          tenantId,
+          undefined,
+          `Réappro auto-approuvée #${request.id}`,
+        );
+      }
+      const mapped = this.toReplenishment(request);
+      this.eventEmitter.emit(FLOAT_EVENTS.REPLENISHMENT_APPROVED, { request: mapped, tenantId });
+      return mapped;
+    }
 
     const mapped = this.toReplenishment(request);
     this.eventEmitter.emit(FLOAT_EVENTS.REPLENISHMENT_REQUESTED, { request: mapped, tenantId });

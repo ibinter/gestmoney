@@ -101,7 +101,7 @@ export class FloatController {
   @ApiOperation({ summary: 'Créer une demande de réapprovisionnement' })
   @ApiResponse({ status: 201, description: 'Demande créée' })
   requestReplenishment(@Body() dto: ReplenishmentRequestDto, @Req() req: any) {
-    return this.floatService.requestReplenishment(dto, req.user.tenantId, req.user.id);
+    return this.floatService.requestReplenishment(dto, req.user.tenantId, req.user.id, req.user.role);
   }
 
   @Patch('replenish/:id/approve')
