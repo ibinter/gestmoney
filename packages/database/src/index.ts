@@ -23,3 +23,4 @@ export type {
 
 export { prisma } from './client';
 export * from '@prisma/client';
+export { seedDemoTenant } from './seeds/demo.seed';

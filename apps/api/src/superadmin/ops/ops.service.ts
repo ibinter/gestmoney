@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normaliserPagination } from '../../common/utils/pagination';
-import { seedDemoTenant } from '../../../../../packages/database/src/seeds/demo.seed';
+import { seedDemoTenant } from '@gestmoney/database';
 
 /**
  * Service de consultation (LECTURE SEULE) pour la console SuperAdmin :

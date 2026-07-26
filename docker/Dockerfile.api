@@ -29,10 +29,14 @@ RUN pnpm install --no-frozen-lockfile \
 # Générer le client Prisma
 RUN pnpm --filter @gestmoney/database db:generate
 
+# Avec shamefully-hoist, les binaires pnpm sont dans /app/node_modules/.bin/
+# On ajoute ce répertoire au PATH pour que nest et tsc soient trouvables
+ENV PATH="/app/node_modules/.bin:${PATH}"
+
 # Build avec nest/webpack → dist/main.js bundlé (sans dépendances externes)
-RUN cd apps/api && node_modules/.bin/nest build 2>&1; \
+RUN cd apps/api && nest build 2>&1; \
     test -f /app/apps/api/dist/main.js && echo "Nest build OK" || \
-    (node_modules/.bin/tsc -p tsconfig.json --rootDir src --noEmitOnError false --skipLibCheck 2>&1 || true); \
+    (tsc -p tsconfig.json --rootDir src --noEmitOnError false --skipLibCheck 2>&1 || true); \
     test -f /app/apps/api/dist/main.js && echo "Build OK" || echo "WARNING: dist/main.js not found"
 
 # ---- Stage Runner : image minimale de production ----
