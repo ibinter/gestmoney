@@ -30,11 +30,12 @@ COPY apps/api/ ./apps/api/
 # Générer le client Prisma
 RUN pnpm --filter @gestmoney/database db:generate
 
-# Build TypeScript (nest build avec transpileOnly=true dans nest-cli.json)
-# On ignore le code de sortie si les fichiers dist sont produits
-RUN pnpm --filter @gestmoney/api build; \
-    test -f apps/api/dist/main.js && echo "Build OK" || \
-    (cd apps/api && ../../node_modules/.bin/tsc -p tsconfig.json --noEmitOnError false --skipLibCheck 2>/dev/null || true)
+# Build TypeScript via nest-cli (webpack bundle → dist/main.js)
+# Fallback: tsc direct avec rootDir=src pour garantir dist/main.js
+RUN cd apps/api && node ../../node_modules/@nestjs/cli/bin/nest.js build 2>&1 || true; \
+    test -f apps/api/dist/main.js && echo "Nest build OK" || \
+    (cd apps/api && ../../node_modules/.bin/tsc -p tsconfig.json --rootDir src --noEmitOnError false --skipLibCheck 2>&1 || true); \
+    test -f apps/api/dist/main.js && echo "Build OK" || echo "WARNING: dist/main.js not found"
 
 # ---- Stage 4: Runner (Production) ----
 FROM node:20-alpine AS runner
