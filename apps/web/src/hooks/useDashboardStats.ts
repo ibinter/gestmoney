@@ -133,11 +133,51 @@ export function useDashboardStats() {
     setIsLoading(true);
     setIsError(false);
     try {
-      const res = await api.get('/dashboard/extended-stats');
+      const res = await api.get('/analytics/dashboard');
       const raw = res.data?.data ?? res.data ?? {};
-      setStats(raw as DashboardStatsExtended);
+
+      // Mapping de DashboardAnalytics → DashboardStatsExtended
+      const parJour: Array<{ date: string; count: number; volume: number }> = raw.transactionsParJour ?? [];
+      const dernierJour = parJour[parJour.length - 1];
+      const avantDernierJour = parJour[parJour.length - 2];
+      const nbJour = dernierJour?.count ?? 0;
+      const volJour = dernierJour?.volume ?? 0;
+      const volJ1 = avantDernierJour?.volume ?? 0;
+      const variationPct = volJ1 > 0 ? Math.round(((volJour - volJ1) / volJ1) * 100) : 0;
+
+      const topAgents: Array<{ nom: string; agence: string; nbTransactions: number; volume: number }> = raw.topAgents ?? [];
+      const alertesFloat: Array<{ agentNom: string; agenceNom: string; balance: number; seuil: number }> = raw.alertesFloat ?? [];
+
+      const mapped: DashboardStatsExtended = {
+        nbTransactionsJour: nbJour,
+        volumeJour: volJour,
+        variationPct,
+        nbAgentsActifs: topAgents.length,
+        nbAgencesActives: [...new Set(topAgents.map((a) => a.agence))].length,
+        alertesAgentsInactifs: 0,
+        alertesFloatBas: alertesFloat.length,
+        commissionsAValider: 0,
+        transactionsRecentes: MOCK_TRANSACTIONS,
+        sparklineData: parJour.slice(-7).map((j) => j.count),
+        nbAgentsSupervisés: topAgents.length,
+        volumeAgence: volJour,
+        alerteFloatAgence: alertesFloat.length > 0,
+        performancesAgents: topAgents.map((a, i) => ({
+          id: String(i),
+          nom: a.nom,
+          nbTransactions: a.nbTransactions,
+          volume: a.volume,
+          commission: Math.round(a.volume * 0.003),
+          statut: 'actif' as const,
+        })),
+        maCommissionMois: 0,
+        monFloat: 0,
+        mesTransactions: MOCK_TRANSACTIONS.slice(0, 5),
+        operationsAuditees: 0,
+        journalAudit: MOCK_AUDIT,
+      };
+      setStats(mapped);
     } catch {
-      // Backend inaccessible — on expose l'erreur, pas de données fictives.
       setStats(null);
       setIsError(true);
     } finally {

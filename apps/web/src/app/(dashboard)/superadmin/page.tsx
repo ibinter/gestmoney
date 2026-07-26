@@ -201,9 +201,9 @@ export default function SuperAdminPage() {
                   <td className="px-4 py-3 font-medium text-text-main">{t.nom}</td>
                   <td className="px-4 py-3"><Badge couleur={PLAN_COLOR[t.plan] ?? 'neutral'}>{t.plan}</Badge></td>
                   <td className="px-4 py-3"><Badge couleur={STATUT_COLOR[t.statut] ?? 'neutral'} point>{STATUT_LABEL[t.statut] ?? t.statut}</Badge></td>
-                  <td className="px-4 py-3 text-text-muted">{t.utilisateurs}</td>
-                  <td className="px-4 py-3 text-text-muted">{t.transactions_mois.toLocaleString('fr-FR')}</td>
-                  <td className="px-4 py-3 text-text-muted whitespace-nowrap">{t.renouvellement}</td>
+                  <td className="px-4 py-3 text-text-muted">{t.utilisateurs ?? '—'}</td>
+                  <td className="px-4 py-3 text-text-muted">{(t.transactions_mois ?? t.transactionsMois ?? 0).toLocaleString('fr-FR')}</td>
+                  <td className="px-4 py-3 text-text-muted whitespace-nowrap">{t.renouvellement ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
