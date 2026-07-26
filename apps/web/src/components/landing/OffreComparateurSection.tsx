@@ -165,7 +165,7 @@ function TableauComparateur() {
 
 /* Cartes comparateur — version mobile */
 function CartesComparateur() {
-  const [actif, setActif] = useState<string>('pro');
+  const [actif, setActif] = useState<string>('professional');
   const offre = OFFRES.find((o) => o.id === actif)!;
 
   return (
