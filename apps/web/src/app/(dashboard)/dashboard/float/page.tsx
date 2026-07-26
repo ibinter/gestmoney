@@ -185,9 +185,10 @@ export default function FloatPage() {
               const label = op?.label ?? solde.operateur;
               const couleurOp = op?.couleur ?? 'var(--gm-primary)';
               // Logique conservée : niveau = solde / seuil d'alerte
-              const pct = solde.seuilAlerte
-                ? Math.round((solde.soldeActuel / solde.seuilAlerte) * 100)
-                : 0;
+              // Jauge : ratio solde / seuil cible (max), ou / seuil min si pas de cible
+              const cible = (solde as any).seuilCible ?? 0;
+              const base = cible > 0 ? cible : solde.seuilAlerte;
+              const pct = base > 0 ? Math.round((solde.soldeActuel / base) * 100) : 100;
               const couleur = couleurStatut(solde.statut, couleurOp);
               const badge = STATUT_BADGE[solde.statut];
               const estCritique = solde.statut === 'critique';
@@ -223,13 +224,35 @@ export default function FloatPage() {
                       >
                         {initiales(label)}
                       </div>
-                      <div>
-                        <div className="gm-op-name">{label}</div>
+                      <div className="gm-op-name-wrap">
+                        <div className="gm-op-name" title={label}>{label}</div>
                       </div>
                     </div>
                     <span className={clsx('gm-op-status-badge', badge.classe)}>{badge.label}</span>
                   </div>
 
+                  {/* Solde principal */}
+                  <div className={clsx('gm-op-amount', estCritique && 'gm-critical-amount')}>
+                    {formatMontant(solde.soldeActuel)}
+                  </div>
+
+                  {/* Seuils */}
+                  <div className="gm-op-threshold" style={solde.statut === 'ok' ? undefined : { color: couleur }}>
+                    Seuil min : <strong>{solde.seuilAlerte ? formatMontant(solde.seuilAlerte) : '—'}</strong>
+                    {(solde as any).seuilCible > 0 && (
+                      <> · Cible : <strong>{formatMontant((solde as any).seuilCible)}</strong></>
+                    )}
+                    <br />
+                    {estCritique ? (
+                      <strong style={{ color: 'var(--gm-danger)' }}>⚠ Insuffisant</strong>
+                    ) : solde.statut === 'alerte' ? (
+                      <span style={{ color: 'var(--gm-warning)' }}>Surveiller</span>
+                    ) : (
+                      <span style={{ color: 'var(--gm-success, #16a34a)' }}>Marge : OK</span>
+                    )}
+                  </div>
+
+                  {/* Jauge */}
                   <div className="gm-gauge-wrap">
                     <div className="gm-gauge-track">
                       <div
@@ -242,34 +265,11 @@ export default function FloatPage() {
                     </div>
                     <div className="gm-gauge-labels">
                       <span>0</span>
-                      <span
-                        style={
-                          solde.statut === 'ok'
-                            ? undefined
-                            : { color: couleur, fontWeight: 600 }
-                        }
-                      >
-                        {Math.min(pct, 999)}%
+                      <span style={solde.statut !== 'ok' ? { color: couleur, fontWeight: 600 } : undefined}>
+                        {Math.min(pct, 999)} %
                       </span>
-                      <span>{solde.seuilAlerte ? formatMontant(solde.seuilAlerte) : '—'}</span>
+                      <span>{base > 0 ? formatMontant(base) : '—'}</span>
                     </div>
-                  </div>
-
-                  <div className={clsx('gm-op-amount', estCritique && 'gm-critical-amount')}>
-                    {formatMontant(solde.soldeActuel)}
-                  </div>
-                  <div
-                    className="gm-op-threshold"
-                    style={solde.statut === 'ok' ? undefined : { color: couleur }}
-                  >
-                    {t.float.card.minThreshold} {solde.seuilAlerte ? formatMontant(solde.seuilAlerte) : '—'} ·{' '}
-                    {estCritique ? (
-                      <strong>{t.float.card.insufficient}</strong>
-                    ) : solde.statut === 'alerte' ? (
-                      t.float.card.watch
-                    ) : (
-                      t.float.card.marginOk
-                    )}
                   </div>
 
                   <button

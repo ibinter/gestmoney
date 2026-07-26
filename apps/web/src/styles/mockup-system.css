@@ -732,28 +732,115 @@ input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--gm-prima
 .gm-alert-actions { display: flex; gap: 8px; }
 .gm-btn-danger-solid { background: var(--gm-danger); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; }
 /* OPERATOR GRID */
-.gm-op-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
-.gm-op-card { background: var(--gm-white); border-radius: var(--gm-radius); box-shadow: var(--gm-card-shadow); padding: 20px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+/* ── Grille opérateurs ───────────────────────────────────────────────── */
+.gm-op-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+/* ── Carte opérateur ─────────────────────────────────────────────────── */
+.gm-op-card {
+  background: var(--gm-white);
+  border-radius: var(--gm-radius);
+  box-shadow: var(--gm-card-shadow);
+  padding: 16px 18px 14px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
 .gm-op-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
 .gm-op-card.gm-critical { border-color: var(--gm-danger); background: linear-gradient(135deg, #fff, #fff5f5); }
 .gm-op-card.gm-warning-card { border-color: var(--gm-warning); }
 .gm-op-card.gm-ok-card { border-color: transparent; }
 .gm-op-card.gm-selected-op { border-color: var(--gm-primary); box-shadow: 0 4px 20px rgba(245,184,0,0.25); }
-.gm-op-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.gm-op-brand { display: flex; align-items: center; gap: 10px; }
-.gm-op-logo-circle { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0; }
-.gm-op-sub { font-size: 11px; color: var(--gm-text-2); }
-.gm-op-status-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px; }
-.gm-badge-ok { background: rgba(34,197,94,0.1); color: #16a34a; }
-.gm-badge-warn { background: rgba(245,158,11,0.1); color: #d97706; }
-.gm-badge-crit { background: rgba(239,68,68,0.1); color: var(--gm-danger); }
-.gm-gauge-wrap { margin-bottom: 14px; }
-.gm-gauge-track { height: 10px; background: var(--gm-bg); border-radius: 5px; overflow: hidden; margin-bottom: 6px; }
-.gm-gauge-fill { height: 100%; border-radius: 5px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
-.gm-gauge-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--gm-text-2); }
+
+/* ── En-tête : logo + nom + badge ────────────────────────────────────── */
+.gm-op-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.gm-op-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.gm-op-logo-circle {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: #fff;
+  flex-shrink: 0;
+}
+.gm-op-name-wrap { min-width: 0; flex: 1; }
+.gm-op-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--gm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-op-sub { font-size: 10px; color: var(--gm-text-2); margin-top: 1px; }
+.gm-op-status-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 3px 7px; border-radius: 20px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.gm-badge-ok   { background: rgba(34,197,94,0.12);  color: #16a34a; }
+.gm-badge-warn { background: rgba(245,158,11,0.12); color: #d97706; }
+.gm-badge-crit { background: rgba(239,68,68,0.12);  color: var(--gm-danger); }
+
+/* ── Solde principal ─────────────────────────────────────────────────── */
+.gm-op-amount {
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  color: var(--gm-text);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .gm-op-amount.gm-critical-amount { color: var(--gm-danger); }
-.gm-op-threshold { font-size: 11px; color: var(--gm-text-2); }
-.gm-op-action { width: 100%; padding: 8px; background: var(--gm-bg); border: 1.5px solid var(--gm-border); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--gm-text); transition: all 0.15s; margin-top: 12px; }
+
+/* ── Infos seuils ────────────────────────────────────────────────────── */
+.gm-op-threshold {
+  font-size: 11px;
+  color: var(--gm-text-2);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.gm-op-threshold strong { color: var(--gm-text); }
+
+/* ── Jauge ───────────────────────────────────────────────────────────── */
+.gm-gauge-wrap { margin-bottom: 10px; }
+.gm-gauge-track { height: 8px; background: var(--gm-bg); border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
+.gm-gauge-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+.gm-gauge-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--gm-text-2); font-variant-numeric: tabular-nums; }
+
+/* ── Bouton réappro ──────────────────────────────────────────────────── */
+.gm-op-action {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--gm-bg);
+  border: 1.5px solid var(--gm-border);
+  border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  color: var(--gm-text);
+  transition: all 0.15s;
+  margin-top: auto;
+}
 .gm-op-action:hover { border-color: var(--gm-primary); color: var(--gm-primary-dark); background: var(--gm-primary-light); }
 .gm-op-action.gm-action-crit { border-color: var(--gm-danger); color: var(--gm-danger); background: rgba(239,68,68,0.06); }
 .gm-op-action.gm-action-crit:hover { background: var(--gm-danger); color: #fff; }

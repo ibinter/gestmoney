@@ -14,10 +14,25 @@ export const FLOAT_KEYS = {
   alerts: () => ['float', 'alerts'] as const,
 };
 
+const OPERATEUR_NORMALISE: Record<string, string> = {
+  ORANGE_MONEY: 'orange_money',
+  MTN_MOMO: 'mtn_momo',
+  WAVE: 'wave',
+  MOOV_MONEY: 'moov',
+  MOOV: 'moov',
+  AIRTEL_MONEY: 'airtel',
+  AIRTEL: 'airtel',
+};
+
+function normaliserOperateur(raw?: string): string {
+  if (!raw) return '';
+  return OPERATEUR_NORMALISE[raw.toUpperCase()] ?? raw.toLowerCase();
+}
+
 function mapFloatSolde(f: any): FloatSolde {
   return {
     id: f.id,
-    operateur: f.operator ?? f.operateur,
+    operateur: normaliserOperateur(f.operator ?? f.operateur),
     soldeActuel: Number(f.currentBalance ?? f.soldeActuel ?? 0),
     seuilAlerte: Number(f.alertThreshold ?? f.seuilAlerte ?? 0),
     seuilCritique: Number(f.criticalThreshold ?? f.seuilCritique ?? 0),
