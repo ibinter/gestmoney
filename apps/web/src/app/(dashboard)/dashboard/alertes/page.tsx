@@ -6,7 +6,6 @@ import {
   Plus, X, Clock,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useAuthStore } from '@/store/authStore';
 import {
   useAlertes,
   useConfigAlertes,
@@ -74,7 +73,6 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function AlertesPage() {
-  const token = useAuthStore((s) => s.token) ?? '';
   const { data: configData, isLoading: configLoading } = useConfigAlertes();
   const { data: alertesData, isLoading: alertesLoading } = useAlertes({ limit: 30 });
 
@@ -110,7 +108,7 @@ export default function AlertesPage() {
     if (!config) return;
     setSaving(true);
     try {
-      await updateConfigAlertes(token, form);
+      await updateConfigAlertes(form);
       setSavedOk(true);
       setForm({});
       setTimeout(() => setSavedOk(false), 3000);
@@ -122,11 +120,11 @@ export default function AlertesPage() {
   }
 
   async function handleMarquerToutesLues() {
-    await marquerToutesLues(token);
+    await marquerToutesLues();
   }
 
   async function handleMarquerLue(id: string) {
-    await marquerAlerteLue(token, id);
+    await marquerAlerteLue(id);
   }
 
   const alertes = alertesData?.alertes ?? [];

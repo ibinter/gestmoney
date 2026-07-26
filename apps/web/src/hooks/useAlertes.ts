@@ -3,10 +3,8 @@ import { useAuthStore } from '@/store/authStore';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-function authFetcher(url: string, token: string) {
-  return fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then((r) => {
+function authFetcher(url: string) {
+  return fetch(url, { credentials: 'include' }).then((r) => {
     if (!r.ok) throw new Error(`${r.status}`);
     return r.json();
   });
@@ -43,33 +41,31 @@ export interface ConfigAlertes {
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 export function useAlertes(opts?: { lu?: boolean; page?: number; limit?: number }) {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const params = new URLSearchParams();
   if (opts?.lu !== undefined) params.set('lu', String(opts.lu));
   if (opts?.page) params.set('page', String(opts.page));
   if (opts?.limit) params.set('limit', String(opts.limit));
 
-  const key = token ? `${API}/alertes?${params}` : null;
+  const key = isAuthenticated ? `${API}/alertes?${params}` : null;
   return useSWR<{ alertes: AlerteEmise[]; total: number; page: number; limit: number }>(
     key,
-    (url: string) => authFetcher(url, token!),
+    authFetcher,
     { refreshInterval: 60_000 },
   );
 }
 
 export function useConfigAlertes() {
-  const token = useAuthStore((s) => s.token);
-  const key = token ? `${API}/alertes/config` : null;
-  return useSWR<ConfigAlertes>(key, (url: string) => authFetcher(url, token!));
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const key = isAuthenticated ? `${API}/alertes/config` : null;
+  return useSWR<ConfigAlertes>(key, authFetcher);
 }
 
-export async function updateConfigAlertes(token: string, data: Partial<ConfigAlertes>) {
+export async function updateConfigAlertes(data: Partial<ConfigAlertes>) {
   const res = await fetch(`${API}/alertes/config`, {
     method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(await res.text());
@@ -77,18 +73,18 @@ export async function updateConfigAlertes(token: string, data: Partial<ConfigAle
   return res.json();
 }
 
-export async function marquerAlerteLue(token: string, id: string) {
+export async function marquerAlerteLue(id: string) {
   await fetch(`${API}/alertes/${id}/lu`, {
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
   });
   await globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API}/alertes`), undefined, { revalidate: true });
 }
 
-export async function marquerToutesLues(token: string) {
+export async function marquerToutesLues() {
   await fetch(`${API}/alertes/tout-lire`, {
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
   });
   await globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API}/alertes`), undefined, { revalidate: true });
 }
