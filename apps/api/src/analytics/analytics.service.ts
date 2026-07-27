@@ -178,7 +178,7 @@ export class AnalyticsService {
 
       // Nombre d'agents ayant fait au moins 1 transaction ce mois
       this.prisma.transaction.findMany({
-        where: { tenantId, createdAt: { gte: il30Jours }, status: 'COMPLETED', agentId: { not: null } },
+        where: { tenantId, createdAt: { gte: il30Jours }, status: 'COMPLETED' },
         select: { agentId: true },
         distinct: ['agentId'],
       }),
