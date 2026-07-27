@@ -1272,6 +1272,7 @@ input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--gm-primary
 .gm-niveau-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
 .gm-niv-critique{background:rgba(239,68,68,0.12);color:#b91c1c;animation:pulse-red .9s infinite alternate}
 @keyframes pulse-red{from{box-shadow:0 0 0 rgba(239,68,68,0)}to{box-shadow:0 0 6px rgba(239,68,68,0.5)}}
+@keyframes gmPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
 .gm-niv-eleve{background:rgba(245,158,11,0.12);color:#b45309}
 .gm-niv-moyen{background:rgba(245,184,0,0.15);color:#92400e}
 .gm-niv-faible{background:rgba(34,197,94,0.1);color:#15803d}

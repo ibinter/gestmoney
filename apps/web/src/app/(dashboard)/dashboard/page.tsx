@@ -829,11 +829,14 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  const role = user?.role?.toLowerCase() ?? '';
-  const isAdmin = role.includes('admin');
-  const isManager = role === 'superviseur' || role === 'manager';
-  const isAgent = role === 'agent' || role === 'caissier';
-  const isAuditeur = role === 'viewer' || role === 'auditeur';
+  // Le JWT stocke roles: string[] (ex: ['SUPER_ADMIN']). On supporte aussi role: string hérité.
+  const rolesArr: string[] = Array.isArray(user?.roles)
+    ? user.roles.map((r: string) => r.toUpperCase())
+    : [((user?.role as string) ?? '').toUpperCase()];
+  const isAdmin = rolesArr.some((r) => r.includes('ADMIN') || r === 'SUPER_ADMIN' || r === 'NETWORK_ADMIN');
+  const isManager = rolesArr.some((r) => r === 'AGENCY_MANAGER' || r === 'MANAGER' || r === 'SUPERVISEUR');
+  const isAgent = rolesArr.some((r) => r === 'AGENT' || r === 'CASHIER' || r === 'CAISSIER');
+  const isAuditeur = rolesArr.some((r) => r === 'AUDITOR' || r === 'VIEWER' || r === 'AUDITEUR');
 
   const heureMAJ = mounted && lastUpdated
     ? new Intl.DateTimeFormat(t.dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(lastUpdated))
@@ -858,6 +861,19 @@ export default function DashboardPage() {
           <>
             {t.dashboard.title}
             {heureMAJ && <> — {t.dashboard.updatedAtLabel} {heureMAJ}</>}
+            {' '}
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 11, color: 'var(--gm-success, #16a34a)', fontWeight: 600, verticalAlign: 'middle',
+            }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: 'var(--gm-success, #16a34a)',
+                animation: 'gmPulse 2s infinite',
+                display: 'inline-block',
+              }} />
+              En direct
+            </span>
             {isMock && <> · <span style={{ color: 'var(--gm-warning)' }}>{t.dashboard.demoData}</span></>}
           </>
         }

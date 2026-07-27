@@ -36,12 +36,31 @@ export interface AlerteFloat {
   seuil: number;
 }
 
+export interface TxRecente {
+  id: string;
+  type: string;
+  montant: number;
+  operateur: string | null;
+  statut: string;
+  clientNom: string;
+  agentNom: string;
+  agenceNom: string;
+  date: string;
+}
+
 export interface DashboardAnalytics {
   transactionsParJour: JourStat[];
   transactionsParType: TypeStat[];
   topAgents: TopAgent[];
   evolutionFloat: FloatJour[];
   alertesFloat: AlerteFloat[];
+  // Champs calculés aujourd'hui
+  nbTransactionsJour: number;
+  volumeJour: number;
+  variationPct: number;
+  nbAgentsActifs: number;
+  nbAgences: number;
+  transactionsRecentes: TxRecente[];
 }
 
 @Injectable()
@@ -59,7 +78,11 @@ export class AnalyticsService {
     const il30Jours = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     il30Jours.setHours(0, 0, 0, 0);
 
-    const [txRaw, txParType, topAgentsRaw, floatAccounts, agents] = await Promise.all([
+    const debutAujourdhui = new Date(now);
+    debutAujourdhui.setHours(0, 0, 0, 0);
+    const debutHier = new Date(debutAujourdhui.getTime() - 24 * 60 * 60 * 1000);
+
+    const [txRaw, txParType, topAgentsRaw, floatAccounts, agents, txAujourdhui, txHier, txRecentes, nbAgentsActifsRaw, nbAgences] = await Promise.all([
       // Transactions groupées par jour (30 derniers jours)
       this.prisma.transaction.findMany({
         where: {
@@ -118,7 +141,59 @@ export class AnalyticsService {
           },
         },
       }),
+
+      // Stats aujourd'hui
+      this.prisma.transaction.aggregate({
+        where: { tenantId, createdAt: { gte: debutAujourdhui }, status: 'COMPLETED' },
+        _count: { id: true },
+        _sum: { amount: true },
+      }),
+
+      // Stats hier (pour la variation)
+      this.prisma.transaction.aggregate({
+        where: { tenantId, createdAt: { gte: debutHier, lt: debutAujourdhui }, status: 'COMPLETED' },
+        _count: { id: true },
+        _sum: { amount: true },
+      }),
+
+      // 10 dernières transactions avec détails
+      this.prisma.transaction.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          status: true,
+          createdAt: true,
+          senderName: true,
+          receiverName: true,
+          operatorCode: true,
+          agentId: true,
+          agencyId: true,
+          network: { select: { operatorCode: true } },
+        },
+      }),
+
+      // Nombre d'agents ayant fait au moins 1 transaction ce mois
+      this.prisma.transaction.findMany({
+        where: { tenantId, createdAt: { gte: il30Jours }, status: 'COMPLETED', agentId: { not: null } },
+        select: { agentId: true },
+        distinct: ['agentId'],
+      }),
+
+      // Nombre d'agences actives
+      this.prisma.agency.count({ where: { tenantId, status: 'ACTIVE' } }),
     ]);
+
+    // Charger les agences pour résoudre les noms dans transactionsRecentes
+    const agencyIds = [...new Set(txRecentes.map((tx) => tx.agencyId).filter(Boolean))];
+    const agenciesForTx = await this.prisma.agency.findMany({
+      where: { id: { in: agencyIds } },
+      select: { id: true, name: true },
+    });
+    const agencyMap = new Map(agenciesForTx.map((a) => [a.id, a]));
 
     // Résoudre les noms d'utilisateurs en une requête groupée
     const userIds = agents.map((a) => a.userId).filter(Boolean);
@@ -207,12 +282,43 @@ export class AnalyticsService {
       })
       .slice(0, 10);
 
+    // ─── Stats aujourd'hui ──────────────────────────────────────────────────────
+    const volJour = Number(txAujourdhui._sum.amount ?? 0);
+    const volHier = Number(txHier._sum.amount ?? 0);
+    const variationPct = volHier > 0 ? Math.round(((volJour - volHier) / volHier) * 100) : 0;
+
+    const transactionsRecentes: TxRecente[] = txRecentes.map((tx) => {
+      const agent = agentMap.get(tx.agentId ?? '');
+      const user = agent ? userMap.get(agent.userId) : undefined;
+      const agentNom = user
+        ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'Agent'
+        : 'Agent';
+      const agenceNom = agencyMap.get(tx.agencyId ?? '')?.name ?? '—';
+      return {
+        id: tx.id,
+        type: tx.type,
+        montant: Number(tx.amount ?? 0),
+        operateur: tx.network?.operatorCode ?? tx.operatorCode ?? null,
+        statut: tx.status,
+        clientNom: tx.senderName ?? tx.receiverName ?? 'Client',
+        agentNom,
+        agenceNom,
+        date: tx.createdAt.toISOString(),
+      };
+    });
+
     return {
       transactionsParJour,
       transactionsParType,
       topAgents,
       evolutionFloat,
       alertesFloat,
+      nbTransactionsJour: txAujourdhui._count.id,
+      volumeJour: volJour,
+      variationPct,
+      nbAgentsActifs: nbAgentsActifsRaw.length,
+      nbAgences,
+      transactionsRecentes,
     };
   }
 
