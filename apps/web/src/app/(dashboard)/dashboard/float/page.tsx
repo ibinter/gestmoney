@@ -266,7 +266,7 @@ export default function FloatPage() {
                     <div className="gm-gauge-labels">
                       <span>0</span>
                       <span style={solde.statut !== 'ok' ? { color: couleur, fontWeight: 600 } : undefined}>
-                        {Math.min(pct, 999)} %
+                        {pct > 200 ? '▲ MAX' : `${pct} %`}
                       </span>
                       <span>{base > 0 ? formatMontant(base) : '—'}</span>
                     </div>
