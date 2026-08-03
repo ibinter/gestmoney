@@ -33,8 +33,10 @@ export class TenantMiddleware implements NestMiddleware {
     const token = cookieToken ?? bearerToken;
     if (token) {
       try {
+        const jwtSecret = this.configService.get<string>('JWT_SECRET');
+        if (!jwtSecret) throw new Error('JWT_SECRET non configuré');
         const payload = this.jwtService.verify<any>(token, {
-          secret: this.configService.get<string>('JWT_SECRET', 'gestmoney-super-secret-jwt-key-for-dev-32chars!'),
+          secret: jwtSecret,
         });
         if (payload?.tenantId) {
           if (headerTenantId && headerTenantId !== payload.tenantId) {

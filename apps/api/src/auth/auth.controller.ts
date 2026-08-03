@@ -57,6 +57,8 @@ import { SansLicence } from '../common/decorators/sans-licence.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('Auth')
 // Connexion, inscription, refresh, déconnexion. Sans cette exemption, un client
@@ -65,7 +67,11 @@ import { Public } from '../common/decorators/public.decorator';
 @SansLicence()
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Public()
   // Anti-bruteforce : 5 tentatives / minute par IP sur la connexion uniquement.
@@ -109,6 +115,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Enregistrement d\'un nouvel utilisateur' })
@@ -173,6 +180,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Demander une réinitialisation de mot de passe' })
@@ -185,6 +193,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Réinitialiser le mot de passe avec le token' })
@@ -357,6 +366,7 @@ export class AuthController {
 
   // POST /auth/2fa/login-verify → 2ème étape login quand requires2FA=true
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 300000 } })
   @Post('2fa/login-verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Compléter le login avec le code 2FA (2ème étape)' })
@@ -442,15 +452,9 @@ export class AuthController {
     return this.authService.listImpersonationSessions(superAdminId);
   }
 
-  // Méthode utilitaire pour décoder le refresh token sans vérifier
   private async extractPayloadFromRefreshToken(token: string): Promise<any> {
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new Error('Token invalide');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-      return payload;
-    } catch {
-      return { sub: '' };
-    }
+    const secret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    if (!secret) throw new Error('JWT_REFRESH_SECRET non configuré');
+    return this.jwtService.verifyAsync(token, { secret });
   }
 }

@@ -177,13 +177,19 @@ export class AiService {
    * Charge les N derniers messages d'une session depuis la base pour alimenter
    * le contexte de conversation. Retourne [] si la table n'existe pas encore.
    */
-  private async chargerHistorique(sessionId: string, limite = 10): Promise<ChatMessage[]> {
+  private async chargerHistorique(sessionId: string, limite = 10, tenantId?: string): Promise<ChatMessage[]> {
     try {
-      const rows = await this.prisma.$queryRaw<Array<{ messages: ChatMessage[] }>>`
-        SELECT messages FROM "sara_conversations"
-        WHERE "sessionId" = ${sessionId}
-        ORDER BY "createdAt" ASC
-      `;
+      const rows = tenantId
+        ? await this.prisma.$queryRaw<Array<{ messages: ChatMessage[] }>>`
+            SELECT messages FROM "sara_conversations"
+            WHERE "sessionId" = ${sessionId} AND "tenantId" = ${tenantId}
+            ORDER BY "createdAt" ASC
+          `
+        : await this.prisma.$queryRaw<Array<{ messages: ChatMessage[] }>>`
+            SELECT messages FROM "sara_conversations"
+            WHERE "sessionId" = ${sessionId}
+            ORDER BY "createdAt" ASC
+          `;
       // Chaque ligne contient [user, assistant] — on les aplatit puis on tronque
       const historique: ChatMessage[] = [];
       for (const row of rows) {
@@ -197,14 +203,14 @@ export class AiService {
     }
   }
 
-  async chat(message: string, sessionId: string, userId?: string, contexte: string = 'INTERNE') {
+  async chat(message: string, sessionId: string, userId?: string, contexte: string = 'INTERNE', tenantId?: string) {
     const provider = this.configService.get<string>('SARA_PROVIDER', 'groq');
     const model = this.configService.get<string>('SARA_MODEL', 'llama-3.3-70b-versatile');
     const temperature = parseFloat(this.configService.get<string>('SARA_TEMPERATURE', '0.7'));
     const maxTokens = parseInt(this.configService.get<string>('SARA_MAX_TOKENS', '2048'));
 
     // Historique de conversation (max 10 messages précédents)
-    const historique = await this.chargerHistorique(sessionId, 10);
+    const historique = await this.chargerHistorique(sessionId, 10, tenantId);
 
     // RAG : enrichir le prompt système avec le contexte documentaire pertinent
     const contexteDocumentaire = await this.knowledge.construireContexte(message);

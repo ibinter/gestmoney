@@ -55,7 +55,7 @@ export class AiController {
   @ApiOperation({ summary: 'SARA — chat public (landing page, prospects)' })
   async chatPublic(@Body() dto: ChatDto) {
     const sessionId = dto.sessionId || `pub_${uuidv4()}`;
-    return this.aiService.chat(dto.message, sessionId, undefined, 'PUBLIC');
+    return this.aiService.chat(dto.message, sessionId, undefined, 'PUBLIC', undefined);
   }
 
   // Endpoint privé pour le dashboard (SARA interne)
@@ -66,7 +66,7 @@ export class AiController {
   @ApiOperation({ summary: 'SARA — chat interne (dashboard utilisateurs)' })
   async chat(@Body() dto: ChatDto, @Request() req: any) {
     const sessionId = dto.sessionId || `int_${uuidv4()}`;
-    return this.aiService.chat(dto.message, sessionId, req.user?.sub, dto.contexte ?? 'INTERNE');
+    return this.aiService.chat(dto.message, sessionId, req.user?.sub, dto.contexte ?? 'INTERNE', req.tenantId);
   }
 
   // Endpoint support (agents IBIG Soft)
@@ -76,7 +76,7 @@ export class AiController {
   @ApiOperation({ summary: 'SARA — chat support (agents IBIG)' })
   async chatSupport(@Body() dto: ChatDto, @Request() req: any) {
     const sessionId = dto.sessionId || `sup_${uuidv4()}`;
-    return this.aiService.chat(dto.message, sessionId, req.user?.sub, 'SUPPORT');
+    return this.aiService.chat(dto.message, sessionId, req.user?.sub, 'SUPPORT', req.tenantId);
   }
 
   @UseGuards(JwtAuthGuard)

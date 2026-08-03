@@ -36,6 +36,7 @@ import {
 @ApiTags('Commissions')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.ACCOUNTANT, RoleType.AGENCY_MANAGER)
 @Controller('commissions')
 export class CommissionsController {
   constructor(private readonly commissionsService: CommissionsService) {}

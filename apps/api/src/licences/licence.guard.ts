@@ -181,14 +181,11 @@ export class LicenceGuard implements CanActivate {
     if (!token) return null;
 
     try {
+      const jwtSecret = this.config.get<string>('JWT_SECRET');
+      if (!jwtSecret) return null;
       const charge = this.jwtService.verify<{ tenantId?: string; roles?: string[] }>(
         token,
-        {
-          secret: this.config.get<string>(
-            'JWT_SECRET',
-            'gestmoney-super-secret-jwt-key-for-dev-32chars!',
-          ),
-        },
+        { secret: jwtSecret },
       );
       return { tenantId: charge?.tenantId, roles: charge?.roles };
     } catch {

@@ -499,6 +499,7 @@ export const en: Translations = {
       operatorRequired: 'Operator is required.',
       submitError: 'Submission failed.',
       success: 'Request submitted successfully.',
+      successAutoApproved: 'Float topped up successfully.',
       submit: 'Submit request',
     },
   },
