@@ -34,13 +34,46 @@ export function renderMarkdown(content: string): string {
   const lines = content.trim().split('\n');
   const html: string[] = [];
   let listType: 'ul' | 'ol' | null = null;
+  let inTable = false;
 
   const closeList = () => {
     if (listType) { html.push(`</${listType}>`); listType = null; }
   };
+  const closeTable = () => {
+    if (inTable) { html.push('</tbody></table></div>'); inTable = false; }
+  };
+
+  // Découpe une ligne « | a | b | c | » en cellules, sans les pipes extrêmes.
+  const parseCells = (line: string): string[] =>
+    line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+  const isTableRow = (l: string) => /^\|.*\|$/.test(l);
+  // Ligne de séparation « |---|:--:|--| » : uniquement espaces, deux-points, tirets, pipes.
+  const isTableSep = (l: string) => /^\|[\s:|-]+\|$/.test(l) && l.includes('-');
 
   for (const raw of lines) {
     const line = raw.trimEnd();
+
+    // ── Tableaux markdown ──────────────────────────────────────────────
+    if (isTableSep(line)) {
+      // Ligne de séparation d'en-tête : déjà gérée par la 1re ligne → ignorer.
+      continue;
+    }
+    if (isTableRow(line)) {
+      closeList();
+      const cells = parseCells(line);
+      if (!inTable) {
+        html.push('<div class="acad-table-wrap"><table class="acad-table"><thead><tr>');
+        html.push(cells.map((c) => `<th>${inline(c)}</th>`).join(''));
+        html.push('</tr></thead><tbody>');
+        inTable = true;
+      } else {
+        html.push('<tr>' + cells.map((c) => `<td>${inline(c)}</td>`).join('') + '</tr>');
+      }
+      continue;
+    }
+    // Toute ligne non-tableau ferme un tableau éventuellement ouvert.
+    closeTable();
+
     if (line.startsWith('## ')) {
       closeList();
       html.push(`<h2 id="${slugify(line.slice(3))}" class="acad-h2">${inline(line.slice(3))}</h2>`);
@@ -67,6 +100,7 @@ export function renderMarkdown(content: string): string {
     }
   }
   closeList();
+  closeTable();
   return html.join('\n');
 }
 
@@ -103,6 +137,12 @@ export const ACAD_CSS = `
 .acad-body .acad-note { border-left:3px solid #1E8C32; background:rgba(30,140,50,.06); border-radius:8px; padding:.6rem .9rem; margin:.75rem 0; font-size:.9rem; color:#245c30; }
 .acad-body .acad-warn { border-left:3px solid #f59e0b; background:rgba(245,158,11,.07); border-radius:8px; padding:.6rem .9rem; margin:.75rem 0; font-size:.9rem; color:#92400e; }
 .acad-body strong { font-weight:700; }
+.acad-body .acad-table-wrap { overflow-x:auto; margin:.9rem 0; -webkit-overflow-scrolling:touch; }
+.acad-body .acad-table { border-collapse:collapse; width:100%; font-size:.88rem; min-width:min(100%,480px); }
+.acad-body .acad-table th,
+.acad-body .acad-table td { border:1px solid #e5e7eb; padding:.5rem .7rem; text-align:left; vertical-align:top; line-height:1.5; }
+.acad-body .acad-table th { background:#f3f7f4; font-weight:700; color:#1E8C32; white-space:nowrap; }
+.acad-body .acad-table tbody tr:nth-child(even) td { background:rgba(30,140,50,.03); }
 .dark .acad-body .acad-h2 { color:#f3f4f6; }
 .dark .acad-body .acad-h3 { color:#4ade80; }
 .dark .acad-body .acad-p,
@@ -110,6 +150,10 @@ export const ACAD_CSS = `
 .dark .acad-body .acad-ol li { color:#d1d5db; }
 .dark .acad-body .acad-note { color:#bbf7d0; background:rgba(30,140,50,.12); }
 .dark .acad-body .acad-warn { color:#fde68a; background:rgba(245,158,11,.10); }
+.dark .acad-body .acad-table th,
+.dark .acad-body .acad-table td { border-color:#374151; }
+.dark .acad-body .acad-table th { background:rgba(30,140,50,.15); color:#4ade80; }
+.dark .acad-body .acad-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.02); }
 `;
 
 // ══════════════════════════════════════════════════════════════════════════════
