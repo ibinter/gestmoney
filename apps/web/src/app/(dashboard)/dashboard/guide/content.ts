@@ -141,6 +141,57 @@ export const GUIDE_ARTICLES: GuideArticle[] = [
   // ── DÉMARRAGE RAPIDE ───────────────────────────────────────────────────────
 
   {
+    slug: 'tableau-de-bord',
+    categorie: 'demarrage',
+    titre: 'Lire et utiliser le tableau de bord',
+    resume: 'Comprendre les indicateurs temps réel, l\'activité récente et les alertes du dashboard.',
+    tempsLecture: 3,
+    contenu: `## Votre poste de pilotage en temps réel
+
+Le **tableau de bord** est la première page que vous voyez après connexion. Il concentre les informations clés de votre réseau Mobile Money en un seul coup d'œil, et se **rafraîchit automatiquement toutes les 30 secondes** pour refléter l'activité en cours.
+
+Le badge **● En direct** en haut de la page confirme que les données affichées sont à jour — inutile de recharger la page manuellement.
+
+## Les indicateurs principaux
+
+### Transactions du jour
+- **Nombre de transactions** réalisées depuis minuit.
+- **Volume total en XOF** traité dans la journée.
+- **Variation** par rapport à la veille (en %, avec flèche verte si en hausse, rouge si en baisse).
+
+### Réseau actif
+- **Agents actifs** : nombre d'agents ayant réalisé au moins une opération ces 30 derniers jours.
+- **Agences** : nombre de points de vente actifs dans votre réseau.
+
+### Alertes float
+Si un opérateur est en niveau faible ou critique, une alerte apparaît directement sur le tableau de bord. Cliquez sur l'alerte pour accéder à la page Float & liquidité et déclencher un réapprovisionnement.
+
+## L'activité récente
+
+La section **Activité récente** liste les 10 dernières transactions du réseau avec :
+- L'horodatage de l'opération.
+- Le nom de l'expéditeur ou du destinataire.
+- L'opérateur utilisé (Orange Money, MTN MoMo, Wave…).
+- Le montant et le statut.
+
+Ces données sont **réelles** — elles proviennent directement de la base de données, sans délai.
+
+## Les graphiques analytiques
+
+Selon votre rôle, le tableau de bord affiche aussi :
+- Un **graphique d'évolution** des transactions sur les 7 ou 30 derniers jours.
+- La **répartition par opérateur** (part de volume Orange Money vs MTN vs Wave…).
+- Les **performances par agence** (pour les rôles Admin et supérieur).
+
+## Personnalisation et navigation rapide
+
+- Cliquez sur un indicateur pour accéder directement au module correspondant (ex. : cliquer sur « Transactions » ouvre le module Transactions filtré sur le jour).
+- Le tableau de bord s'adapte à votre rôle : un agent voit ses propres données, un administrateur réseau voit le réseau complet.
+
+> Conseil : prenez l'habitude de consulter le tableau de bord en début de journée pour vérifier que tout est normal, et en fin de journée pour valider le bilan d'activité avant de clôturer.`,
+  },
+
+  {
     slug: 'premiere-connexion',
     categorie: 'demarrage',
     titre: 'Première connexion et configuration initiale',
@@ -397,8 +448,8 @@ Une transaction validée ne peut pas être modifiée directement. Pour corriger 
   {
     slug: 'gestion-float',
     categorie: 'transactions',
-    titre: 'Gérer la flotte (float) des agents',
-    resume: 'Surveiller la liquidité, définir des seuils d\'alerte et réapprovisionner.',
+    titre: 'Gérer la liquidité (float) des agents',
+    resume: 'Surveiller la liquidité, définir des seuils d\'alerte et réapprovisionner — circuit d\'approbation inclus.',
     tempsLecture: 5,
     contenu: `## Qu'est-ce que le float ?
 
@@ -431,18 +482,22 @@ Un seuil d'alerte permet au système de vous signaler automatiquement quand un a
 
 > Conseil : calibrez le seuil pour avoir au moins **une demi-journée** de tampon avant la rupture. Cela vous laisse le temps d'agir.
 
-## Réapprovisionner un agent
+## Réapprovisionner — circuit d'approbation
 
-### Réapprovisionnement simple
-1. Dans le module **Float & liquidité**, cliquez sur **Nouveau réapprovisionnement**.
-2. Sélectionnez l'agent à créditer.
-3. Saisissez le montant en **XOF**.
-4. Validez : le float de l'agent est mis à jour immédiatement.
+Le traitement d'une demande de réapprovisionnement dépend de votre **rôle** dans le système.
 
-### Réapprovisionnement depuis la fiche agent
-1. Ouvrez la fiche de l'agent.
-2. Cliquez sur le bouton **Réapprovisionner**.
-3. Saisissez le montant et confirmez.
+### Si vous êtes Super Admin ou Administrateur réseau
+1. Dans le module **Float & liquidité**, cliquez sur **Nouvelle demande de réapprovisionnement**.
+2. Sélectionnez l'opérateur et saisissez le montant en XOF.
+3. Cliquez sur **Soumettre** : la demande est **auto-approuvée immédiatement** et le float est crédité sans délai.
+
+### Si vous êtes Responsable d'agence ou Manager
+1. Soumettez la demande de la même façon.
+2. La demande passe en statut **En attente** et attend la validation d'un administrateur réseau ou super admin.
+3. Vous recevez une notification dès que la demande est approuvée ou rejetée.
+4. Le float est crédité **uniquement après approbation**.
+
+> ⚠️ ATTENTION : Une demande au statut « Soumis » ou « En attente » **ne crédite pas encore le float**. Attendez le statut « Approuvé » ou « Complété » avant de compter sur cette liquidité.
 
 ## Anticiper les pics d'activité
 
@@ -452,7 +507,7 @@ En Afrique de l'Ouest, certains jours concentrent davantage d'opérations :
 - **Fin de mois** (versement des salaires) : retraits massifs attendus — augmentez les espèces en caisse.
 - **Jours fériés** précédant une longue période : anticipez car les réapprovisionnements peuvent être difficiles.
 
-> Conseil : tenez un historique des pics pour chaque agence et automatisez les réapprovisionnements préventifs la veille.
+> Conseil : tenez un historique des pics pour chaque agence et soumettez les demandes de réapprovisionnement la veille des jours de forte activité.
 
 ## Réconciliation float et comptabilité
 
@@ -460,6 +515,181 @@ Le module Float suit la **liquidité opérationnelle**. Pour la comptabilité :
 1. Comparez le total du float théorique (GESTMONEY) avec le comptage réel des espèces.
 2. Tout écart doit être documenté et tracé dans le module Comptabilité.
 3. Un réapprovisionnement non tracé crée systématiquement un écart — enregistrez **tous** les mouvements.`,
+  },
+
+  {
+    slug: 'float-operateurs',
+    categorie: 'transactions',
+    titre: 'Gérer le float par opérateur',
+    resume: 'Surveiller les soldes Orange Money, MTN MoMo, Wave et Moov — jauges, alertes et réapprovisionnement réseau.',
+    tempsLecture: 4,
+    contenu: `## Float opérateur vs float agent
+
+GESTMONEY distingue deux niveaux de liquidité :
+
+- **Float agent** : la liquidité individuelle d'un agent de terrain (voir l'article « Gérer la liquidité des agents »).
+- **Float opérateur** : le solde global de votre réseau auprès de chaque opérateur Mobile Money (Orange Money, MTN MoMo, Wave, Moov Money…). C'est ce qui est géré depuis la page **Float & liquidité → Vue opérateurs**.
+
+Le float opérateur représente la capacité d'ensemble de votre réseau à traiter des opérations sur un canal donné. Si le float Orange Money tombe à zéro, **aucun agent du réseau ne peut plus faire de dépôt Orange Money**, quelle que soit sa liquidité individuelle.
+
+## Accéder à la vue float opérateurs
+
+1. Dans la barre latérale, cliquez sur **Float & liquidité**.
+2. La page affiche une **carte par opérateur** avec le solde actuel, la jauge de remplissage et les seuils configurés.
+
+## Lire les cartes opérateurs
+
+Chaque carte affiche :
+- **Solde actuel** en XOF (montant en gros, en haut de la carte).
+- **Seuil minimum** : le niveau d'alerte en dessous duquel le système vous avertit.
+- **Seuil cible** : le niveau idéal à maintenir.
+- **Jauge de remplissage** : représentation visuelle du solde par rapport à la cible. Affiche **▲ MAX** quand le solde dépasse largement la cible (situation saine).
+- **Badge de statut** : ✓ OK (vert), ⚡ Faible (orange) ou ⚠ Critique (rouge).
+
+## Interpréter les statuts
+
+| Badge | Signification | Action recommandée |
+|-------|---------------|--------------------|
+| ✓ OK | Solde supérieur au seuil d'alerte | Aucune action immédiate |
+| ⚡ Faible | Solde proche du seuil minimum | Planifier un réapprovisionnement |
+| ⚠ Critique | Solde sous le seuil critique | Réapprovisionner en urgence |
+
+## Réapprovisionner un float opérateur
+
+1. Cliquez sur **+ Demande de réapprovisionnement** (bouton en haut de la page ou sur la carte opérateur).
+2. Sélectionnez l'**opérateur** à créditer.
+3. Saisissez le **montant** en XOF.
+4. Ajoutez un commentaire si nécessaire (ex. : « Réapprovisionnement fin de semaine »).
+5. Cliquez sur **Soumettre**.
+
+Le traitement suit le même circuit d'approbation que pour les floats agents : auto-approuvé pour les Super Admin et Administrateurs réseau, soumis à validation pour les autres rôles.
+
+## Configurer les seuils d'alerte
+
+Les seuils se configurent depuis les paramètres de chaque opérateur :
+1. Ouvrez la carte de l'opérateur et cliquez sur **Paramètres** (ou accédez à Configuration → Opérateurs).
+2. Définissez le **seuil d'alerte** (niveau orange) et le **seuil critique** (niveau rouge).
+3. Définissez le **seuil cible** pour que la jauge soit calibrée sur votre niveau de float habituel.
+4. Enregistrez.
+
+> Conseil : calibrez le seuil d'alerte sur **2 à 3 jours de volume moyen** pour cet opérateur. Vous aurez ainsi le temps de réapprovisionner sans rupture de service.
+
+## Bonnes pratiques
+
+- Consultez la page float opérateurs **chaque matin** avant l'ouverture des agences.
+- Un solde à **▲ MAX** est une bonne nouvelle : votre réseau a de la marge.
+- Ne laissez jamais deux opérateurs en rouge simultanément : cela bloque une trop large part du réseau.`,
+  },
+
+  // ── AGENTS ────────────────────────────────────────────────────────────────
+
+  {
+    slug: 'performance-agents',
+    categorie: 'agents',
+    titre: 'Suivre la performance des agents',
+    resume: 'Analyser l\'activité, les commissions et la productivité de chaque agent du réseau.',
+    tempsLecture: 4,
+    contenu: `## Pourquoi suivre la performance des agents
+
+Les agents sont le cœur opérationnel de votre réseau Mobile Money. Leur performance détermine directement vos volumes, vos commissions et la satisfaction de vos clients. GESTMONEY centralise toutes les données de performance pour vous permettre d'identifier rapidement les agents les plus actifs, ceux qui ont besoin de soutien, et ceux dont le float est trop bas pour opérer.
+
+## Accéder aux données de performance
+
+### Vue liste
+1. Dans la barre latérale, cliquez sur **Agents**.
+2. La liste affiche chaque agent avec : son agence, son statut (actif / inactif), et ses indicateurs clés du mois en cours (nombre de transactions, volume, commissions).
+3. Cliquez sur un en-tête de colonne pour **trier** par volume, commissions ou nombre de transactions.
+
+### Fiche agent individuelle
+1. Cliquez sur le nom d'un agent pour ouvrir sa fiche.
+2. Vous y trouvez :
+   - L'**historique complet** de ses transactions.
+   - Ses **commissions** par période et par opérateur.
+   - L'évolution de son **float** dans le temps.
+   - Ses **objectifs** et son taux d'atteinte si des objectifs ont été définis.
+
+## Indicateurs clés à surveiller
+
+| Indicateur | Signification | Signal d'alerte |
+|------------|---------------|-----------------|
+| Transactions / jour | Nombre moyen d'opérations | < 5/jour sur un réseau actif |
+| Volume / jour | Montant moyen traité | Baisse de 30 % vs semaine précédente |
+| Taux d'utilisation float | Float consommé / float disponible | > 90 % → risque de rupture |
+| Commissions générées | Rémunération de l'agent | Écart > 10 % vs barème → vérifier opérateurs |
+
+## Comparer les agents
+
+1. Dans le module **Rapports & BI**, sélectionnez la vue **Performance agents**.
+2. Choisissez la période (jour, semaine, mois).
+3. Le classement par volume ou commissions s'affiche automatiquement.
+4. Exportez le tableau en PDF ou Excel pour vos réunions d'équipe.
+
+## Gérer un agent sous-performant
+
+Avant de conclure à un problème de motivation, vérifiez :
+1. **Float insuffisant** : si l'agent est souvent en alerte float, il ne peut pas opérer même s'il le veut — réapprovisionnez d'abord.
+2. **Agence suspendue** : une agence inactive bloque tous ses agents.
+3. **Problème technique** : l'agent a-t-il signalé une erreur lors de la saisie ?
+4. **Formation insuffisante** : l'agent maîtrise-t-il les types d'opérations (dépôt, retrait, transfert) ?
+
+> Conseil : organisez un **point hebdomadaire** avec les responsables d'agence pour passer en revue les indicateurs. Un problème détecté tôt (float bas, baisse de volume) se règle bien plus facilement qu'une crise découverte en fin de mois.
+
+## Désactiver ou réactiver un agent
+
+Si un agent est absent, en formation ou a quitté le réseau :
+1. Ouvrez sa fiche dans le module **Agents**.
+2. Basculez son statut sur **Inactif**.
+3. L'agent ne peut plus enregistrer de transactions mais ses données historiques sont préservées.
+4. Pour le réactiver, passez-le à **Actif**.
+
+> ⚠️ ATTENTION : Ne supprimez jamais un agent — désactivez-le. La suppression efface l'historique des transactions associées, ce qui crée des trous dans vos rapports et vos écritures comptables.`,
+  },
+
+  {
+    slug: 'inviter-agent',
+    categorie: 'agents',
+    titre: 'Inviter un agent et gérer son accès',
+    resume: 'Envoyer une invitation par e-mail, définir les droits et sécuriser l\'accès d\'un nouvel agent.',
+    tempsLecture: 3,
+    contenu: `## Deux façons de créer un accès agent
+
+GESTMONEY propose deux méthodes pour donner accès à un nouvel agent :
+
+1. **Création directe** : l'administrateur crée le compte et communique les identifiants à l'agent (voir l'article « Ajouter et configurer un agent »).
+2. **Invitation par e-mail** : GESTMONEY envoie un e-mail à l'agent avec un lien pour créer son propre mot de passe. Plus sécurisé car l'administrateur ne connaît jamais le mot de passe.
+
+## Inviter un agent par e-mail
+
+1. Dans le module **Agents**, cliquez sur **Inviter un agent** (ou depuis Administration → Utilisateurs → Inviter).
+2. Saisissez l'**adresse e-mail** de l'agent.
+3. Sélectionnez son **rôle** (Agent dans la plupart des cas) et son **agence de rattachement**.
+4. Cliquez sur **Envoyer l'invitation**.
+
+L'agent reçoit un e-mail avec un lien valable **24 heures**. En cliquant dessus, il définit son propre mot de passe et accède immédiatement à son espace.
+
+> Si l'agent n'a pas reçu l'e-mail, vérifiez ses courriers indésirables. Vous pouvez renvoyer l'invitation depuis la liste des utilisateurs en attente.
+
+## Sécuriser l'accès
+
+### Mot de passe robuste
+Encouragez chaque agent à choisir un mot de passe :
+- D'au moins **8 caractères**.
+- Combinant **lettres, chiffres et symboles**.
+- **Unique** — jamais partagé avec un collègue.
+
+### Double authentification (2FA)
+Pour les comptes à responsabilité (responsables d'agence, comptables), activez la double authentification :
+1. L'agent accède à **Mon profil → Sécurité**.
+2. Il active la **2FA** en scannant le QR code avec une application d'authentification (Google Authenticator, Authy…).
+3. À chaque connexion, il saisit son mot de passe **et** le code à 6 chiffres généré par l'application.
+
+### Départ d'un agent
+Dès qu'un agent quitte le réseau :
+1. **Désactivez immédiatement** son compte dans Administration → Utilisateurs.
+2. Récupérez ses **espèces en caisse** et son **float** avant la désactivation.
+3. Documentez le solde de récupération dans le module Comptabilité.
+
+> ⚠️ ATTENTION : Un compte actif appartenant à un ancien employé est une faille de sécurité. La désactivation doit être faite **le jour même** du départ.`,
   },
 
   // ── RAPPORTS ──────────────────────────────────────────────────────────────
@@ -712,33 +942,55 @@ Le module Performances affiche l'avancement de chaque agent par rapport à ses o
 
 GESTMONEY applique un système de **contrôle d'accès basé sur les rôles (RBAC)**. Chaque utilisateur se voit attribuer un rôle qui détermine les modules auxquels il a accès et les actions qu'il peut réaliser. Cette architecture protège les données sensibles et garantit que chacun ne voit que ce qui est nécessaire à sa mission.
 
-Le filtrage par rôle s'applique à la fois à l'**interface** (modules visibles dans la barre latérale) et aux **données** (via l'API backend). Ce n'est pas qu'un confort d'affichage : la sécurité réelle est appliquée côté serveur.
+Le filtrage par rôle s'applique à la fois à l'**interface** (modules visibles dans la barre latérale) et aux **données** (via l'API backend). Ce n'est pas qu'un confort d'affichage : la sécurité est appliquée côté serveur — un utilisateur ne peut pas contourner les restrictions en accédant directement à l'API.
 
 ## Les rôles disponibles
 
 ### Super Admin
 - Accès total à toutes les fonctionnalités, y compris la **Console SuperAdmin**.
 - Gère les licences, les tenants et la configuration système de haut niveau.
+- Les demandes de réapprovisionnement float sont **auto-approuvées** sans validation manuelle.
 - Réservé à l'équipe IBIG Soft et aux administrateurs techniques du déploiement.
 
-### Admin (Administrateur)
-- Accès complet aux modules métier : agences, agents, transactions, float, commissions, comptabilité, administration.
+### Administrateur réseau (Network Admin)
+- Accès complet aux modules métier : agences, agents, transactions, float, commissions, comptabilité, rapports, administration.
 - Peut créer et modifier des utilisateurs et définir leurs rôles.
+- Les demandes de réapprovisionnement float sont **auto-approuvées** sans validation manuelle.
 - Idéal pour le **gérant principal** du réseau.
 
-### Superviseur / Manager
-- Accès à tous les modules de pilotage (rapports, performances, commissions) et aux modules opérationnels.
-- Ne peut pas modifier la configuration système ni les rôles des autres utilisateurs.
-- Idéal pour un **responsable réseau** ou un **chef d'agence**.
+### Comptable (Accountant)
+- Accès aux modules financiers : commissions, comptabilité, rapports & BI.
+- Peut consulter et recalculer les commissions, générer et exporter les rapports.
+- Ne peut pas modifier la configuration ni gérer les agents.
+- Idéal pour le **responsable comptable** ou **financier** du réseau.
+
+### Responsable d'agence (Agency Manager)
+- Accès aux modules de pilotage de son agence : transactions, float, agents de son périmètre, rapports d'agence.
+- Peut soumettre des demandes de réapprovisionnement float — **soumises à approbation** d'un Administrateur réseau ou Super Admin.
+- Ne peut pas accéder aux données des autres agences ni modifier la configuration globale.
+- Idéal pour un **chef d'agence** ou **responsable de point de vente**.
 
 ### Agent
-- Accès limité aux modules opérationnels : transactions, float, clients.
-- Ne voit que les données liées à son agence et à ses propres opérations.
-- Idéal pour les **agents de terrain** qui enregistrent les transactions.
+- Accès limité aux modules opérationnels : transactions, float (lecture), clients.
+- Ne voit que les données liées à ses propres opérations.
+- Idéal pour les **agents de terrain** qui enregistrent les transactions au guichet.
+
+## Tableau des accès par module
+
+| Module | Super Admin | Admin réseau | Comptable | Resp. agence | Agent |
+|--------|:-----------:|:------------:|:---------:|:------------:|:-----:|
+| Transactions | ✓ | ✓ | lecture | agence | propres |
+| Float opérateurs | ✓ auto | ✓ auto | — | ✓ soumis | — |
+| Commissions | ✓ | ✓ | ✓ | — | — |
+| Rapports & BI | ✓ | ✓ | ✓ | agence | — |
+| Agents | ✓ | ✓ | — | agence | — |
+| Comptabilité | ✓ | ✓ | ✓ | — | — |
+| Administration | ✓ | ✓ | — | — | — |
+| Console SuperAdmin | ✓ | — | — | — | — |
 
 ## Attribuer un rôle à un utilisateur
 
-1. Accédez au module **Administration** dans la barre latérale (visible uniquement pour les rôles Admin et supérieur).
+1. Accédez au module **Administration** dans la barre latérale (visible uniquement pour les rôles Admin réseau et supérieur).
 2. Ouvrez la liste des utilisateurs.
 3. Cliquez sur l'utilisateur à modifier.
 4. Sélectionnez le **rôle** souhaité dans la liste déroulante.
@@ -748,8 +1000,9 @@ Le filtrage par rôle s'applique à la fois à l'**interface** (modules visibles
 
 ## Cas pratiques
 
-- **Un agent voit la comptabilité** → son rôle est trop élevé → redescendez-le au rôle Agent.
-- **Un superviseur ne peut pas accéder aux rapports** → vérifiez que son rôle est bien Superviseur et non Agent.
+- **Un agent voit les commissions** → son rôle est trop élevé → redescendez-le au rôle Agent.
+- **Un responsable d'agence ne peut pas approuver lui-même les réappros float** → c'est normal : il soumet, un Admin réseau approuve.
+- **Un comptable ne voit pas les agents** → c'est normal : le module Agents n'est pas dans son périmètre.
 - **Un administrateur a quitté le réseau** → désactivez son compte immédiatement dans Administration.
 
 ## Révision périodique des accès
