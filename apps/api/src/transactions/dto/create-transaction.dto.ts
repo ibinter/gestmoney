@@ -66,6 +66,16 @@ export class CreateTransactionDto {
   @IsNotEmpty()
   agentId?: string;
 
+  @ApiPropertyOptional({
+    description:
+      "ID de l'agence ciblée (CUID). Sert au contrôle d'isolation : un appelant " +
+      "scopé à une agence ne peut créer une transaction que pour cette agence.",
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  agencyId?: string;
+
   @ApiPropertyOptional({ description: 'Numéro de téléphone du client', example: '+22507XXXXXXXX' })
   @IsOptional()
   @IsString()

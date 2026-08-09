@@ -16,6 +16,7 @@ const CONFIG_TEST: LicencesConfig = {
   provisoireMaxJours: 14,
   paiementExpirationHeures: 48,
   rappelsJours: [7, 3, 1],
+  plafondsDecouverte: { agences: 1, agents: 1, transactionsMois: 25 },
 };
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;

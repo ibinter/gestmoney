@@ -248,7 +248,7 @@ describe('KycDossierService', () => {
       mockPrisma.kycDossier.findMany.mockResolvedValue([mockDossier]);
       mockPrisma.kycDossier.count.mockResolvedValue(1);
 
-      const result = await service.listerDossiers(TENANT, { page: 1, limit: 20 });
+      const result = await service.listerDossiers(TENANT, { page: '1', limit: '20' });
 
       expect(result.total).toBe(1);
       expect(result.data).toHaveLength(1);
@@ -272,7 +272,7 @@ describe('KycDossierService', () => {
       mockPrisma.kycDossier.findMany.mockResolvedValue([]);
       mockPrisma.kycDossier.count.mockResolvedValue(45);
 
-      const result = await service.listerDossiers(TENANT, { page: 1, limit: 20 });
+      const result = await service.listerDossiers(TENANT, { page: '1', limit: '20' });
 
       expect(result.totalPages).toBe(3); // ceil(45/20)
     });
@@ -288,7 +288,7 @@ describe('KycDossierService', () => {
         { statut: 'REFUSE', _count: { _all: 2 } },
       ]);
 
-      const result = await service.statsKyc(TENANT);
+      const result = (await service.statsKyc(TENANT)) as Record<string, number>;
 
       expect(result.EN_COURS).toBe(5);
       expect(result.VALIDE).toBe(10);
@@ -299,7 +299,7 @@ describe('KycDossierService', () => {
     it('retourne 0 pour les statuts sans dossier', async () => {
       mockPrisma.kycDossier.groupBy.mockResolvedValue([]);
 
-      const result = await service.statsKyc(TENANT);
+      const result = (await service.statsKyc(TENANT)) as Record<string, number>;
 
       expect(result.EN_ATTENTE).toBe(0);
       expect(result.VALIDE).toBe(0);

@@ -132,6 +132,7 @@ export class LicencesService {
         provisoireMaxJours: 14,
         paiementExpirationHeures: 48,
         rappelsJours: [7, 3, 1],
+        plafondsDecouverte: { agences: 1, agents: 1, transactionsMois: 25 },
       }
     );
   }
