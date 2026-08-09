@@ -11,7 +11,7 @@ const faqs = [
   {
     question: 'Combien coûte GESTMONEY ?',
     answer:
-      "Quatre formules : STARTER à 9 900 FCFA/mois (1 agence, jusqu'à 5 agents), ESSENTIEL à 19 900 FCFA/mois (3 agences, jusqu'à 15 agents), PROFESSIONAL à 39 900 FCFA/mois (15 agences, agents illimités), et ENTERPRISE sur devis pour les réseaux sans limite. Facturation mensuelle ou annuelle (−20 %).",
+      "Un palier Découverte gratuit à vie (1 agence, 1 agent, 25 transactions par mois), puis quatre formules payantes : STARTER à 9 900 FCFA/mois (1 agence, jusqu'à 5 agents), ESSENTIEL à 19 900 FCFA/mois (3 agences, jusqu'à 15 agents), PROFESSIONAL à 39 900 FCFA/mois (15 agences, agents illimités), et ENTERPRISE sur devis. Facturation mensuelle ou annuelle (−20 %).",
   },
   {
     question: 'Puis-je essayer GESTMONEY gratuitement ?',

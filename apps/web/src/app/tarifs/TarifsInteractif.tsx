@@ -68,7 +68,7 @@ const PLANS_MENSUEL = [
       '3 agences — jusqu\'à 15 agents',
       '6 opérateurs Mobile Money',
       'Transactions, float & caisse',
-      'Commissions + Reporting BI',
+      'Commissions + Reporting',
       'Comptabilité OHADA de base',
       'Export PDF / XLSX',
       'Support prioritaire (24h)',
@@ -91,7 +91,7 @@ const PLANS_MENSUEL = [
       '15 agences — agents illimités',
       'Opérateurs Mobile Money illimités',
       'Tous les modules métier',
-      'Compatibilité OHADA complète',
+      'Comptabilité OHADA complète',
       'Reporting & BI avancés',
       'Assistant IA SARA inclus',
       'KYC & Clients intégrés',
@@ -168,7 +168,7 @@ const COMPARATIF = [
       { feat: 'Chiffrement TLS/AES',  starter: '✅', essentiel: '✅', pro: '✅', enterprise: '✅' },
       { feat: 'Journal d\'audit',     starter: '✅', essentiel: '✅', pro: '✅', enterprise: '✅' },
       { feat: 'Détection de fraudes', starter: '❌', essentiel: '❌', pro: '✅', enterprise: '✅' },
-      { feat: 'SLA garanti 99.9%',    starter: '❌', essentiel: '❌', pro: '❌', enterprise: '✅' },
+      { feat: 'SLA garanti 99,9%',    starter: '❌', essentiel: '❌', pro: '❌', enterprise: '✅' },
     ],
   },
   {
@@ -202,7 +202,7 @@ const FAQ_TARIFS = [
   },
   {
     q: 'Comment fonctionne la facturation ?',
-    r: 'La facturation est mensuelle ou annuelle selon votre choix. L\'abonnement annuel bénéficie de 2 mois offerts (soit –20%). Chaque renouvellement génère une facture disponible dans votre espace.',
+    r: 'La facturation est mensuelle ou annuelle selon votre choix. L\'abonnement annuel bénéficie de –20% sur l\'année. Chaque renouvellement génère une facture disponible dans votre espace.',
   },
   {
     q: 'Acceptez-vous Orange Money / MTN MoMo pour le paiement ?',
@@ -222,7 +222,7 @@ const FAQ_TARIFS = [
   },
   {
     q: 'Que se passe-t-il à l\'expiration ?',
-    r: 'Une période de grâce de 7 jours suit l\'échéance : votre accès reste actif le temps de régulariser. Passé ce délai, le compte est suspendu en lecture seule — vos données sont conservées sans perte.',
+    r: 'Une période de grâce de 7 jours suit l\'échéance : votre accès reste actif le temps de régulariser. Passé ce délai, l\'accès passe en lecture seule — vos données sont conservées sans perte.',
   },
 ];
 
@@ -288,7 +288,7 @@ export function TarifsInteractif() {
               borderRadius: 999, padding: '6px 18px', fontSize: 13, fontWeight: 900,
               boxShadow: '0 4px 12px rgba(255,208,0,0.35)',
             }}>
-              🎁 2 mois offerts — économisez 20%
+              🎁 Abonnement annuel — économisez 20%
             </span>
           </div>
         )}

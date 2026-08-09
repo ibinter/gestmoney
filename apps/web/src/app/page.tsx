@@ -134,7 +134,7 @@ const OFFRES = [
       '3 agences · jusqu\'à 15 agents',
       '6 opérateurs Mobile Money',
       'Transactions, Float & Caisse',
-      'Commissions + Reporting BI',
+      'Commissions + Reporting',
       'Comptabilité OHADA de base',
       'Exports PDF / XLSX',
       'Support prioritaire (24h)',
@@ -180,7 +180,7 @@ const OFFRES = [
       'Personnalisation complète',
       'RH & Paie inclus',
       'KYC & Conformité avancée',
-      'SLA garanti 99.9%',
+      'SLA garanti 99,9%',
       'Intégration API dédiée',
       'Accompagnement expert dédié',
       'Formation & onboarding',
@@ -267,14 +267,14 @@ const MOYENS_PAIEMENT = [
 
 const GARANTIES_ABONNEMENT = [
   { icon: '🆓', titre: '14 jours d\'essai', desc: 'Aucune carte bancaire demandée à l\'inscription.' },
-  { icon: '🕊️', titre: '7 jours de grâce', desc: 'Après échéance, votre accès reste ouvert 7 jours avant suspension.' },
+  { icon: '🕊️', titre: '7 jours de grâce', desc: 'Après échéance, votre accès reste ouvert 7 jours avant le passage en lecture seule.' },
   { icon: '🚪', titre: 'Résiliation sans frais', desc: 'Vous arrêtez quand vous voulez, sans pénalité ni préavis.' },
 ];
 
 const FAQ = [
   { q: 'Combien de temps dure l\'essai gratuit ?', r: '14 jours sans carte bancaire. Accès PROFESSIONAL complet. À l\'issue, votre compte passe en lecture seule jusqu\'à souscription.' },
   { q: 'Quels moyens de paiement puis-je utiliser ?', r: 'La plateforme prend en charge le Mobile Money, la carte bancaire via passerelles, le virement national et international, les transferts d\'argent, les espèces en agence, le chèque, la cryptomonnaie, le code prépayé et le paiement à la livraison. Chaque moyen s\'active à la demande selon votre pays : contactez-nous pour savoir lesquels sont ouverts chez vous.' },
-  { q: 'Que se passe-t-il si je paie en retard ?', r: 'Une période de grâce de 7 jours suit l\'échéance : votre accès reste actif le temps de régulariser. Passé ce délai, le compte est suspendu, sans perte de données.' },
+  { q: 'Que se passe-t-il si je paie en retard ?', r: 'Une période de grâce de 7 jours suit l\'échéance : votre accès reste actif le temps de régulariser. Passé ce délai, l\'accès passe en lecture seule, sans perte de données.' },
   { q: 'GESTMONEY est-il conforme OHADA ?', r: 'Oui. La comptabilité respecte le plan OHADA. Exports conformes aux exigences UEMOA et CEMAC.' },
   { q: 'Puis-je gérer plusieurs pays ?', r: 'Oui. GESTMONEY supporte la multidevise (XOF, GHS, KES…) et le multi-pays en formule ENTERPRISE.' },
   { q: 'Mes données sont-elles sécurisées ?', r: 'Chiffrement TLS en transit et AES-256 au repos. JWT double token, journaux d\'audit et détection de fraudes IA.' },
@@ -651,7 +651,7 @@ export default function LandingPage() {
               borderRadius: 999, padding: '9px 22px', fontSize: 14, fontWeight: 900,
               boxShadow: '0 4px 16px rgba(255,208,0,0.4)',
             }}>
-              🎁 2 mois offerts sur l&apos;abonnement annuel
+              🎁 Économisez 20% sur l&apos;abonnement annuel
             </span>
           </div>
 
@@ -702,7 +702,7 @@ export default function LandingPage() {
             ))}
           </div>
           <p style={{ textAlign: 'center', marginTop: 36, fontSize: 13, color: '#9ca3af' }}>
-            Tarifs HT · TVA selon pays · Paiement mensuel ou annuel (2 mois offerts) · Devis personnalisé disponible
+            Tarifs HT · TVA selon pays · Paiement mensuel ou annuel (−20%) · Devis personnalisé disponible
           </p>
           <p style={{ textAlign: 'center', marginTop: 12, fontSize: 14, color: '#6b7280' }}>
             <Link href="/tarifs" style={{ color: '#009E00', fontWeight: 700, textDecoration: 'none' }}>
@@ -911,9 +911,12 @@ export default function LandingPage() {
       <section style={{ padding: 'clamp(70px,10vh,100px) clamp(16px,4vw,48px)', background: '#fff' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, letterSpacing: '.15em', color: '#009E00', textTransform: 'uppercase', marginBottom: 12 }}>Témoignages</p>
-          <h2 style={{ fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 900, textAlign: 'center', marginBottom: 56, color: '#0a2e15' }}>
-            Ils font confiance à GESTMONEY.
+          <h2 style={{ fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 900, textAlign: 'center', marginBottom: 16, color: '#0a2e15' }}>
+            Ce que GESTMONEY change au quotidien.
           </h2>
+          <p style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', fontStyle: 'italic', maxWidth: 620, margin: '0 auto 40px' }}>
+            Exemples illustratifs. Les témoignages et chiffres d&apos;usage réels seront publiés dès les premiers retours clients vérifiés.
+          </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))', gap: 20 }}>
             {TEMOIGNAGES.map((t, i) => (
               <div key={i} style={{ background: '#f8fef9', border: '1.5px solid #d1fae5', borderRadius: 18, padding: 28, boxShadow: '0 2px 12px rgba(0,158,0,0.06)' }}>

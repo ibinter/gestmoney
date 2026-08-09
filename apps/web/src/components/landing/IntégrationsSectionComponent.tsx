@@ -126,7 +126,7 @@ export function IntégrationsSectionComponent() {
 
   return (
     <section
-      id="paiement"
+      id="integrations"
       style={{
         background: '#f9fafb',
         padding: 'clamp(48px,8vh,96px) clamp(16px,4vw,48px)',

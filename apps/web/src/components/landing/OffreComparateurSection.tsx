@@ -15,7 +15,7 @@ type Offre = {
   nom: string;
   prix: string;
   prixSub: string;
-  utilisateurs: string;
+  agents: string;
   agences: string;
   support: string;
   recommande?: boolean;
@@ -29,7 +29,7 @@ const OFFRES: Offre[] = [
     nom: 'DÉCOUVERTE',
     prix: 'Gratuit',
     prixSub: 'à vie',
-    utilisateurs: '1',
+    agents: '1',
     agences: '1',
     support: 'Communauté',
     cta: 'Créer mon espace',
@@ -40,7 +40,7 @@ const OFFRES: Offre[] = [
     nom: 'STARTER',
     prix: '9 900 FCFA',
     prixSub: '/mois',
-    utilisateurs: '5',
+    agents: '5',
     agences: '1',
     support: 'Email',
     cta: "S'inscrire",
@@ -51,7 +51,7 @@ const OFFRES: Offre[] = [
     nom: 'ESSENTIEL',
     prix: '19 900 FCFA',
     prixSub: '/mois',
-    utilisateurs: '15',
+    agents: '15',
     agences: '3',
     support: 'Email',
     cta: "S'inscrire",
@@ -62,7 +62,7 @@ const OFFRES: Offre[] = [
     nom: 'PROFESSIONAL',
     prix: '39 900 FCFA',
     prixSub: '/mois',
-    utilisateurs: 'Illimité',
+    agents: 'Illimité',
     agences: '15',
     support: 'Email + Chat',
     recommande: true,
@@ -74,7 +74,7 @@ const OFFRES: Offre[] = [
     nom: 'ENTERPRISE',
     prix: 'Sur devis',
     prixSub: '',
-    utilisateurs: 'Illimité',
+    agents: 'Illimité',
     agences: 'Illimité',
     support: 'Dédié',
     cta: 'Nous contacter',
@@ -94,7 +94,7 @@ type Fonctionnalite = {
 const FONCTIONNALITES: Fonctionnalite[] = [
   { label: 'Agents de terrain',   decouverte: true,  starter: true,  essentiel: true,  professional: true,  enterprise: true  },
   { label: 'Flottes',             decouverte: true,  starter: true,  essentiel: true,  professional: true,  enterprise: true  },
-  { label: 'Commissions auto',    decouverte: false, starter: false, essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Commissions auto',    decouverte: false, starter: true,  essentiel: true,  professional: true,  enterprise: true  },
   { label: 'Rapports avancés',    decouverte: false, starter: false, essentiel: false, professional: true,  enterprise: true  },
   { label: 'Import Excel',        decouverte: false, starter: false, essentiel: true,  professional: true,  enterprise: true  },
   { label: 'API & Webhooks',      decouverte: false, starter: false, essentiel: false, professional: true,  enterprise: true  },
@@ -133,7 +133,7 @@ function CarteOffre({ offre }: { offre: Offre }) {
         {offre.prixSub && <span className="oc-prix-sub">{offre.prixSub}</span>}
       </div>
       <ul className="oc-infos" aria-label={`Détails ${offre.nom}`}>
-        <li><span className="oc-info-label">Utilisateurs</span><span className="oc-info-val">{offre.utilisateurs}</span></li>
+        <li><span className="oc-info-label">Agents</span><span className="oc-info-val">{offre.agents}</span></li>
         <li><span className="oc-info-label">Agences</span><span className="oc-info-val">{offre.agences}</span></li>
         <li><span className="oc-info-label">Support</span><span className="oc-info-val">{offre.support}</span></li>
       </ul>
@@ -217,7 +217,7 @@ function CartesComparateur() {
 
 export function OffreComparateurSection() {
   return (
-    <section id="tarifs" aria-labelledby="oc-titre" style={{ background: '#f7f9f7', padding: 'clamp(48px,8vh,96px) clamp(16px,4vw,48px)' }}>
+    <section id="comparateur-offres" aria-labelledby="oc-titre" style={{ background: '#f7f9f7', padding: 'clamp(48px,8vh,96px) clamp(16px,4vw,48px)' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* En-tête */}
