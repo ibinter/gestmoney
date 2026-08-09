@@ -201,54 +201,24 @@ export function TémoignagesSection() {
               lineHeight: 1.2,
             }}
           >
-            Ils font confiance à GESTMONEY
+            Ce que GESTMONEY change au quotidien
           </h2>
 
-          {/* Note globale */}
-          <div
+          {/* Mention 8.7 — preuves sociales non encore vérifiées */}
+          <p
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #bbf7d0',
-              borderRadius: '999px',
-              padding: '8px 20px',
-              boxShadow: '0 1px 6px rgba(0,158,0,0.08)',
+              display: 'inline-block',
+              maxWidth: '620px',
+              color: '#6b7280',
+              fontSize: '0.85rem',
+              lineHeight: 1.6,
+              fontStyle: 'italic',
+              margin: 0,
             }}
           >
-            <div style={{ display: 'flex', gap: '2px' }}>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <svg
-                  key={i}
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="#f59e0b"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                </svg>
-              ))}
-            </div>
-            <span
-              style={{
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                color: '#111827',
-              }}
-            >
-              4.9/5
-            </span>
-            <span
-              style={{
-                color: '#6b7280',
-                fontSize: '0.875rem',
-              }}
-            >
-              — 230+ réseaux équipés
-            </span>
-          </div>
+            Exemples illustratifs. Les témoignages et chiffres d'usage réels
+            seront publiés dès les premiers retours clients vérifiés.
+          </p>
         </div>
 
         {/* Grille */}

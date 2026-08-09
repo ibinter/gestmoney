@@ -11,7 +11,7 @@ const faqs = [
   {
     question: 'Combien coûte GESTMONEY ?',
     answer:
-      "Trois formules : STARTER à 25 000 FCFA/mois (5 utilisateurs, 3 agences), PRO à 60 000 FCFA/mois (20 utilisateurs, 15 agences), et ENTERPRISE sur devis pour les réseaux sans limite.",
+      "Quatre formules : STARTER à 9 900 FCFA/mois (1 agence, jusqu'à 5 agents), ESSENTIEL à 19 900 FCFA/mois (3 agences, jusqu'à 15 agents), PROFESSIONAL à 39 900 FCFA/mois (15 agences, agents illimités), et ENTERPRISE sur devis pour les réseaux sans limite. Facturation mensuelle ou annuelle (−20 %).",
   },
   {
     question: 'Puis-je essayer GESTMONEY gratuitement ?',
@@ -41,7 +41,7 @@ const faqs = [
   {
     question: 'Puis-je gérer plusieurs agences ?',
     answer:
-      "Oui. Le plan PRO permet de gérer jusqu'à 15 agences avec des agents indépendants par agence. Le plan ENTERPRISE n'impose aucune limite sur le nombre d'agences ou d'utilisateurs.",
+      "Oui. Le plan ESSENTIEL gère jusqu'à 3 agences, le plan PROFESSIONAL jusqu'à 15 agences avec agents illimités. Le plan ENTERPRISE n'impose aucune limite sur le nombre d'agences ou d'utilisateurs.",
   },
   {
     question: "Y a-t-il un contrat d'engagement ?",

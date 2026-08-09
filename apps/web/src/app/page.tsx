@@ -50,10 +50,10 @@ const MODULES = [
 ];
 
 const STATS = [
-  { valeur: '10 000+', label: 'Transactions / jour', bg: '#009E00', txt: '#fff' },
-  { valeur: '500+', label: 'Agences gérées', bg: '#FFD000', txt: '#111' },
-  { valeur: '5', label: 'Opérateurs intégrés', bg: '#E60000', txt: '#fff' },
-  { valeur: '99.9%', label: 'Disponibilité SLA', bg: '#111', txt: '#FFD000' },
+  { valeur: '12', label: 'Opérateurs Mobile Money', bg: '#009E00', txt: '#fff' },
+  { valeur: '10+', label: 'Modules métier intégrés', bg: '#FFD000', txt: '#111' },
+  { valeur: 'OHADA', label: 'Comptabilité conforme', bg: '#E60000', txt: '#fff' },
+  { valeur: '99,9%', label: 'Objectif de disponibilité SLA', bg: '#111', txt: '#FFD000' },
 ];
 
 const OPS = [
@@ -92,7 +92,7 @@ const OFFRES = [
     accentTxt: '#fff',
     headColor: '#009E00',
     features: [
-      '1 agence · jusqu\'à 3 agents',
+      '1 agence · jusqu\'à 5 agents',
       '4 opérateurs Mobile Money',
       'Transactions & Float',
       'Commissions automatiques',
@@ -133,7 +133,7 @@ const OFFRES = [
     accentTxt: '#111',
     headColor: '#b45309',
     features: [
-      '10 agences · agents illimités',
+      '15 agences · agents illimités',
       'Opérateurs Mobile Money illimités',
       'Tous les modules métier',
       'Comptabilité OHADA complète',
