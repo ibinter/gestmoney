@@ -18,7 +18,7 @@ const PLANS_MENSUEL = [
     accentTxt: '#fff',
     headColor: '#374151',
     cta: 'Créer mon espace gratuit',
-    href: '/register?plan=DECOUVERTE',
+    href: '/register',
     features: [
       '1 agence · 1 agent',
       '25 transactions / mois',
