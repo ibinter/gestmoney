@@ -47,6 +47,7 @@ export class AgenciesController {
   @Post()
   @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN)
   @ApiOperation({ summary: 'Créer une agence' })
+  @ApiResponse({ status: 403, description: 'Plafond du palier Découverte atteint (code QUOTA_DECOUVERTE_ATTEINT).' })
   create(
     @Body() dto: CreateAgencyDto,
     @TenantId() tenantId: string,

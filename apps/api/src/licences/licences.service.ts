@@ -74,6 +74,7 @@ const RANG_PLAN: Record<TenantPlan, number> = {
  * coupure d'accès.
  */
 const STATUTS_ACTIFS: ReadonlySet<StatutLicence> = new Set([
+  StatutLicence.DEMO,
   StatutLicence.ESSAI,
   StatutLicence.PROVISOIRE,
   StatutLicence.ACTIVE,
@@ -1081,6 +1082,9 @@ export class LicencesService {
     const maintenant = new Date();
 
     if (meta.statut === StatutLicence.REVOQUEE) return StatutLicence.REVOQUEE;
+    // État explicite piloté par le flag `settings.licence.statut` : la démo
+    // publique n'est jamais déduite des dates, elle est posée volontairement.
+    if (meta.statut === StatutLicence.DEMO) return StatutLicence.DEMO;
     if (tenant.status === TenantStatus.SUSPENDED) return StatutLicence.SUSPENDUE;
 
     if (meta.provisoireJusquA && new Date(meta.provisoireJusquA) > maintenant) {

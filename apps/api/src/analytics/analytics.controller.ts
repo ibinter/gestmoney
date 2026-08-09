@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, ForbiddenException, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -7,6 +7,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RoleType } from '../common/enums/role.enum';
 import { AnalyticsService } from './analytics.service';
 import { PdfService } from '../pdf/pdf.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
@@ -16,7 +18,24 @@ export class AnalyticsController {
   constructor(
     private readonly analyticsService: AnalyticsService,
     private readonly pdfService: PdfService,
+    private readonly licences: LicencesService,
   ) {}
+
+  /**
+   * §3.3 cahier : l'export de données est FERMÉ au palier gratuit Découverte.
+   * Bloque UNIQUEMENT le statut DECOUVERTE (403) ; ACTIVE/TRIAL/GRACE/PROVISOIRE/
+   * SUPER_ADMIN restent pleinement fonctionnels.
+   */
+  private async assurerExportAutorise(tenantId: string): Promise<void> {
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      throw new ForbiddenException({
+        code: 'EXPORT_INDISPONIBLE_DECOUVERTE',
+        message:
+          "L'export n'est pas disponible au palier Découverte. Passez à une formule payante pour l'activer.",
+      });
+    }
+  }
 
   @Get('rapport-mensuel')
   @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
@@ -34,6 +53,7 @@ export class AnalyticsController {
     const annee = anneeStr ? parseInt(anneeStr, 10) : now.getFullYear();
     const mois = moisStr ? parseInt(moisStr, 10) : now.getMonth() + 1;
     const tenantId: string = req.user.tenantId;
+    await this.assurerExportAutorise(tenantId);
     const pdfBuffer = await this.pdfService.genererRapportMensuel(tenantId, annee, mois);
     const filename = `rapport-mensuel-${annee}-${String(mois).padStart(2, '0')}.html`;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

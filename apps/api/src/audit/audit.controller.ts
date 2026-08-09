@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Query,
@@ -17,6 +18,8 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuditService } from './audit.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 import { QueryAuditDto } from './dto/query-audit.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -30,7 +33,26 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AUDITOR)
 @Controller('audit')
 export class AuditController {
-  constructor(private readonly auditService: AuditService) {}
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly licences: LicencesService,
+  ) {}
+
+  /**
+   * §3.3 cahier : l'export de données est FERMÉ au palier gratuit Découverte.
+   * Bloque UNIQUEMENT le statut DECOUVERTE (403) ; ACTIVE/TRIAL/GRACE/PROVISOIRE/
+   * SUPER_ADMIN restent pleinement fonctionnels.
+   */
+  private async assurerExportAutorise(tenantId: string): Promise<void> {
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      throw new ForbiddenException({
+        code: 'EXPORT_INDISPONIBLE_DECOUVERTE',
+        message:
+          "L'export n'est pas disponible au palier Découverte. Passez à une formule payante pour l'activer.",
+      });
+    }
+  }
 
   @Get('logs')
   @ApiOperation({ summary: 'Journal d\'audit complet avec filtres' })
@@ -98,6 +120,7 @@ export class AuditController {
     @Query('resource') resource?: string,
     @Query('search') search?: string,
   ) {
+    await this.assurerExportAutorise(user.tenantId);
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 86400000);
     const end = endDate ? new Date(endDate) : new Date();
 

@@ -13,17 +13,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { useStatutLicence, useQuotas, EtatQuota } from '@/hooks/useLicence';
+import { useT } from '@/lib/i18n';
 
 /** En dessous de ce seuil, un essai qui court est signalé. */
 const SEUIL_ESSAI_JOURS = 7;
 
 const URL_ABONNEMENT = '/dashboard/abonnement';
-
-const LIBELLE_COMPTEUR: Record<EtatQuota['compteur'], string> = {
-  agences: 'Agences',
-  agents: 'Agents',
-  transactionsMois: 'Transactions ce mois',
-};
 
 function formatJours(jours: number | null): string {
   if (jours === null) return 'bientôt';
@@ -33,6 +28,7 @@ function formatJours(jours: number | null): string {
 }
 
 export function BandeauLicence() {
+  const t = useT();
   const { data } = useStatutLicence();
   // Chargé en permanence mais n'affiche des compteurs qu'au palier Découverte.
   const { data: quotas } = useQuotas();
@@ -46,7 +42,7 @@ export function BandeauLicence() {
   // DÉCOUVERTE : palier gratuit. Bandeau INFORMATIF (non alarmiste) rappelant
   // les plafonds et invitant à passer sur une formule payante (cahier §8.4).
   if (data.statut === 'DECOUVERTE') {
-    return <BandeauDecouverte quotas={quotas} />;
+    return <BandeauDecouverte quotas={quotas} t={t} />;
   }
 
   // GRACE : l'échéance est DÉPASSÉE, l'accès n'est maintenu que le temps de
@@ -60,12 +56,12 @@ export function BandeauLicence() {
   if (!enGrace && !essaiFinissant) return null;
 
   const titre = enGrace
-    ? 'Votre abonnement a expiré — période de grâce en cours'
-    : "Votre période d'essai se termine bientôt";
+    ? t.licence.banniere.grace.titre
+    : t.licence.banniere.essai.titre;
 
   const description = enGrace
-    ? `L'accès reste ouvert ${formatJours(jours)}, le temps de renouveler. Passé ce délai, l'application sera bloquée.`
-    : `Il vous reste ${jours} jour${(jours ?? 0) > 1 ? 's' : ''} d'essai. Souscrivez un abonnement pour ne pas perdre l'accès.`;
+    ? t.licence.banniere.grace.desc.replace('{duree}', formatJours(jours))
+    : t.licence.banniere.essai.desc.replace('{jours}', String(jours ?? 0));
 
   return (
     <div
@@ -95,7 +91,7 @@ export function BandeauLicence() {
 
       <div className="gm-alert-actions">
         <Link href={URL_ABONNEMENT} className="gm-btn gm-btn-primary gm-btn-sm">
-          Renouveler
+          {t.common.renew}
         </Link>
       </div>
     </div>
@@ -107,7 +103,13 @@ export function BandeauLicence() {
  * et affiche les compteurs d'usage. Volontairement discret (vert, pas rouge) —
  * l'accès n'est pas menacé, seule la limite de volume s'applique.
  */
-function BandeauDecouverte({ quotas }: { quotas?: EtatQuota[] }) {
+function BandeauDecouverte({
+  quotas,
+  t,
+}: {
+  quotas?: EtatQuota[];
+  t: ReturnType<typeof useT>;
+}) {
   const compteurs = (quotas ?? []).filter((q) => Number.isFinite(q.plafond));
 
   return (
@@ -125,10 +127,10 @@ function BandeauDecouverte({ quotas }: { quotas?: EtatQuota[] }) {
 
       <div className="gm-alert-content">
         <div className="gm-alert-title" style={{ color: '#15803d' }}>
-          Palier Découverte — gratuit à vie
+          {t.licence.banniere.decouverte.titre}
         </div>
         <div className="gm-alert-desc" style={{ color: '#166534' }}>
-          Passez à une formule payante pour lever les plafonds.
+          {t.licence.banniere.decouverte.desc}
           {compteurs.length > 0 && (
             <span
               style={{
@@ -149,7 +151,7 @@ function BandeauDecouverte({ quotas }: { quotas?: EtatQuota[] }) {
                       color: atteint ? 'var(--gm-danger, #dc2626)' : '#166534',
                     }}
                   >
-                    {LIBELLE_COMPTEUR[q.compteur]} : {q.valeur}/{q.plafond}
+                    {t.licence.compteur[q.compteur]} : {q.valeur}/{q.plafond}
                   </span>
                 );
               })}
@@ -160,7 +162,7 @@ function BandeauDecouverte({ quotas }: { quotas?: EtatQuota[] }) {
 
       <div className="gm-alert-actions">
         <Link href={URL_ABONNEMENT} className="gm-btn gm-btn-primary gm-btn-sm">
-          Passer à une formule
+          {t.licence.banniere.decouverte.cta}
         </Link>
       </div>
     </div>

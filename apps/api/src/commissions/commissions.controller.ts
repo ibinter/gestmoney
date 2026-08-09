@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Header,
   Param,
@@ -26,6 +27,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CommissionsService } from './commissions.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 import { CommissionPlanDto } from './dto/commission-plan.dto';
 import {
   CalculateCommissionsDto,
@@ -39,7 +42,26 @@ import {
 @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.ACCOUNTANT, RoleType.AGENCY_MANAGER)
 @Controller('commissions')
 export class CommissionsController {
-  constructor(private readonly commissionsService: CommissionsService) {}
+  constructor(
+    private readonly commissionsService: CommissionsService,
+    private readonly licences: LicencesService,
+  ) {}
+
+  /**
+   * §3.3 cahier : l'export de données est FERMÉ au palier gratuit Découverte.
+   * Bloque UNIQUEMENT le statut DECOUVERTE (403) ; ACTIVE/TRIAL/GRACE/PROVISOIRE/
+   * SUPER_ADMIN restent pleinement fonctionnels.
+   */
+  private async assurerExportAutorise(tenantId: string): Promise<void> {
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      throw new ForbiddenException({
+        code: 'EXPORT_INDISPONIBLE_DECOUVERTE',
+        message:
+          "L'export n'est pas disponible au palier Découverte. Passez à une formule payante pour l'activer.",
+      });
+    }
+  }
 
   @Get()
   @ApiOperation({ summary: 'Lister les commissions (par agent, agence, période)' })
@@ -151,6 +173,7 @@ export class CommissionsController {
     const now = new Date();
     const m = mois ? +mois : now.getMonth() + 1;
     const y = annee ? +annee : now.getFullYear();
+    await this.assurerExportAutorise(req.user.tenantId);
     const csv = await this.commissionsService.exporterCommissions(
       req.user.tenantId,
       m,

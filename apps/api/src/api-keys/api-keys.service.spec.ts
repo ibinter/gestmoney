@@ -3,6 +3,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { ApiKeysService } from './api-keys.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { LicencesService } from '../licences/licences.service';
 
 // ─── Mock Prisma ──────────────────────────────────────────────────────────────
 
@@ -13,6 +14,11 @@ const mockPrisma = {
     findMany: jest.fn(),
     update: jest.fn(),
   },
+};
+
+// Par défaut le tenant est sur un palier payant (accès API autorisé).
+const mockLicences = {
+  getStatutLicenceCache: jest.fn(async () => ({ statut: 'ACTIVE' })),
 };
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -58,6 +64,7 @@ describe('ApiKeysService', () => {
       providers: [
         ApiKeysService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: LicencesService, useValue: mockLicences },
       ],
     }).compile();
 

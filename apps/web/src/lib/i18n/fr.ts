@@ -1505,6 +1505,32 @@ export const fr = {
     includedFeatures: 'Inclus dans ce plan',
   },
 
+  // ── Licence — bandeau in-app (moteur de licence) ──────────────────────
+  // Libellés du bandeau non bloquant affiché en tête du dashboard.
+  // {duree} et {jours} sont des jetons remplacés côté composant.
+  licence: {
+    banniere: {
+      decouverte: {
+        titre: 'Palier Découverte — gratuit',
+        desc: 'Passez à une formule payante pour lever les plafonds.',
+        cta: 'Passer à une formule',
+      },
+      grace: {
+        titre: 'Votre abonnement a expiré — période de grâce en cours',
+        desc: "L'accès reste ouvert {duree}, le temps de renouveler. Passé ce délai, l'application sera bloquée.",
+      },
+      essai: {
+        titre: "Votre période d'essai se termine bientôt",
+        desc: "Il vous reste {jours} jour(s) d'essai. Souscrivez une formule pour ne pas perdre l'accès.",
+      },
+    },
+    compteur: {
+      agences: 'Agences',
+      agents: 'Agents',
+      transactionsMois: 'Transactions ce mois',
+    },
+  },
+
   // ── SuperAdmin ────────────────────────────────────────────────────────
   superadmin: {
     title: 'Console SuperAdmin',
@@ -1865,6 +1891,16 @@ export const fr = {
         SUSPENDED: 'Suspendu',
         EXPIRED: 'Expiré',
         PENDING: 'En attente',
+        // ── États du moteur de licence universel (6 états + variantes) ──
+        DECOUVERTE: 'Découverte',
+        DEMO: 'Démo',
+        ESSAI: 'Essai',
+        GRACE: 'Grâce',
+        EXPIREE: 'Expirée',
+        SUSPENDUE: 'Suspendue',
+        REVOQUEE: 'Révoquée',
+        PROVISOIRE: 'Provisoire',
+        EN_ATTENTE_PAIEMENT: 'En attente de paiement',
       },
       columns: {
         societe: 'Société',

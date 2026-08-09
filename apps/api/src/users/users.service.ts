@@ -2,9 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -14,10 +17,28 @@ import { QueryUserDto } from './dto/query-user.dto';
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly licences: LicencesService,
+  ) {}
 
   async create(createUserDto: CreateUserDto, tenantId: string, createdBy: string) {
     const { email, password, roles, ...rest } = createUserDto;
+
+    // Palier Découverte : limité à 1 utilisateur. On refuse la création d'un
+    // utilisateur SUPPLÉMENTAIRE dès qu'il en existe déjà au moins un dans le
+    // tenant. Les paliers payants (ESSAI/ACTIVE/GRACE/…) ne sont jamais bloqués.
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      const nbUtilisateurs = await this.prisma.user.count({ where: { tenantId } });
+      if (nbUtilisateurs >= 1) {
+        throw new ForbiddenException({
+          code: 'MULTIUTILISATEUR_INDISPONIBLE_DECOUVERTE',
+          message:
+            'Le palier Découverte est limité à 1 utilisateur. Passez à une formule payante pour ajouter des collaborateurs.',
+        });
+      }
+    }
 
     const existing = await this.prisma.user.findFirst({
       where: { email, tenantId },

@@ -34,6 +34,9 @@ const STATUTS_AUTORISES: ReadonlySet<StatutLicence> = new Set([
   // Palier gratuit : l'accès reste ouvert. Le plafonnement s'applique à
   // l'écriture (LicencesService.assurerQuota), pas à l'entrée de l'application.
   StatutLicence.DECOUVERTE,
+  // Démo publique : l'accès à l'application est ouvert. Les envois (mail/SMS),
+  // les paiements et la console superadmin sont fermés ailleurs, pas ici.
+  StatutLicence.DEMO,
 ]);
 
 /** Corps de la réponse 402, exploité par le front pour rediriger et expliquer. */

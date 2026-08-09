@@ -1484,6 +1484,31 @@ export const en: Translations = {
     includedFeatures: 'Included in this plan',
   },
 
+  // ── Licence — in-app banner (licence engine) ──────────────────────────
+  // {duree} and {jours} are tokens replaced on the component side.
+  licence: {
+    banniere: {
+      decouverte: {
+        titre: 'Découverte plan — free',
+        desc: 'Upgrade to a paid plan to lift the caps.',
+        cta: 'Upgrade to a plan',
+      },
+      grace: {
+        titre: 'Your subscription has expired — grace period in progress',
+        desc: 'Access stays open {duree}, so you can renew. After that, the app will be locked.',
+      },
+      essai: {
+        titre: 'Your trial is ending soon',
+        desc: 'You have {jours} day(s) of trial left. Subscribe to a plan to keep your access.',
+      },
+    },
+    compteur: {
+      agences: 'Branches',
+      agents: 'Agents',
+      transactionsMois: 'Transactions this month',
+    },
+  },
+
   superadmin: {
     title: 'SuperAdmin Console',
     subtitle: 'Global IBIG Soft management — restricted access',
@@ -1843,6 +1868,16 @@ export const en: Translations = {
         SUSPENDED: 'Suspended',
         EXPIRED: 'Expired',
         PENDING: 'Pending',
+        // ── Universal licence engine states (6 states + variants) ──
+        DECOUVERTE: 'Discovery',
+        DEMO: 'Demo',
+        ESSAI: 'Trial',
+        GRACE: 'Grace',
+        EXPIREE: 'Expired',
+        SUSPENDUE: 'Suspended',
+        REVOQUEE: 'Revoked',
+        PROVISOIRE: 'Provisional',
+        EN_ATTENTE_PAIEMENT: 'Awaiting payment',
       },
       columns: {
         societe: 'Company',

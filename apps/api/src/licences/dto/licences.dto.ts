@@ -14,6 +14,8 @@ import { TenantPlan } from '@prisma/client';
 
 /** Statuts métier du cycle de vie d'une licence. */
 export enum StatutLicence {
+  /** Démonstration publique : données fictives, accès en lecture/écriture sur un jeu de démo. */
+  DEMO = 'DEMO',
   ESSAI = 'ESSAI',
   EN_ATTENTE_PAIEMENT = 'EN_ATTENTE_PAIEMENT',
   PROVISOIRE = 'PROVISOIRE',

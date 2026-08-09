@@ -1,11 +1,15 @@
 import { registerAs } from '@nestjs/config';
 
 /**
- * Durées du cycle de vie des licences.
+ * Durées et plafonds du cycle de vie des licences.
  *
- * TOUTES les durées manipulées par LicencesService et LicencesScheduler
- * viennent d'ici : aucun nombre magique ne doit être écrit ailleurs dans le
- * module. Chaque valeur est surchargeable par variable d'environnement.
+ * SOURCE UNIQUE des valeurs de licence : `essaiJours`, `graceJours`,
+ * `provisoireMaxJours`, `paiementExpirationHeures`, `rappelsJours` ET les
+ * `plafondsDecouverte` (agences / agents / transactionsMois) sont définis ICI
+ * et NULLE PART ailleurs. Aucun nombre magique ne doit être écrit dans
+ * LicencesService, LicencesScheduler ni ailleurs dans le module — tout se lit
+ * depuis cette configuration. Chaque valeur est surchargeable par variable
+ * d'environnement.
  */
 export interface LicencesConfig {
   /** Durée de la période d'essai, en jours. */

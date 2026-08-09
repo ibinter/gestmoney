@@ -3,6 +3,7 @@ import { AccountingController } from './accounting.controller';
 import { AccountingService } from './accounting.service';
 import { AccountingListener } from './listeners/accounting.listener';
 import { PdfModule } from '../pdf/pdf.module';
+import { LicencesModule } from '../licences/licences.module';
 
 /**
  * Module Comptabilité SYSCOHADA pour GESTMONEY
@@ -20,7 +21,7 @@ import { PdfModule } from '../pdf/pdf.module';
  * EventEmitterModule est @Global() — le listener est câblé automatiquement.
  */
 @Module({
-  imports: [PdfModule],
+  imports: [PdfModule, LicencesModule],
   controllers: [AccountingController],
   providers: [AccountingService, AccountingListener],
   exports: [AccountingService],

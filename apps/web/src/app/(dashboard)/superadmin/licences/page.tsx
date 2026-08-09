@@ -12,18 +12,34 @@ import { useT } from '@/lib/i18n';
 import type { Translations } from '@/lib/i18n/fr';
 import { useOpsLicences, useOpsLicencesStats, type OpsLicence } from '@/hooks/useSuperadminOps';
 
-// Statuts réels de l'enum TenantStatus.
-type StatutLicence = 'ACTIVE' | 'TRIAL' | 'SUSPENDED' | 'EXPIRED';
+// Statuts canoniques de l'enum StatutLicence (+ alias legacy TenantStatus).
+type StatutLicence =
+  | 'DECOUVERTE' | 'DEMO' | 'ESSAI' | 'PROVISOIRE' | 'EN_ATTENTE_PAIEMENT'
+  | 'ACTIVE' | 'GRACE' | 'EXPIREE' | 'SUSPENDUE' | 'REVOQUEE'
+  | 'TRIAL' | 'SUSPENDED' | 'EXPIRED';
 
 const PLAN_COULEUR: Record<string, string> = {
   STARTER: '#10B981', PROFESSIONAL: '#3B82F6', ENTERPRISE: '#FFD000', CUSTOM: '#8B5CF6',
 };
 
 const STATUT_STYLE: Record<string, { couleur: string; point: string }> = {
-  ACTIVE:    { couleur: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300',     point: 'bg-green-500' },
-  TRIAL:     { couleur: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300',         point: 'bg-blue-400' },
-  SUSPENDED: { couleur: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300',             point: 'bg-red-500 animate-pulse' },
-  EXPIRED:   { couleur: 'bg-gray-100 text-gray-500 dark:bg-white/08 dark:text-gray-400',            point: 'bg-gray-400' },
+  // ─ Paliers d'accès ─
+  DECOUVERTE:          { couleur: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300', point: 'bg-emerald-500' },
+  DEMO:                { couleur: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300',              point: 'bg-blue-500' },
+  ESSAI:               { couleur: 'bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300',                 point: 'bg-sky-400' },
+  PROVISOIRE:          { couleur: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300',             point: 'bg-cyan-500' },
+  EN_ATTENTE_PAIEMENT: { couleur: 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300',     point: 'bg-orange-500 animate-pulse' },
+  // ─ Cycle de vie actif ─
+  ACTIVE:              { couleur: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300',          point: 'bg-green-500' },
+  GRACE:               { couleur: 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',         point: 'bg-amber-500 animate-pulse' },
+  // ─ États terminaux ─
+  EXPIREE:             { couleur: 'bg-gray-100 text-gray-500 dark:bg-white/08 dark:text-gray-400',                point: 'bg-gray-400' },
+  SUSPENDUE:           { couleur: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300',                 point: 'bg-red-500 animate-pulse' },
+  REVOQUEE:            { couleur: 'bg-rose-100 text-rose-800 dark:bg-rose-900/25 dark:text-rose-300',             point: 'bg-rose-600' },
+  // ─ Alias legacy (enum TenantStatus EN) ─
+  TRIAL:     { couleur: 'bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300',      point: 'bg-sky-400' },
+  SUSPENDED: { couleur: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300',      point: 'bg-red-500 animate-pulse' },
+  EXPIRED:   { couleur: 'bg-gray-100 text-gray-500 dark:bg-white/08 dark:text-gray-400',     point: 'bg-gray-400' },
 };
 
 function labelStatut(t: Translations, statut: string): string {
@@ -200,7 +216,7 @@ export default function LicencesPage() {
 
       {/* Filtres */}
       <div className="flex gap-2 flex-wrap">
-        {(['tous', 'ACTIVE', 'TRIAL', 'SUSPENDED', 'EXPIRED'] as const).map((s) => (
+        {(['tous', 'DECOUVERTE', 'DEMO', 'ACTIVE', 'TRIAL', 'SUSPENDED', 'EXPIRED'] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFiltreStatut(s)}

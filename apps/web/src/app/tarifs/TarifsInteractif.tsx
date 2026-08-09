@@ -340,6 +340,11 @@ export function TarifsInteractif() {
         <p style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: '#9ca3af' }}>
           Tarifs HT · TVA selon pays · Essai gratuit 14 jours sans carte bancaire · Résiliation sans frais
         </p>
+        <p style={{ textAlign: 'center', marginTop: 10, fontSize: 12.5, color: '#9ca3af', maxWidth: 620, margin: '10px auto 0', lineHeight: 1.6 }}>
+          À la fin de l&apos;essai, votre espace bascule automatiquement en Découverte. Aucune donnée n&apos;est supprimée.<br />
+          7 jours de grâce après échéance, puis lecture seule. Données conservées 90 jours.<br />
+          Les documents générés au palier Découverte portent la mention «&nbsp;Généré avec GESTMONEY — ibigsoft.com&nbsp;».
+        </p>
       </section>
 
       {/* ── TABLEAU COMPARATIF ───────────────────────────────────────────── */}

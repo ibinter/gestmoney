@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -32,6 +33,8 @@ import { QueryTransactionDto } from './dto/query-transaction.dto';
 import { TransactionStatsQueryDto } from './dto/transaction-stats.dto';
 import { TransactionsService } from './transactions.service';
 import { PdfService } from '../pdf/pdf.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 
 @ApiTags('Transactions')
 @ApiBearerAuth()
@@ -41,7 +44,24 @@ export class TransactionsController {
   constructor(
     private readonly transactionsService: TransactionsService,
     private readonly pdfService: PdfService,
+    private readonly licences: LicencesService,
   ) {}
+
+  /**
+   * §3.3 cahier : l'export de données est FERMÉ au palier gratuit Découverte.
+   * Bloque UNIQUEMENT le statut DECOUVERTE (403) ; ACTIVE/TRIAL/GRACE/PROVISOIRE/
+   * SUPER_ADMIN restent pleinement fonctionnels.
+   */
+  private async assurerExportAutorise(tenantId: string): Promise<void> {
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      throw new ForbiddenException({
+        code: 'EXPORT_INDISPONIBLE_DECOUVERTE',
+        message:
+          "L'export n'est pas disponible au palier Découverte. Passez à une formule payante pour l'activer.",
+      });
+    }
+  }
 
   @Post()
   @RequirePermission('transactions:write')
@@ -50,6 +70,7 @@ export class TransactionsController {
   @ApiResponse({ status: 201, description: 'Transaction créée avec succès' })
   @ApiResponse({ status: 400, description: 'Données invalides ou float insuffisant' })
   @ApiResponse({ status: 403, description: 'Agent suspendu' })
+  @ApiResponse({ status: 403, description: 'Plafond du palier Découverte atteint (code QUOTA_DECOUVERTE_ATTEINT).' })
   create(@Body() dto: CreateTransactionDto, @Req() req: any) {
     const tenantId: string = req.user.tenantId;
     const userId: string = req.user.id;
@@ -88,6 +109,7 @@ export class TransactionsController {
     @Req() req: any,
     @Res() res: Response,
   ) {
+    await this.assurerExportAutorise(req.user.tenantId);
     const csv = await this.transactionsService.exportCsv(query, req.user.tenantId);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(

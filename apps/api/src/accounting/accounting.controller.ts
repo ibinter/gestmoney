@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -28,6 +29,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RoleType } from '../common/enums/role.enum';
 import { PdfService } from '../pdf/pdf.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 
 // Ce contrôleur n'avait AUCUNE garde : les endpoints comptables étaient
 // exposés sans authentification, et comme chaque handler lit `req.user.tenantId`
@@ -40,7 +43,24 @@ export class AccountingController {
   constructor(
     private readonly accountingService: AccountingService,
     private readonly pdfService: PdfService,
+    private readonly licences: LicencesService,
   ) {}
+
+  /**
+   * §3.3 cahier : l'export de données est FERMÉ au palier gratuit Découverte.
+   * Bloque UNIQUEMENT le statut DECOUVERTE (403) ; ACTIVE/TRIAL/GRACE/PROVISOIRE/
+   * SUPER_ADMIN restent pleinement fonctionnels.
+   */
+  private async assurerExportAutorise(tenantId: string): Promise<void> {
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      throw new ForbiddenException({
+        code: 'EXPORT_INDISPONIBLE_DECOUVERTE',
+        message:
+          "L'export n'est pas disponible au palier Découverte. Passez à une formule payante pour l'activer.",
+      });
+    }
+  }
 
   // ─── Plan comptable ───────────────────────────────────────────────────────────
 
@@ -386,6 +406,7 @@ export class AccountingController {
     @Res() res: Response,
   ) {
     const anneeNum = parseInt(annee, 10);
+    await this.assurerExportAutorise(req.user.tenantId);
     const bilanData = await this.accountingService.getBilanAnnuel(req.user.tenantId, anneeNum);
     const buffer = await this.pdfService.genererBilanPdf(req.user.tenantId, anneeNum, bilanData);
     res.set({
@@ -410,6 +431,7 @@ export class AccountingController {
     @Res() res: Response,
   ) {
     const anneeNum = parseInt(annee, 10);
+    await this.assurerExportAutorise(req.user.tenantId);
     const crData = await this.accountingService.getCompteResultatOhada(req.user.tenantId, anneeNum);
     const buffer = await this.pdfService.genererCompteResultatPdf(req.user.tenantId, anneeNum, crData);
     res.set({

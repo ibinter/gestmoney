@@ -52,6 +52,7 @@ export class AgentsController {
   @Roles(RoleType.SUPER_ADMIN, RoleType.NETWORK_ADMIN, RoleType.AGENCY_MANAGER)
   @ApiOperation({ summary: 'Créer un agent Mobile Money' })
   @ApiResponse({ status: 201, description: 'Agent créé' })
+  @ApiResponse({ status: 403, description: 'Plafond du palier Découverte atteint (code QUOTA_DECOUVERTE_ATTEINT).' })
   create(
     @Body() dto: CreateAgentDto,
     @TenantId() tenantId: string,

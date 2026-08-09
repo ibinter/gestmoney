@@ -5,11 +5,16 @@ import {
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly licences: LicencesService,
+  ) {}
 
   // ── Génération ──────────────────────────────────────────────────────────────
   async generer(
@@ -17,6 +22,16 @@ export class ApiKeysService {
     userId: string,
     dto: CreateApiKeyDto,
   ): Promise<{ key: string; apiKey: Record<string, unknown> }> {
+    // L'accès API n'est pas disponible au palier gratuit Découverte. Les
+    // paliers payants (ESSAI/ACTIVE/GRACE/…) ne sont jamais bloqués.
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      throw new ForbiddenException({
+        code: 'API_INDISPONIBLE_DECOUVERTE',
+        message: "L'accès API n'est pas disponible au palier Découverte.",
+      });
+    }
+
     const rawSuffix = randomBytes(16).toString('hex'); // 32 chars hex
     const rawKey = `gm_live_${rawSuffix}`;
     const prefix = rawKey.slice(0, 16); // "gm_live_" + 8 chars

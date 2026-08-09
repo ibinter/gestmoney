@@ -384,6 +384,176 @@ Lorsque le float de l'agent passe sous ce seuil, le tableau de bord et le module
 > ⚠️ ATTENTION : Si l'agence de rattachement est suspendue, l'agent ne peut plus enregistrer d'opérations. Assurez-vous que l'agence est bien active.`,
   },
 
+  {
+    slug: 'choisir-sa-formule',
+    categorie: 'demarrage',
+    titre: 'Choisir sa formule GESTMONEY',
+    resume: 'Démo publique, palier Découverte, Essai 14 jours et formules payantes : comment décider selon vos besoins.',
+    tempsLecture: 4,
+    contenu: `## Quatre façons d'entrer dans GESTMONEY
+
+Avant de vous engager, GESTMONEY vous laisse découvrir le produit à votre rythme. Il existe **quatre points d'entrée**, du plus léger au plus complet :
+
+- La **démo publique** : pour regarder sans créer de compte.
+- Le palier **Découverte** : gratuit à vie, pour un tout petit réseau réel.
+- L'**Essai** de 14 jours : toutes les fonctions de la formule Professional, sans engagement.
+- Les **Formules** payantes : Starter, Essentiel, Professional et Enterprise, selon la taille de votre réseau.
+
+Le bon choix dépend de votre situation : simple curiosité, activité qui démarre, ou réseau déjà installé.
+
+## La démo publique
+
+La démo est une **visite guidée** de GESTMONEY avec des données d'exemple. Elle sert à comprendre l'interface et les modules sans rien installer ni saisir vos vraies informations.
+
+- Aucune inscription n'est nécessaire.
+- Les données sont fictives et partagées : ne saisissez jamais de vraies opérations dans la démo.
+- Idéale pour **présenter** GESTMONEY à un associé ou à votre équipe avant de vous décider.
+
+## Le palier Découverte
+
+**Découverte** est un palier **gratuit à vie**, pensé pour un point de vente unique qui débute. Vous travaillez avec vos vraies données, sans limite de durée, dans le respect de quelques **plafonds** :
+
+- **1 agence**.
+- **1 agent**.
+- **25 transactions par mois**.
+
+C'est le bon choix si vous testez GESTMONEY sur une petite activité réelle, sans pression de calendrier. Pour le détail, voir l'article « Le palier Découverte en détail ».
+
+## L'Essai de 14 jours
+
+L'**Essai** ouvre **toutes les fonctions de la formule Professional** pendant **14 jours**, sans plafond de volume et sans engagement. C'est le meilleur moyen d'évaluer GESTMONEY à pleine puissance sur votre vrai réseau.
+
+À la fin des 14 jours, si vous ne choisissez pas de formule payante, votre espace **bascule automatiquement en Découverte**, **sans perte de données**. Vous continuez à travailler dans les plafonds Découverte. Voir l'article « Votre Essai de 14 jours ».
+
+## Les formules payantes
+
+Quand votre réseau grandit, une **formule** payante lève les plafonds et débloque les capacités avancées :
+
+| Formule | Prix (XOF / mois) | Pour qui |
+|---------|------------------:|----------|
+| Starter | 9 900 | Un petit réseau qui dépasse les plafonds Découverte |
+| Essentiel | 19 900 | Un réseau multi-agents en croissance |
+| Professional | 39 900 | Un réseau structuré, multi-agences, avec BI complète |
+| Enterprise | Sur devis | Grands réseaux, besoins spécifiques et intégrations |
+
+Passer à une formule payante **retire aussi le filigrane** des documents générés (voir « Retirer le filigrane des documents »).
+
+## Comment décider
+
+- **Je veux juste regarder** → démo publique.
+- **Je démarre une petite activité** → Découverte, gratuit à vie.
+- **Je veux tout tester avant d'acheter** → Essai 14 jours.
+- **Mon réseau grandit et dépasse les plafonds** → Starter, Essentiel, Professional ou Enterprise.
+
+> Conseil : commencez par l'Essai pour voir GESTMONEY à pleine puissance. Même si vous ne renouvelez pas tout de suite, vous retomberez proprement sur Découverte, sans rien perdre.`,
+  },
+
+  {
+    slug: 'palier-decouverte',
+    categorie: 'demarrage',
+    titre: 'Le palier Découverte en détail',
+    resume: 'Ce que contient le palier Découverte, gratuit à vie, et ses plafonds exacts : 1 agence, 1 agent, 25 transactions par mois.',
+    tempsLecture: 3,
+    contenu: `## Découverte : gratuit à vie
+
+**Découverte** est le palier d'entrée de GESTMONEY. Il est **gratuit à vie** : aucune date d'expiration, aucune carte bancaire demandée. Vous l'utilisez aussi longtemps que vous le souhaitez, avec vos vraies données, dans le respect de plafonds adaptés à un point de vente unique.
+
+Découverte n'est pas une version bridée dans le temps : c'est une offre stable, faite pour accompagner durablement une petite activité qui démarre.
+
+## Ce que contient Découverte
+
+Avec Découverte, vous disposez du cœur opérationnel de GESTMONEY :
+
+- Enregistrement des **transactions** Mobile Money (dépôts et retraits).
+- Gestion de votre **agent** et de son **float**.
+- **Tableau de bord** en temps réel et **activité récente**.
+- **Rapports** de base pour suivre votre activité.
+
+Vous travaillez donc avec de vraies opérations, pas avec des données de démonstration.
+
+## Les plafonds Découverte
+
+Découverte s'accompagne de **plafonds** clairs, adaptés à un seul point de vente :
+
+| Ressource | Plafond Découverte |
+|-----------|-------------------:|
+| Agences | 1 agence |
+| Agents | 1 agent |
+| Transactions | 25 par mois |
+
+Le compteur de transactions se **réinitialise chaque mois**. Une fois les 25 transactions du mois atteintes, vous êtes invité à passer à une formule payante pour continuer à enregistrer des opérations ce mois-là.
+
+> Un bandeau et des compteurs vous indiquent en permanence où vous en êtes par rapport à ces plafonds. Vous n'êtes jamais pris au dépourvu.
+
+## Quand passer à une formule payante
+
+Découverte montre ses limites dès que votre activité grandit. Il est temps d'envisager une **formule** payante si :
+
+- Vous ouvrez une **deuxième agence** ou un deuxième point de vente.
+- Vous recrutez un **deuxième agent**.
+- Vous atteignez régulièrement les **25 transactions** avant la fin du mois.
+- Vous voulez **retirer le filigrane** des documents que vous remettez à vos clients.
+
+La formule **Starter** (9 900 XOF/mois) est la première marche au-dessus de Découverte. Voir l'article « Choisir sa formule GESTMONEY ».
+
+## Ce que Découverte ne fait pas perdre
+
+Passer un jour à une formule payante ne vous fait rien recommencer : vos agences, votre agent, vos transactions et vos rapports **restent en place**. La formule ne fait que **lever les plafonds** et débloquer des capacités supplémentaires.
+
+> Conseil : restez sur Découverte tant que votre activité tient dans les plafonds. Le jour où vous les dépassez, la bascule vers une formule payante se fait sans perte et en quelques clics.`,
+  },
+
+  {
+    slug: 'votre-essai-14-jours',
+    categorie: 'demarrage',
+    titre: 'Votre Essai de 14 jours',
+    resume: 'Ce que l\'Essai ouvre pendant 14 jours et ce qui se passe à la fin : bascule automatique en Découverte, sans perte de données.',
+    tempsLecture: 3,
+    contenu: `## Un Essai complet, sans engagement
+
+L'**Essai** vous donne accès à **toutes les fonctions de la formule Professional** pendant **14 jours**. C'est la meilleure façon d'évaluer GESTMONEY à pleine puissance, sur votre vrai réseau, avant de choisir une formule.
+
+L'Essai est **sans engagement** : aucune carte bancaire n'est prélevée automatiquement, et vous n'avez aucune démarche à faire pour l'arrêter.
+
+## Ce qui est ouvert pendant l'Essai
+
+Durant ces 14 jours, les **plafonds Découverte ne s'appliquent pas**. Vous profitez notamment de :
+
+- Un nombre d'**agences** et d'**agents** correspondant à la formule Professional.
+- Les **transactions sans plafond mensuel**.
+- Les **rapports et la BI** complets.
+- L'ensemble des modules avancés (float par opérateur, commissions, comptabilité, audit…).
+
+C'est donc le moment idéal pour tester GESTMONEY dans les conditions réelles de votre activité.
+
+## Suivre le temps restant
+
+Un **compteur** vous indique en permanence combien de jours d'Essai il vous reste. Surveillez-le pour décider sereinement, avant l'échéance, si vous souscrivez une formule payante.
+
+> Conseil : profitez des premiers jours pour saisir de vraies opérations et générer des rapports. Vous jugerez GESTMONEY sur votre activité, pas sur un exemple.
+
+## Ce qui se passe à la fin des 14 jours
+
+À l'issue de l'Essai, deux cas se présentent :
+
+- **Vous choisissez une formule payante** (Starter, Essentiel, Professional ou Enterprise) : votre espace passe en état **Actif** et vous continuez sans interruption.
+- **Vous ne faites rien** : votre espace **bascule automatiquement sur le palier Découverte**.
+
+Dans les deux cas, **aucune donnée n'est perdue**.
+
+## La bascule vers Découverte, en clair
+
+Si vous ne souscrivez pas de formule, la bascule en Découverte signifie que :
+
+- Toutes vos données (agences, agents, transactions, rapports) **restent intégralement en place**.
+- Vous continuez à travailler, mais désormais **dans les plafonds Découverte** : 1 agence, 1 agent, 25 transactions par mois.
+- Vous pouvez souscrire une formule payante **à tout moment** pour lever de nouveau ces plafonds.
+
+> ⚠️ ATTENTION : Si, pendant l'Essai, vous aviez créé plus d'une agence ou plus d'un agent, ces éléments ne sont pas supprimés à la bascule. Ils restent visibles, mais vous devrez souscrire une formule payante pour continuer à les faire fonctionner au-delà des plafonds Découverte.
+
+> Conseil : décidez avant le 14e jour. Si vous n'êtes pas prêt à souscrire, la bascule en Découverte vous protège : vous ne perdez rien et vous gardez un espace gratuit et fonctionnel.`,
+  },
+
   // ── TRANSACTIONS ──────────────────────────────────────────────────────────
 
   {
@@ -974,6 +1144,42 @@ Le module Performances affiche l'avancement de chaque agent par rapport à ses o
 - **En cas d'écart** : identifiez si l'erreur vient d'une saisie (mauvais opérateur ou montant) ou d'un barème incorrect.`,
   },
 
+  {
+    slug: 'retirer-filigrane-documents',
+    categorie: 'configuration',
+    titre: 'Retirer le filigrane des documents',
+    resume: 'Pourquoi vos reçus et rapports portent un filigrane et comment le supprimer en passant à une formule payante.',
+    tempsLecture: 2,
+    contenu: `## Pourquoi un filigrane apparaît
+
+Sur les paliers d'évaluation — **démo publique**, **Découverte** et **Essai** — les documents que GESTMONEY génère (reçus, rapports, exports) portent un **filigrane** indiquant qu'ils proviennent d'un espace non payant.
+
+Ce filigrane est normal. Il sert à distinguer les documents produits pendant l'évaluation des documents d'un réseau pleinement souscrit. Il n'altère ni les chiffres, ni la lisibilité des informations.
+
+## Le filigrane sur les paliers gratuits
+
+- En **Découverte**, tous les documents restent utilisables au quotidien, mais conservent le filigrane tant que vous n'avez pas souscrit de formule payante.
+- Pendant l'**Essai**, le filigrane peut également être présent selon les documents : c'est le comportement attendu d'un espace en évaluation.
+
+## Comment retirer le filigrane
+
+Le filigrane disparaît dès que votre espace passe en état **Actif**, c'est-à-dire dès que vous souscrivez une **formule payante** :
+
+1. Ouvrez la page **Tarifs** ou la section **Abonnement** de votre espace.
+2. Choisissez la **formule** adaptée à votre réseau : Starter (9 900 XOF/mois), Essentiel (19 900), Professional (39 900) ou Enterprise (sur devis).
+3. Validez la souscription.
+4. Générez de nouveau vos documents : ils sont désormais **sans filigrane**.
+
+> Le retrait du filigrane est immédiat une fois la formule active. Les documents que vous produisez ensuite sont propres ; les anciens documents déjà exportés, eux, conservent le filigrane qu'ils portaient au moment de leur génération.
+
+## Bonnes pratiques
+
+- Si vous devez remettre un reçu **officiel** à un client important, faites-le depuis un espace en formule payante pour éviter le filigrane.
+- Ne cherchez pas à masquer le filigrane par un autre moyen : la seule façon prévue et propre de le retirer est de passer à une formule payante.
+
+> Conseil : voir l'article « Choisir sa formule GESTMONEY » pour comparer les formules et sélectionner celle qui correspond à la taille de votre réseau.`,
+  },
+
   // ── SÉCURITÉ ──────────────────────────────────────────────────────────────
 
   {
@@ -1120,6 +1326,156 @@ Ce journal sert à **détecter les anomalies**, **résoudre les litiges** et **p
 - **Gardez le journal confidentiel** : il contient des informations sensibles sur les actions de vos équipes.
 
 > Le journal d'audit est votre principale ligne de défense en cas de litige ou de fraude. Sa consultation régulière est une pratique de sécurité fondamentale dans un réseau Mobile Money.`,
+  },
+
+  {
+    slug: 'etats-de-votre-espace',
+    categorie: 'securite',
+    titre: 'Comprendre l\'état de votre espace',
+    resume: 'Les six états possibles de votre espace GESTMONEY — Démo, Découverte, Essai, Actif, Grâce, Expiré — expliqués simplement.',
+    tempsLecture: 4,
+    contenu: `## Pourquoi votre espace a un état
+
+À tout instant, votre espace GESTMONEY se trouve dans un **état** précis. Cet état détermine ce que vous pouvez faire : enregistrer des opérations, consulter vos données, ou seulement les lire. Comprendre ces états vous évite les mauvaises surprises et vous aide à savoir quand agir.
+
+Il existe **six états**. On passe de l'un à l'autre selon votre formule et le temps qui s'écoule.
+
+## Les six états en un coup d'œil
+
+| État | Ce que c'est | Ce que vous pouvez faire |
+|------|--------------|--------------------------|
+| Démo | Visite guidée avec données d'exemple | Regarder, sans saisir de vraies données |
+| Découverte | Palier gratuit à vie, avec plafonds | Travailler dans les plafonds Découverte |
+| Essai | 14 jours de formule Professional | Tout, sans plafond de volume |
+| Actif | Formule payante en cours | Tout, selon la formule souscrite |
+| Grâce | Renouvellement en retard (7 jours) | Lire vos données, sans enregistrer |
+| Expiré | Formule non renouvelée | Accès fermé, données conservées 90 jours |
+
+## Démo
+
+L'état **Démo** correspond à la démo publique : une visite guidée avec des données fictives. Il sert à découvrir l'interface. On n'y saisit jamais de vraies opérations.
+
+## Découverte
+
+**Découverte** est le palier gratuit à vie. Votre espace y fonctionne avec vos vraies données, dans les **plafonds** : 1 agence, 1 agent, 25 transactions par mois. C'est un état stable : on peut y rester indéfiniment.
+
+## Essai
+
+**Essai** ouvre toutes les fonctions de la formule Professional pendant **14 jours**, sans plafond de volume. À la fin, l'espace bascule automatiquement en Découverte si aucune formule n'est souscrite — sans perte de données.
+
+## Actif
+
+**Actif** est l'état d'un espace dont la **formule payante** est en cours de validité (Starter, Essentiel, Professional ou Enterprise). Les plafonds sont levés selon la formule, et les documents sont sans filigrane. C'est l'état de fonctionnement normal d'un réseau souscrit.
+
+## Grâce
+
+Quand une formule payante arrive à échéance sans être renouvelée à temps, l'espace entre en **Période de grâce** de **7 jours**. Pendant cette période, l'accès passe en **Lecture seule** : vous consultez vos données mais ne pouvez plus enregistrer de nouvelles opérations. C'est un délai de sécurité pour régulariser sans rien perdre. Voir l'article « Si vous ne renouvelez pas ».
+
+## Expiré
+
+Si la Période de grâce s'achève sans renouvellement, l'espace passe en **Expiré**. L'accès de travail est fermé, mais vos **données sont conservées 90 jours** après l'expiration. Vous pouvez souscrire une formule durant cette fenêtre pour retrouver votre espace tel qu'il était.
+
+## Comment savoir dans quel état vous êtes
+
+Un **bandeau** en haut de votre espace indique en permanence votre état courant, et des **compteurs** signalent, le cas échéant, les jours restants (Essai, Grâce) ou votre position par rapport aux plafonds (Découverte).
+
+> Conseil : gardez un œil sur le bandeau. Il vous prévient bien avant qu'un changement d'état n'affecte votre travail — vous avez toujours le temps d'agir.`,
+  },
+
+  {
+    slug: 'si-vous-ne-renouvelez-pas',
+    categorie: 'securite',
+    titre: 'Si vous ne renouvelez pas votre formule',
+    resume: 'Période de grâce de 7 jours en lecture seule, puis conservation de vos données pendant 90 jours après expiration.',
+    tempsLecture: 3,
+    contenu: `## Un filet de sécurité en deux temps
+
+Un oubli de renouvellement arrive. GESTMONEY est conçu pour que cela **ne vous fasse jamais perdre vos données**. Quand une formule payante n'est pas renouvelée à l'échéance, deux mécanismes se déclenchent l'un après l'autre : la **Période de grâce**, puis la **conservation des données**.
+
+## Étape 1 — La Période de grâce (7 jours)
+
+Dès l'échéance non renouvelée, votre espace entre en **Période de grâce** pendant **7 jours**.
+
+- Votre espace passe en **Lecture seule** : vous pouvez **consulter** toutes vos données, ouvrir vos rapports et les exporter.
+- Vous ne pouvez plus **enregistrer** de nouvelles opérations (transactions, réapprovisionnements, créations d'agents) tant que la formule n'est pas renouvelée.
+- Un **compteur** indique le nombre de jours de grâce restants.
+
+Cette période vous laisse le temps de régulariser sans stress. Dès que vous renouvelez, l'espace repasse en état **Actif** et tout redevient modifiable, sans aucune perte.
+
+> Conseil : profitez de la Période de grâce pour exporter vos rapports importants, par précaution, pendant que l'accès en lecture est ouvert.
+
+## Étape 2 — L'expiration et la conservation (90 jours)
+
+Si les 7 jours de grâce s'écoulent sans renouvellement, l'espace passe en état **Expiré** :
+
+- L'accès de travail est **fermé**.
+- Vos **données sont conservées pendant 90 jours** à compter de l'expiration.
+- Pendant ces 90 jours, vous pouvez souscrire une **formule** pour **retrouver votre espace** tel qu'il était.
+
+## Ce qu'il faut retenir
+
+| Moment | État | Ce que vous pouvez faire |
+|--------|------|--------------------------|
+| Échéance non renouvelée | Grâce (7 jours) | Lire et exporter, sans enregistrer |
+| Après 7 jours sans renouvellement | Expiré | Souscrire pour rouvrir l'espace |
+| Jusqu'à 90 jours après expiration | Expiré | Données conservées, récupérables |
+| Au-delà de 90 jours | — | Ne comptez plus sur la conservation |
+
+> ⚠️ ATTENTION : La conservation des données n'est garantie que **90 jours** après l'expiration. Passé ce délai, ne comptez plus sur la récupération automatique. Si vous savez que vous ne renouvellerez pas tout de suite, **exportez vos données** pendant la Période de grâce ou la fenêtre de conservation (voir « Récupérer et exporter vos données »).
+
+## Renouveler pour tout retrouver
+
+Pour sortir de la grâce ou rouvrir un espace expiré : souscrivez de nouveau une formule depuis la page **Tarifs** ou la section **Abonnement**. L'espace repasse en **Actif** et vous retrouvez vos agences, agents, transactions et rapports intacts.`,
+  },
+
+  {
+    slug: 'exporter-vos-donnees',
+    categorie: 'securite',
+    titre: 'Récupérer et exporter vos données',
+    resume: 'Exporter rapports et historiques à tout moment, et récupérer vos données pendant la fenêtre de conservation de 90 jours.',
+    tempsLecture: 3,
+    contenu: `## Vos données vous appartiennent
+
+Quel que soit l'état de votre espace — Découverte, Essai, Actif ou en Période de grâce — vous pouvez **exporter vos données** pour les archiver, les partager ou les conserver hors de GESTMONEY. C'est une bonne habitude, et une précaution indispensable si vous envisagez de ne pas renouveler une formule.
+
+## Ce que vous pouvez exporter
+
+- Les **rapports** journaliers, hebdomadaires et mensuels (activité, volumes, commissions).
+- Les **historiques de transactions** par agent, par agence et par opérateur.
+- Les **récapitulatifs de commissions** utiles aux reversements.
+- Les écritures et synthèses du module **Comptabilité**.
+
+## Exporter depuis les rapports
+
+1. Dans la barre latérale, ouvrez **Rapports & BI**.
+2. Choisissez la vue et la **période** souhaitées (jour, semaine, mois).
+3. Sélectionnez l'**agence** ou laissez « Toutes les agences » pour une vue consolidée.
+4. Cliquez sur **Exporter** et choisissez le format proposé (PDF ou Excel).
+5. Enregistrez le fichier sur votre poste, puis archivez-le en lieu sûr.
+
+> Conseil : adoptez un **rythme d'export régulier** (chaque fin de mois, par exemple) et rangez les fichiers dans un dossier daté. En cas de contrôle ou de litige, vous disposez immédiatement des pièces.
+
+## Exporter en Lecture seule (Période de grâce)
+
+Même lorsque votre espace est en **Période de grâce** et passé en **Lecture seule**, l'export reste possible : vous consultez et exportez vos données, seule la saisie de nouvelles opérations est bloquée. C'est le bon moment pour **sauvegarder l'essentiel** avant une éventuelle expiration.
+
+## Récupérer un espace expiré (fenêtre de 90 jours)
+
+Si votre espace est passé en état **Expiré**, vos données restent **conservées 90 jours**. Pour les récupérer :
+
+1. Souscrivez de nouveau une **formule** depuis la page **Tarifs** ou la section **Abonnement**.
+2. L'espace repasse en état **Actif** et vos données réapparaissent intactes.
+3. Vous pouvez alors reprendre le travail normalement et, si besoin, relancer vos exports.
+
+> ⚠️ ATTENTION : La récupération n'est possible que **dans les 90 jours** suivant l'expiration. Au-delà, ne comptez plus sur la conservation automatique. Si vous approchez de cette limite sans vouloir renouveler, exportez tout ce qui vous est utile **maintenant**.
+
+## Bonnes pratiques
+
+- **Exportez avant tout changement** de formule ou toute décision de non-renouvellement.
+- **Datez et rangez** vos fichiers exportés dans un stockage fiable (disque, cloud d'entreprise).
+- **Vérifiez** de temps en temps que vos fichiers exportés s'ouvrent correctement.
+
+> Conseil : la meilleure sauvegarde est celle que vous faites avant d'en avoir besoin. Exportez régulièrement, même quand tout va bien.`,
   },
 ];
 

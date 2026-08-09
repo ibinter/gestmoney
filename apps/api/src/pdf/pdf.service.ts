@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { DocumentVerificationService } from '../document-verification/document-verification.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -63,7 +65,29 @@ export class PdfService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly documentVerification: DocumentVerificationService,
+    private readonly licences: LicencesService,
   ) {}
+
+  /**
+   * Filigrane obligatoire au palier gratuit (§3.5 cahier IBIG).
+   * Renvoie le bloc HTML « Généré avec GESTMONEY — ibigsoft.com » à insérer en
+   * pied de page lorsque le tenant est en DECOUVERTE, sinon une chaîne vide.
+   * Le bloc est en `position: fixed` : les moteurs HTML→PDF (Puppeteer, etc.)
+   * le répètent sur chaque page du document.
+   */
+  private async _filigraneDecouverte(tenantId: string): Promise<string> {
+    let estDecouverte = false;
+    try {
+      const statut = await this.licences.getStatutLicenceCache(tenantId);
+      estDecouverte = statut.statut === StatutLicence.DECOUVERTE;
+    } catch (err) {
+      // En cas d'échec de lecture du statut, on n'ajoute pas de filigrane
+      // plutôt que de bloquer la génération du document.
+      this.logger.warn('Statut de licence indisponible, filigrane Découverte ignoré', err as Error);
+    }
+    if (!estDecouverte) return '';
+    return `\n<div style="position:fixed;left:0;right:0;bottom:6px;text-align:center;font-size:9px;color:#94a3b8;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:0.3px;">Généré avec GESTMONEY — ibigsoft.com</div>\n`;
+  }
 
   // ─── Reçu de transaction ──────────────────────────────────────────────────
 
@@ -122,6 +146,8 @@ export class PdfService {
     const clientPhone: string = tx.receiverPhone ?? '—';
     const reference: string = tx.reference ?? transactionId;
     const createdAt: Date = tx.createdAt ?? new Date();
+
+    const filigrane = await this._filigraneDecouverte(tenantId);
 
     const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -312,7 +338,7 @@ ${qrDataUrl ? `
   Ce reçu fait foi de la transaction effectuée sur la plateforme GESTMONEY.<br>
   En cas de litige, conservez ce document et contactez votre agence.
 </div>
-
+${filigrane}
 </body>
 </html>`;
 
@@ -503,6 +529,8 @@ ${qrDataUrl ? `
       return `<span class="${good ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(n)} %</span>`;
     };
 
+    const filigrane = await this._filigraneDecouverte(tenantId);
+
     const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -677,7 +705,7 @@ ${qrDataUrl ? `
   </table>
   <div class="page-footer">GESTMONEY — Rapport ${periode} — Document généré le ${generated} — IBIG Soft</div>
 </div>
-
+${filigrane}
 </body>
 </html>`;
 
@@ -773,6 +801,8 @@ ${qrDataUrl ? `
     const actif = bilanData?.actif ?? {};
     const passif = bilanData?.passif ?? {};
 
+    const filigrane = await this._filigraneDecouverte(tenantId);
+
     const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -836,7 +866,7 @@ ${this._entetePdf(tenant, 'BILAN ANNUEL', String(annee))}
 <div class="pied">
   Imprimé le ${generated} — ${tenant.name} — Bilan ${annee} — Conforme SYSCOHADA
 </div>
-
+${filigrane}
 </body>
 </html>`;
 
@@ -877,6 +907,8 @@ ${this._entetePdf(tenant, 'BILAN ANNUEL', String(annee))}
     const rNet = parseFloat(String(crData?.resultatNet ?? '0')) || 0;
     const rNetClass = rNet >= 0 ? 'resultat-net-benefice' : 'resultat-net-perte';
     const rNetLabel = rNet >= 0 ? 'BÉNÉFICE NET' : 'PERTE NETTE';
+
+    const filigrane = await this._filigraneDecouverte(tenantId);
 
     const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -973,7 +1005,7 @@ ${this._entetePdf(tenant, 'COMPTE DE RÉSULTAT', String(annee))}
 <div class="pied">
   Imprimé le ${generated} — ${tenant.name} — Compte de résultat ${annee} — Conforme SYSCOHADA OHADA
 </div>
-
+${filigrane}
 </body>
 </html>`;
 
@@ -1038,6 +1070,8 @@ ${this._entetePdf(tenant, 'COMPTE DE RÉSULTAT', String(annee))}
     const matricule = agent.agentCode ?? agentId.slice(0, 8).toUpperCase();
 
     const formatM = (v: number) => new Intl.NumberFormat('fr-FR').format(Math.round(v)) + ' FCFA';
+
+    const filigrane = await this._filigraneDecouverte(tenantId);
 
     const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -1140,7 +1174,7 @@ ${this._entetePdf(tenant, 'BULLETIN DE PAIE', periodeMois)}
 <div class="pied">
   Imprimé le ${generated} — ${tenant.name} — Bulletin ${periodeMois} — Agent ${matricule} — CNSS 6,3% · IGR progressif CI
 </div>
-
+${filigrane}
 </body>
 </html>`;
 

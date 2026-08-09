@@ -11,6 +11,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,6 +23,8 @@ import {
 import { Request, Response } from 'express';
 import { ReportingService } from './reporting.service';
 import { AuditService } from '../audit/audit.service';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 import { GenerateReportDto } from './dto/generate-report.dto';
 import { ScheduleReportDto } from './dto/schedule-report.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -36,7 +39,26 @@ export class ReportingController {
   constructor(
     private readonly reportingService: ReportingService,
     private readonly auditService: AuditService,
+    private readonly licences: LicencesService,
   ) {}
+
+  /**
+   * §3.3 cahier : l'export de données est FERMÉ au palier gratuit Découverte.
+   * Bloque le téléchargement de rapports (CSV/XLSX/PDF) avec un 403 invitant à
+   * passer à une formule payante. Ne bloque QUE le statut DECOUVERTE ; les
+   * statuts ACTIVE/TRIAL/GRACE/PROVISOIRE/SUPER_ADMIN restent pleinement
+   * fonctionnels.
+   */
+  private async assurerExportAutorise(tenantId: string): Promise<void> {
+    const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+    if (statut === StatutLicence.DECOUVERTE) {
+      throw new ForbiddenException({
+        code: 'EXPORT_INDISPONIBLE_DECOUVERTE',
+        message:
+          "L'export n'est pas disponible au palier Découverte. Passez à une formule payante pour l'activer.",
+      });
+    }
+  }
 
   /**
    * Journalise un EXPORT serveur (§27) sans jamais bloquer ni faire échouer le
@@ -76,6 +98,7 @@ export class ReportingController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    await this.assurerExportAutorise(user.tenantId);
     const report = await this.reportingService.generateReport(dto, user.tenantId, user.id);
     this.tracerExport(user, req, 'reports', {
       reportId: report.id,
@@ -231,6 +254,7 @@ export class ReportingController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    await this.assurerExportAutorise(user.tenantId);
     const report = await this.reportingService.getReportById(id, user.tenantId);
     this.tracerExport(user, req, 'reports', { reportId: id, format: 'PDF' });
     const pdfBuffer = this.reportingService.generatePDFReport(report);
