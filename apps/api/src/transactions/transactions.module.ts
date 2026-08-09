@@ -6,9 +6,10 @@ import { PdfModule } from '../pdf/pdf.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { DevisesModule } from '../devises/devises.module';
 import { PushModule } from '../push/push.module';
+import { LicencesModule } from '../licences/licences.module';
 
 @Module({
-  imports: [NotificationsModule, PdfModule, WebhooksModule, DevisesModule, PushModule],
+  imports: [NotificationsModule, PdfModule, WebhooksModule, DevisesModule, PushModule, LicencesModule],
   controllers: [TransactionsController],
   providers: [TransactionsService],
   exports: [TransactionsService],

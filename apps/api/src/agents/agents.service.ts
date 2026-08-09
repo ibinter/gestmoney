@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LicencesService } from '../licences/licences.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { QueryAgentDto } from './dto/query-agent.dto';
@@ -16,9 +17,15 @@ import * as bcrypt from 'bcrypt';
 export class AgentsService {
   private readonly logger = new Logger(AgentsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly licences: LicencesService,
+  ) {}
 
   async create(dto: CreateAgentDto, tenantId: string, createdBy: string) {
+    // Palier Découverte : refus au plafond (sans suppression). Inopérant au-dessus.
+    await this.licences.assurerQuota(tenantId, 'agents');
+
     // Vérifier que l'utilisateur n'est pas déjà agent
     if (dto.userId) {
       const existingAgent = await this.prisma.agent.findUnique({

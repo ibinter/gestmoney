@@ -19,9 +19,12 @@ import { LICENCES_CONFIG_KEY, LicencesConfig } from './licences.config';
 import { LICENCE_EVENTS } from './licences.events';
 import {
   ActivationDepuisPaiement,
+  CompteurQuota,
+  EtatQuota,
   StatutLicence,
   StatutLicenceResultat,
 } from './dto/licences.dto';
+import { ForbiddenException } from '@nestjs/common';
 
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
 
@@ -63,12 +66,19 @@ const RANG_PLAN: Record<TenantPlan, number> = {
   [TenantPlan.CUSTOM]: 5,
 };
 
-/** Statuts pour lesquels l'accès à l'application reste ouvert. */
+/**
+ * Statuts pour lesquels l'accès à l'application reste ouvert.
+ *
+ * DECOUVERTE en fait partie : le palier gratuit autorise l'écriture (dans la
+ * limite des plafonds, appliqués séparément à l'écriture), il n'est pas une
+ * coupure d'accès.
+ */
 const STATUTS_ACTIFS: ReadonlySet<StatutLicence> = new Set([
   StatutLicence.ESSAI,
   StatutLicence.PROVISOIRE,
   StatutLicence.ACTIVE,
   StatutLicence.GRACE,
+  StatutLicence.DECOUVERTE,
 ]);
 
 export function ajouterJours(base: Date, jours: number): Date {
@@ -222,6 +232,104 @@ export class LicencesService {
       this.prisma.licenceEvent.count({ where: { tenantId } }),
     ]);
     return { total, limit, offset, events };
+  }
+
+  // ─── Quotas du palier Découverte ────────────────────────────────────────────
+
+  /** Plafonds du palier gratuit, avec repli sur les valeurs GESTMONEY. */
+  private get plafonds() {
+    return (
+      this.parametres.plafondsDecouverte ?? {
+        agences: 1,
+        agents: 1,
+        transactionsMois: 25,
+      }
+    );
+  }
+
+  /** Début du mois calendaire courant (00:00), pour les compteurs mensuels. */
+  private debutDuMois(): Date {
+    const maintenant = new Date();
+    return new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
+  }
+
+  /** Usage actuel d'un compteur pour un tenant (comptage direct, sans table dédiée). */
+  private async usageActuel(tenantId: string, compteur: CompteurQuota): Promise<number> {
+    switch (compteur) {
+      case 'agences':
+        return this.prisma.agency.count({ where: { tenantId } });
+      case 'agents':
+        return this.prisma.agent.count({ where: { tenantId } });
+      case 'transactionsMois':
+        return this.prisma.transaction.count({
+          where: { tenantId, createdAt: { gte: this.debutDuMois() } },
+        });
+    }
+  }
+
+  /**
+   * État consolidé des trois compteurs de quota d'un tenant. Les plafonds ne
+   * s'appliquent qu'au palier DECOUVERTE : au-dessus (essai, actif, grâce…),
+   * `plafond` vaut `Infinity` et `autorise` est toujours vrai.
+   */
+  async getQuotas(tenantId: string): Promise<EtatQuota[]> {
+    const statut = await this.getStatutLicence(tenantId);
+    const plafonne = statut.statut === StatutLicence.DECOUVERTE;
+    const compteurs: CompteurQuota[] = ['agences', 'agents', 'transactionsMois'];
+
+    return Promise.all(
+      compteurs.map(async (compteur) => {
+        const valeur = await this.usageActuel(tenantId, compteur);
+        const plafond = plafonne ? this.plafonds[compteur] : Number.POSITIVE_INFINITY;
+        return {
+          compteur,
+          valeur,
+          plafond,
+          restant: Number.isFinite(plafond) ? Math.max(0, plafond - valeur) : Number.POSITIVE_INFINITY,
+          autorise: valeur < plafond,
+        } satisfies EtatQuota;
+      }),
+    );
+  }
+
+  /**
+   * Garde d'écriture appelée par les services métier AVANT une création
+   * (agence, agent, transaction). Ne fait rien hors palier Découverte. Au
+   * plafond, refuse avec le message du cahier IBIG §8.5 (rien n'est supprimé,
+   * les données existantes restent modifiables).
+   */
+  async assurerQuota(tenantId: string, compteur: CompteurQuota): Promise<void> {
+    let statut: StatutLicenceResultat;
+    try {
+      statut = await this.getStatutLicenceCache(tenantId);
+    } catch {
+      // Statut illisible : ne pas transformer une panne en blocage d'écriture.
+      return;
+    }
+    if (statut.statut !== StatutLicence.DECOUVERTE) return;
+
+    const plafond = this.plafonds[compteur];
+    const valeur = await this.usageActuel(tenantId, compteur);
+    if (valeur < plafond) return;
+
+    const libelle: Record<CompteurQuota, string> = {
+      agences: `${plafond} agence${plafond > 1 ? 's' : ''}`,
+      agents: `${plafond} agent${plafond > 1 ? 's' : ''}`,
+      transactionsMois: `${plafond} transaction${plafond > 1 ? 's' : ''} par mois`,
+    };
+
+    throw new ForbiddenException({
+      code: 'QUOTA_DECOUVERTE_ATTEINT',
+      compteur,
+      plafond,
+      message:
+        `Limite du palier Découverte atteinte (${libelle[compteur]}). Vos données ` +
+        `restent accessibles et modifiables. Pour aller au-delà, activez la ` +
+        `formule STARTER à partir de 9 900 FCFA/mois.`,
+      formuleSuivante: 'STARTER',
+      prix: '9 900 FCFA/mois',
+      renouvellementUrl: '/dashboard/abonnement',
+    });
   }
 
   // ─── Transitions ───────────────────────────────────────────────────────────
@@ -989,6 +1097,14 @@ export class LicencesService {
     }
     if (meta.statut === StatutLicence.EN_ATTENTE_PAIEMENT && !tenant.subscriptionEndsAt) {
       return StatutLicence.EN_ATTENTE_PAIEMENT;
+    }
+    // Jamais d'abonnement payant contracté (aucune échéance d'abonnement) →
+    // palier gratuit « Découverte » : écriture ouverte mais plafonnée. C'est
+    // l'atterrissage d'un essai terminé sans achat (cahier IBIG D6 : bascule en
+    // Découverte, jamais coupure). À l'inverse, un abonnement souscrit puis échu
+    // (subscriptionEndsAt renseignée, grâce écoulée) tombe bien en EXPIREE.
+    if (!tenant.subscriptionEndsAt) {
+      return StatutLicence.DECOUVERTE;
     }
     return StatutLicence.EXPIREE;
   }

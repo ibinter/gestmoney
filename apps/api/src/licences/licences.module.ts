@@ -24,12 +24,11 @@ import { NotificationsModule } from '../notifications/notifications.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>(
-          'JWT_SECRET',
-          'gestmoney-super-secret-jwt-key-for-dev-32chars!',
-        ),
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret) throw new Error('JWT_SECRET non configuré');
+        return { secret };
+      },
     }),
   ],
   controllers: [LicencesController],

@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LicencesService } from '../licences/licences.service';
 import { CreateAgencyDto } from './dto/create-agency.dto';
 import { UpdateAgencyDto } from './dto/update-agency.dto';
 
@@ -12,9 +13,16 @@ import { UpdateAgencyDto } from './dto/update-agency.dto';
 export class AgenciesService {
   private readonly logger = new Logger(AgenciesService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly licences: LicencesService,
+  ) {}
 
   async create(dto: CreateAgencyDto, tenantId: string, createdBy: string) {
+    // Palier Découverte : refus au plafond (sans rien supprimer). Sans effet
+    // au-dessus du gratuit.
+    await this.licences.assurerQuota(tenantId, 'agences');
+
     // Le formulaire front ne fournit pas de réseau : on retombe sur le réseau
     // par défaut du tenant (premier réseau créé) quand networkId est absent.
     let networkId = dto.networkId;

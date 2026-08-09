@@ -19,9 +19,28 @@ export enum StatutLicence {
   PROVISOIRE = 'PROVISOIRE',
   ACTIVE = 'ACTIVE',
   GRACE = 'GRACE',
+  /**
+   * Palier gratuit « Découverte ». L'accès à l'application reste OUVERT
+   * (écriture autorisée), mais borné par les plafonds serveur (agences, agents,
+   * transactions/mois). C'est l'état d'atterrissage d'un essai terminé sans
+   * abonnement — jamais une coupure : le cahier IBIG interdit de couper.
+   */
+  DECOUVERTE = 'DECOUVERTE',
   EXPIREE = 'EXPIREE',
   SUSPENDUE = 'SUSPENDUE',
   REVOQUEE = 'REVOQUEE',
+}
+
+/** Compteurs de quota exposés au palier Découverte. */
+export type CompteurQuota = 'agences' | 'agents' | 'transactionsMois';
+
+/** État d'un compteur : valeur courante, plafond, reste, autorisation d'écrire. */
+export interface EtatQuota {
+  compteur: CompteurQuota;
+  valeur: number;
+  plafond: number;
+  restant: number;
+  autorise: boolean;
 }
 
 export class ActiverEssaiDto {

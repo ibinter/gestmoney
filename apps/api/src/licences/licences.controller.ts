@@ -75,6 +75,19 @@ export class LicencesController {
     return this.licencesService.getStatutLicence(tenantId);
   }
 
+  /**
+   * Quotas du palier Découverte pour SON établissement. Déclarée avant les
+   * routes `:tenantId/...`. Le front s'en sert pour afficher les compteurs
+   * (agences, agents, transactions/mois) et désactiver les boutons au plafond.
+   */
+  @Get('mon-statut/quotas')
+  @Roles()
+  @ApiOperation({ summary: 'Quotas (agences, agents, transactions/mois) de son établissement' })
+  @ApiResponse({ status: 200, description: 'État consolidé des trois compteurs' })
+  getMesQuotas(@CurrentUser('tenantId') tenantId: string) {
+    return this.licencesService.getQuotas(tenantId);
+  }
+
   @Get(':tenantId/statut')
   @ApiOperation({ summary: "Consulter le statut de licence d'un établissement" })
   @ApiParam({ name: 'tenantId', description: 'ID du tenant' })

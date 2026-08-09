@@ -7,6 +7,29 @@ import Link from 'next/link';
 
 const PLANS_MENSUEL = [
   {
+    nom: 'DÉCOUVERTE',
+    prix: '0',
+    devise: 'Gratuit à vie',
+    badge: null,
+    ideal: 'Pour découvrir sans engagement',
+    accentBg: '#f9fafb',
+    accentBorder: '#e5e7eb',
+    accentBtn: '#111827',
+    accentTxt: '#fff',
+    headColor: '#374151',
+    cta: 'Créer mon espace gratuit',
+    href: '/register?plan=DECOUVERTE',
+    features: [
+      '1 agence · 1 agent',
+      '25 transactions / mois',
+      'Toutes les fonctions de base',
+      'Accès web + installation PWA',
+      'Sauvegarde quotidienne',
+      'Connexion par e-mail (OTP)',
+      'Documents avec mention « Généré avec GESTMONEY »',
+    ],
+  },
+  {
     nom: 'STARTER',
     prix: '9 900',
     devise: 'FCFA/mois',
@@ -104,7 +127,7 @@ const PLANS_MENSUEL = [
 
 // Prix annuels (-20%)
 const PLANS_ANNUEL = PLANS_MENSUEL.map(p => {
-  if (p.prix === 'Sur devis') return p;
+  if (p.prix === 'Sur devis' || p.prix === '0') return p;
   const num = parseInt(p.prix.replace(/\s/g, ''), 10);
   const annuel = Math.round(num * 0.8 / 100) * 100;
   return { ...p, prix: annuel.toLocaleString('fr-FR'), devise: 'FCFA/mois (–20%)' };
@@ -171,7 +194,7 @@ const COMPARATIF = [
 const FAQ_TARIFS = [
   {
     q: 'Y a-t-il une période d\'essai ?',
-    r: 'Oui, 14 jours gratuits sans carte bancaire. Vous avez accès à toutes les fonctionnalités PRO pendant l\'essai. À l\'issue, votre compte passe en lecture seule jusqu\'à souscription.',
+    r: 'Oui, 14 jours gratuits sans carte bancaire, avec accès à toutes les fonctionnalités PROFESSIONAL. À l\'issue, votre espace bascule automatiquement en Découverte (gratuit à vie) : aucune donnée n\'est supprimée, seules les fonctions avancées et le volume au-delà des plafonds se ferment.',
   },
   {
     q: 'Puis-je changer de plan à tout moment ?',

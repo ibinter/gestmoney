@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { LicencesService } from '../licences/licences.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { PushService } from '../push/push.service';
@@ -51,6 +52,7 @@ export class TransactionsService {
     private readonly webhooks: WebhooksService,
     private readonly devises: DevisesService,
     private readonly push: PushService,
+    private readonly licences: LicencesService,
   ) {}
 
   // ─── Génération référence unique ────────────────────────────────────────────
@@ -174,6 +176,11 @@ export class TransactionsService {
     userId: string,
     agenceId?: string | null,
   ): Promise<ITransaction> {
+    // Palier Découverte : plafond de transactions du mois. Refus sans rien
+    // supprimer ; inopérant au-dessus du gratuit. C'est LE verrou qui empêche le
+    // gratuit de remplacer la formule d'entrée (cf. cahier IBIG §6).
+    await this.licences.assurerQuota(tenantId, 'transactionsMois');
+
     // Contrôle d'isolation : si l'appelant est scopé à une agence, vérifier
     // que la transaction cible bien cette agence (et non une agence tierce).
     if (agenceId && dto.agencyId && dto.agencyId !== agenceId) {
