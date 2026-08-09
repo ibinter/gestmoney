@@ -94,7 +94,19 @@ function useUserAuditLogs(userId: string | undefined) {
           id: String(e.id ?? ''),
           action: String(e.action ?? 'VIEW'),
           resource: String(e.resource ?? e.resourceType ?? ''),
-          detail: String(e.details ?? e.description ?? e.resourceId ?? ''),
+          detail: ((): string => {
+            const d = e.details ?? e.description ?? e.resourceId;
+            if (d == null) return '';
+            if (typeof d === 'string') return d;
+            if (typeof d === 'object') {
+              const o = d as Record<string, unknown>;
+              return String(
+                o.message ?? o.motif ?? o.description ??
+                Object.entries(o).map(([k, val]) => `${k}: ${val}`).join(' · '),
+              );
+            }
+            return String(d);
+          })(),
           date: String(e.createdAt ?? e.timestamp ?? new Date().toISOString()),
           type: String(e.type ?? e.category ?? 'other'),
         }));

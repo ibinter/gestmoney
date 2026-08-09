@@ -15,11 +15,17 @@ import {
   GmTableWrap,
 } from '@/components/gm';
 
-const periodes = (t: Translations) => [
-  { value: 'janvier_2024',     label: t.rapports.periods.janvier_2024      },
-  { value: 'decembre_2023',    label: t.rapports.periods.decembre_2023     },
-  { value: 'trimestre_4_2023', label: t.rapports.periods.trimestre_4_2023  },
-];
+// Périodes dynamiques calculées au rendu (jamais de mois figé dans le passé).
+const periodes = () => {
+  const now = new Date();
+  const noms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const prec = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return [
+    { value: '30j',            label: '30 derniers jours' },
+    { value: 'mois_courant',   label: `Mois courant (${noms[now.getMonth()]} ${now.getFullYear()})` },
+    { value: 'mois_precedent', label: `Mois précédent (${noms[prec.getMonth()]} ${prec.getFullYear()})` },
+  ];
+};
 
 const typesRapport = (t: Translations) => [
   { value: 'journalier',   label: t.rapports.typesRapport.journalier   },
@@ -35,11 +41,11 @@ const DONUT_R = 45;
 const DONUT_C = 2 * Math.PI * DONUT_R;
 
 export default function RapportsPage() {
-  const [periode, setPeriode] = useState('janvier_2024');
+  const [periode, setPeriode] = useState('30j');
   const { data, isLoading, isError, refetch } = useRapports(periode);
   const genererRapport = useGenererRapport();
   const t = useT();
-  const PERIODES = periodes(t);
+  const PERIODES = periodes();
   const TYPES_RAPPORT = typesRapport(t);
   const LIBELLES_TYPE = libellesType(t);
 

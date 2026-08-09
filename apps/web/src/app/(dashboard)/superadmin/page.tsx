@@ -104,7 +104,22 @@ export default function SuperAdminPage() {
       try {
         const res = await api.get('/tenants');
         const raw = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
-        return raw.length > 0 ? raw : MOCK_TENANTS;
+        // L'API renvoie le schéma EN (name/status/_count) ; le tableau attend le
+        // schéma FR (nom/statut/utilisateurs). Sans ce mapping, les colonnes
+        // Société et Statut s'affichent vides.
+        return raw.length > 0
+          ? raw.map((r: Record<string, any>) => ({
+              id: r.id,
+              nom: r.name ?? r.nom ?? '—',
+              plan: r.plan ?? '—',
+              statut: r.status ?? r.statut ?? '—',
+              utilisateurs: r._count?.users ?? r.utilisateurs ?? '—',
+              transactions_mois: r.transactions_mois ?? r.transactionsMois ?? 0,
+              renouvellement: r.subscriptionEndsAt
+                ? new Date(r.subscriptionEndsAt).toLocaleDateString('fr-FR')
+                : (r.renouvellement ?? '—'),
+            }))
+          : MOCK_TENANTS;
       } catch {
         return MOCK_TENANTS;
       }

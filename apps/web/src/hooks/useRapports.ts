@@ -64,16 +64,21 @@ function metaOperateur(code?: string): { label: string; logo: string; couleur: s
  */
 function bornesPeriode(periode?: string): { startDate: string; endDate: string } {
   const iso = (d: Date) => d.toISOString();
+  const now = new Date();
   switch (periode) {
-    case 'decembre_2023':
-      return { startDate: iso(new Date(Date.UTC(2023, 11, 1))), endDate: iso(new Date(Date.UTC(2023, 11, 31, 23, 59, 59))) };
-    case 'trimestre_4_2023':
-      return { startDate: iso(new Date(Date.UTC(2023, 9, 1))), endDate: iso(new Date(Date.UTC(2023, 11, 31, 23, 59, 59))) };
-    case 'janvier_2024':
-      return { startDate: iso(new Date(Date.UTC(2024, 0, 1))), endDate: iso(new Date(Date.UTC(2024, 0, 31, 23, 59, 59))) };
+    case 'mois_courant':
+      return {
+        startDate: iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))),
+        endDate: iso(now),
+      };
+    case 'mois_precedent':
+      return {
+        startDate: iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))),
+        endDate: iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59))),
+      };
     default:
-      // 30 derniers jours
-      return { startDate: iso(new Date(Date.now() - 30 * 86400000)), endDate: iso(new Date()) };
+      // '30j' et tout le reste : 30 derniers jours glissants.
+      return { startDate: iso(new Date(Date.now() - 30 * 86400000)), endDate: iso(now) };
   }
 }
 

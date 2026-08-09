@@ -748,9 +748,12 @@ export default function CommissionsPage() {
           <div className="gm-filter-group" style={{ maxWidth: 200, flex: 'none' }}>
             <select value={filtrePeriode} onChange={(e) => setFiltrePeriode(e.target.value)}>
               <option value="">{t.commissions.periodOptions.all}</option>
-              <option value="2024-01">{t.commissions.periodOptions.m202401}</option>
-              <option value="2024-02">{t.commissions.periodOptions.m202402}</option>
-              <option value="2024-03">{t.commissions.periodOptions.m202403}</option>
+              {Array.from({ length: 6 }).map((_, i) => {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const noms = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+                return <option key={v} value={v}>{`${noms[d.getMonth()]} ${d.getFullYear()}`}</option>;
+              })}
             </select>
           </div>
           {selectionnees.length > 0 && (

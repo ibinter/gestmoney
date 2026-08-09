@@ -92,7 +92,9 @@ export function useDemandesReappro() {
       try {
         const res = await api.get('/float/replenish/pending');
         const items = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
-        if (items.length === 0) return mockDemandesReappro;
+        // Liste réelle vide = AUCUNE demande : on affiche l'état vide, jamais des
+        // fixtures (qui polluaient l'écran avec « Kofi Mensah / janv. 2024 »).
+        if (items.length === 0) return [];
         return items.map((d: any) => ({
           id: d.id,
           operateur: d.operator ?? d.operateur,
