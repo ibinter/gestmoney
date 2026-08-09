@@ -94,7 +94,7 @@ describe('DevisesService', () => {
       const dto = { deviseBase: 'USD', deviseCible: 'XOF', taux: 600, source: 'MANUAL' };
       mockPrisma.tauxChange.upsert.mockResolvedValue({ id: 'tx-1', ...dto });
 
-      const result = await service.updateTaux(dto);
+      const result = await service.updateTaux(dto as any);
 
       expect(mockPrisma.tauxChange.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -116,7 +116,7 @@ describe('DevisesService', () => {
       const dto = { deviseBase: 'EUR', deviseCible: 'XOF', taux: 655 };
       mockPrisma.tauxChange.upsert.mockResolvedValue({ ...dto, source: 'MANUAL' });
 
-      await service.updateTaux(dto);
+      await service.updateTaux(dto as any);
 
       expect(mockPrisma.tauxChange.upsert).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -122,7 +122,7 @@ export class CampaignsService {
         const prospects = await this.prisma.prospect.findMany({
           where: {
             email: { not: null },
-            statut: { notIn: ['CONVERTI', 'PERDU'] },
+            statut: { notIn: ['GAGNE', 'PERDU'] },
           },
           select: { email: true, nom: true },
         });

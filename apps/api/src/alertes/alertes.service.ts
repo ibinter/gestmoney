@@ -43,7 +43,8 @@ export class AlertesService {
 
   // ─── Émission d'alertes ──────────────────────────────────────────────────────
 
-  private async emettreAlerte(
+  // Publique : appelée aussi par FloatListener (émission d'alerte de recharge).
+  async emettreAlerte(
     tenantId: string,
     type: TypeAlerte,
     titre: string,
@@ -81,13 +82,27 @@ export class AlertesService {
           balance: { lt: seuil },
         },
         include: {
-          agent: { select: { firstName: true, lastName: true } },
+          agent: { select: { userId: true } },
           network: { select: { name: true } },
         },
       });
 
+      // Agent n'a pas de relation `user` (seulement `userId`) : on résout les
+      // noms en un seul findMany, puis on les mappe par userId.
+      const userIds = comptesBasSeuil
+        .map((c) => c.agent?.userId)
+        .filter((v): v is string => !!v);
+      const users = userIds.length
+        ? await this.prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [];
+      const userMap = new Map(users.map((u) => [u.id, u]));
+
       for (const compte of comptesBasSeuil) {
-        const agentNom = `${compte.agent?.firstName ?? ''} ${compte.agent?.lastName ?? ''}`.trim();
+        const u = compte.agent?.userId ? userMap.get(compte.agent.userId) : undefined;
+        const agentNom = `${u?.firstName ?? ''} ${u?.lastName ?? ''}`.trim();
         const operateur = compte.network?.name ?? 'Inconnu';
         const solde = Number(compte.balance);
 
@@ -223,7 +238,7 @@ export class AlertesService {
   // ─── Lecture des alertes ──────────────────────────────────────────────────────
 
   async getAlertes(tenantId: string, opts: { page?: number; limit?: number; lu?: boolean }) {
-    const { skip, take, page } = normaliserPagination({ page: opts.page, limit: opts.limit });
+    const { skip, limit, page } = normaliserPagination(opts.page, opts.limit);
     const where: Record<string, unknown> = { tenantId };
     if (opts.lu !== undefined) where.lu = opts.lu;
 
@@ -232,12 +247,12 @@ export class AlertesService {
         where,
         orderBy: { createdAt: 'desc' },
         skip,
-        take,
+        take: limit,
       }),
       this.prisma.alerteEmise.count({ where }),
     ]);
 
-    return { alertes, total, page, limit: take };
+    return { alertes, total, page, limit };
   }
 
   async marquerLue(id: string, tenantId: string) {

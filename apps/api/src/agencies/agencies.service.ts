@@ -245,7 +245,7 @@ export class AgenciesService {
     // Commissions du mois
     const commissions = await this.prisma.commissionEarning.aggregate({
       where: { tenantId, agencyId: agenceId, createdAt: { gte: debutMois } },
-      _sum: { amount: true },
+      _sum: { grossAmount: true },
     });
 
     // Compter les agents actifs
@@ -287,7 +287,7 @@ export class AgenciesService {
       kpis: {
         nbTransactions: kpiTx._count.id,
         volume: Number(kpiTx._sum.amount ?? 0),
-        commissions: Number(commissions._sum.amount ?? 0),
+        commissions: Number(commissions._sum.grossAmount ?? 0),
         agentsActifs,
       },
       evolution7Jours,

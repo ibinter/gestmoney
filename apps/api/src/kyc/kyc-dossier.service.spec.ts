@@ -118,7 +118,7 @@ describe('KycDossierService', () => {
       mockPrisma.kycDossier.upsert.mockResolvedValue({ ...mockDossier, statut: 'EN_COURS' });
       mockPrisma.customer.update.mockResolvedValue({});
 
-      const result = await service.soumettreDocuments(CLIENT_ID, TENANT, dto);
+      const result = await service.soumettreDocuments(CLIENT_ID, TENANT, dto as any);
 
       expect(result.statut).toBe('EN_COURS');
       expect(mockPrisma.customer.update).toHaveBeenCalledWith(
@@ -131,7 +131,7 @@ describe('KycDossierService', () => {
     it("lève NotFoundException si le client n'appartient pas au tenant", async () => {
       mockPrisma.customer.findFirst.mockResolvedValue(null);
 
-      await expect(service.soumettreDocuments(CLIENT_ID, TENANT, dto)).rejects.toThrow(
+      await expect(service.soumettreDocuments(CLIENT_ID, TENANT, dto as any)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -142,7 +142,7 @@ describe('KycDossierService', () => {
       const grosePhoto = makeDataUrl(5_100_000); // > 5 Mo
 
       await expect(
-        service.soumettreDocuments(CLIENT_ID, TENANT, { ...dto, photoRecto: grosePhoto }),
+        service.soumettreDocuments(CLIENT_ID, TENANT, { ...dto, photoRecto: grosePhoto } as any),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -154,7 +154,7 @@ describe('KycDossierService', () => {
       const petitePhoto = makeDataUrl(1_000_000); // 1 Mo
 
       await expect(
-        service.soumettreDocuments(CLIENT_ID, TENANT, { ...dto, photoRecto: petitePhoto }),
+        service.soumettreDocuments(CLIENT_ID, TENANT, { ...dto, photoRecto: petitePhoto } as any),
       ).resolves.toBeDefined();
     });
 
@@ -165,7 +165,7 @@ describe('KycDossierService', () => {
         service.soumettreDocuments(CLIENT_ID, TENANT, {
           ...dto,
           dateExpiration: '2020-01-01',
-        }),
+        } as any),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -173,7 +173,7 @@ describe('KycDossierService', () => {
       mockPrisma.customer.findFirst.mockResolvedValue(mockClient);
 
       await expect(
-        service.soumettreDocuments(CLIENT_ID, TENANT, { ...dto, photoSelfie: 'pas-une-data-url' }),
+        service.soumettreDocuments(CLIENT_ID, TENANT, { ...dto, photoSelfie: 'pas-une-data-url' } as any),
       ).rejects.toThrow(BadRequestException);
     });
   });
