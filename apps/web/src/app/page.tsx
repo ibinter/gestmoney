@@ -79,8 +79,27 @@ const HERO_SLIDES = [
   { mot: 'vos commissions', couleur: '#E60000', accroche: 'Calcul automatique, paliers configurables, validation et paiement en un clic.' },
 ];
 
-// 4 licences modérées
+// Palier gratuit Découverte + 4 formules payantes
 const OFFRES = [
+  {
+    nom: 'DÉCOUVERTE',
+    prix: 'Gratuit',
+    devise: 'à vie · sans carte',
+    badge: null,
+    accentBg: '#f9fafb',
+    accentBorder: '#e5e7eb',
+    accentBtn: '#111827',
+    accentTxt: '#fff',
+    headColor: '#374151',
+    features: [
+      '1 agence · 1 agent',
+      '25 transactions / mois',
+      'Toutes les fonctions de base',
+      'Accès web + installation PWA',
+      'Documents avec mention « Généré avec GESTMONEY »',
+    ],
+    ideal: 'Pour découvrir sans engagement',
+  },
   {
     nom: 'STARTER',
     prix: '9 900',
@@ -656,7 +675,7 @@ export default function LandingPage() {
                 <p style={{ fontSize: 13, fontWeight: 800, color: o.headColor, letterSpacing: '.08em', marginBottom: 6, textTransform: 'uppercase' }}>{o.nom}</p>
                 <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 18, fontStyle: 'italic' }}>{o.ideal}</p>
                 <div style={{ marginBottom: 24 }}>
-                  <span style={{ fontSize: o.prix === 'Sur devis' ? 28 : 34, fontWeight: 900, color: '#111', fontVariantNumeric: 'tabular-nums' }}>{o.prix}</span>
+                  <span style={{ fontSize: o.prix === 'Sur devis' || o.prix === 'Gratuit' ? 28 : 34, fontWeight: 900, color: '#111', fontVariantNumeric: 'tabular-nums' }}>{o.prix}</span>
                   {o.devise && <span style={{ fontSize: 13, color: '#6b7280', marginLeft: 6 }}>{o.devise}</span>}
                 </div>
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -673,7 +692,11 @@ export default function LandingPage() {
                   boxShadow: `0 4px 16px ${o.accentBtn}40`,
                   transition: 'opacity .15s',
                 }}>
-                  {o.prix === 'Sur devis' ? 'Nous contacter →' : 'Démarrer l\'essai gratuit →'}
+                  {o.prix === 'Sur devis'
+                    ? 'Nous contacter →'
+                    : o.prix === 'Gratuit'
+                      ? 'Créer mon espace gratuit →'
+                      : 'Démarrer l\'essai gratuit →'}
                 </Link>
               </div>
             ))}

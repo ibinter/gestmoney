@@ -25,6 +25,17 @@ type Offre = {
 
 const OFFRES: Offre[] = [
   {
+    id: 'decouverte',
+    nom: 'DÉCOUVERTE',
+    prix: 'Gratuit',
+    prixSub: 'à vie',
+    utilisateurs: '1',
+    agences: '1',
+    support: 'Communauté',
+    cta: 'Créer mon espace',
+    ctaHref: '/register',
+  },
+  {
     id: 'starter',
     nom: 'STARTER',
     prix: '9 900 FCFA',
@@ -73,6 +84,7 @@ const OFFRES: Offre[] = [
 
 type Fonctionnalite = {
   label: string;
+  decouverte: boolean;
   starter: boolean;
   essentiel: boolean;
   professional: boolean;
@@ -80,16 +92,16 @@ type Fonctionnalite = {
 };
 
 const FONCTIONNALITES: Fonctionnalite[] = [
-  { label: 'Agents de terrain',   starter: true,  essentiel: true,  professional: true,  enterprise: true  },
-  { label: 'Flottes',             starter: true,  essentiel: true,  professional: true,  enterprise: true  },
-  { label: 'Commissions auto',    starter: false, essentiel: true,  professional: true,  enterprise: true  },
-  { label: 'Rapports avancés',    starter: false, essentiel: false, professional: true,  enterprise: true  },
-  { label: 'Import Excel',        starter: false, essentiel: true,  professional: true,  enterprise: true  },
-  { label: 'API & Webhooks',      starter: false, essentiel: false, professional: true,  enterprise: true  },
-  { label: 'SARA IA',             starter: false, essentiel: false, professional: true,  enterprise: true  },
-  { label: 'Sauvegarde cloud',    starter: true,  essentiel: true,  professional: true,  enterprise: true  },
-  { label: 'Formation',           starter: false, essentiel: false, professional: false, enterprise: true  },
-  { label: 'Audit log',           starter: false, essentiel: false, professional: true,  enterprise: true  },
+  { label: 'Agents de terrain',   decouverte: true,  starter: true,  essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Flottes',             decouverte: true,  starter: true,  essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Commissions auto',    decouverte: false, starter: false, essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Rapports avancés',    decouverte: false, starter: false, essentiel: false, professional: true,  enterprise: true  },
+  { label: 'Import Excel',        decouverte: false, starter: false, essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'API & Webhooks',      decouverte: false, starter: false, essentiel: false, professional: true,  enterprise: true  },
+  { label: 'SARA IA',             decouverte: false, starter: false, essentiel: false, professional: true,  enterprise: true  },
+  { label: 'Sauvegarde cloud',    decouverte: true,  starter: true,  essentiel: true,  professional: true,  enterprise: true  },
+  { label: 'Formation',           decouverte: false, starter: false, essentiel: false, professional: false, enterprise: true  },
+  { label: 'Audit log',           decouverte: false, starter: false, essentiel: false, professional: true,  enterprise: true  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -151,6 +163,7 @@ function TableauComparateur() {
           {FONCTIONNALITES.map((f, i) => (
             <tr key={f.label} className={i % 2 === 0 ? 'oc-tr-pair' : ''}>
               <td className="oc-td oc-td-label">{f.label}</td>
+              <td className="oc-td oc-td-val"><Check ok={f.decouverte} /></td>
               <td className="oc-td oc-td-val"><Check ok={f.starter} /></td>
               <td className="oc-td oc-td-val"><Check ok={f.essentiel} /></td>
               <td className="oc-td oc-td-val oc-td--recommande"><Check ok={f.professional} /></td>
