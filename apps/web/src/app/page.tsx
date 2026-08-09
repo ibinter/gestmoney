@@ -17,9 +17,7 @@ import { PublicsConcernésSection } from '@/components/landing/PublicsConcernés
 import { SécuritéVitrineSection } from '@/components/landing/SécuritéVitrineSection';
 import { AvantagesIBIGSection } from '@/components/landing/AvantagesIBIGSection';
 import { IntégrationsSectionComponent } from '@/components/landing/IntégrationsSectionComponent';
-import { OffreComparateurSection } from '@/components/landing/OffreComparateurSection';
 import { TémoignagesSection } from '@/components/landing/TémoignagesSection';
-import { FAQSection } from '@/components/landing/FAQSection';
 
 // ─── Données ───────────────────────────────────────────────────
 const FEATURES = [
@@ -272,7 +270,8 @@ const GARANTIES_ABONNEMENT = [
 ];
 
 const FAQ = [
-  { q: 'Combien de temps dure l\'essai gratuit ?', r: '14 jours sans carte bancaire. Accès PROFESSIONAL complet. À l\'issue, votre compte passe en lecture seule jusqu\'à souscription.' },
+  { q: 'Combien coûte GESTMONEY ?', r: 'Un palier Découverte gratuit à vie (1 agence, 1 agent, 25 transactions par mois), puis quatre formules payantes : STARTER 9 900, ESSENTIEL 19 900, PROFESSIONAL 39 900 FCFA/mois, et ENTERPRISE sur devis. Facturation mensuelle ou annuelle (−20 %).' },
+  { q: 'Combien de temps dure l\'essai gratuit ?', r: '14 jours sans carte bancaire. Accès PROFESSIONAL complet. À l\'issue, votre espace bascule automatiquement en Découverte (gratuit à vie) : aucune donnée n\'est supprimée.' },
   { q: 'Quels moyens de paiement puis-je utiliser ?', r: 'La plateforme prend en charge le Mobile Money, la carte bancaire via passerelles, le virement national et international, les transferts d\'argent, les espèces en agence, le chèque, la cryptomonnaie, le code prépayé et le paiement à la livraison. Chaque moyen s\'active à la demande selon votre pays : contactez-nous pour savoir lesquels sont ouverts chez vous.' },
   { q: 'Que se passe-t-il si je paie en retard ?', r: 'Une période de grâce de 7 jours suit l\'échéance : votre accès reste actif le temps de régulariser. Passé ce délai, l\'accès passe en lecture seule, sans perte de données.' },
   { q: 'GESTMONEY est-il conforme OHADA ?', r: 'Oui. La comptabilité respecte le plan OHADA. Exports conformes aux exigences UEMOA et CEMAC.' },
@@ -627,9 +626,6 @@ export default function LandingPage() {
 
       {/* ── INTÉGRATIONS & OPÉRATEURS ── */}
       <IntégrationsSectionComponent />
-
-      {/* ── COMPARATEUR D'OFFRES ── */}
-      <OffreComparateurSection />
 
       {/* ── TÉMOIGNAGES ── */}
       <TémoignagesSection />
@@ -1038,9 +1034,6 @@ export default function LandingPage() {
 
       {/* ── AVANTAGES IBIG SOFT ── */}
       <AvantagesIBIGSection />
-
-      {/* ── FAQ (composant) ── */}
-      <FAQSection />
 
       {/* ── CTA FINAL ── */}
       <CTAFinalSection />
