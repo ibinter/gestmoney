@@ -122,7 +122,11 @@ L'utilisation du service implique l'acceptation pleine et entière des présente
 
 ## Accès au service
 
-L'accès est conditionné à la création d'un compte et à la souscription d'un abonnement ou d'un essai gratuit de 14 jours. Chaque utilisateur est responsable de la confidentialité de ses identifiants et de toute activité réalisée depuis son compte.
+L'accès est conditionné à la création d'un compte. Il peut s'exercer via une démonstration publique (données fictives, sans inscription), le palier gratuit Découverte, un essai gratuit de 14 jours ou un abonnement payant. Chaque utilisateur est responsable de la confidentialité de ses identifiants et de toute activité réalisée depuis son compte.
+
+## Cycle de vie de la licence
+
+L'accès au service suit six états, calculés côté serveur : **Démo** (publique, données fictives effacées chaque nuit), **Découverte** (gratuit à vie, plafonné), **Essai** (14 jours, formule Professional), **Actif** (abonnement en cours), **Grâce** (7 jours après échéance, accès maintenu) et **Expiré** (lecture seule après la grâce, données conservées puis purgées selon la politique de sauvegarde). Aucune licence n'est perpétuelle : toute clé porte une date de fin. À la fin de l'essai, l'espace bascule automatiquement en Découverte, jamais en coupure.
 
 ## Utilisation autorisée
 
@@ -132,6 +136,7 @@ GESTMONEY est destiné à un usage professionnel. Toute utilisation à des fins 
 
 - Fournir des informations exactes et à jour
 - Ne pas tenter de contourner les mécanismes de sécurité
+- Ne pas contourner les plafonds du palier gratuit par la création de comptes multiples
 - Respecter les droits de propriété intellectuelle
 - Signaler toute anomalie ou fraude détectée
 
@@ -163,7 +168,11 @@ Use of the service implies full acceptance of these terms. If you disagree, you 
 
 ## Access to the service
 
-Access requires creating an account and subscribing to a plan or a 14-day free trial. Each user is responsible for keeping their credentials confidential and for all activity carried out from their account.
+Access requires creating an account. It may be exercised via a public demo (fictitious data, no sign-up), the free Découverte tier, a 14-day free trial or a paid subscription. Each user is responsible for keeping their credentials confidential and for all activity carried out from their account.
+
+## Licence lifecycle
+
+Access follows six states, computed server-side: **Demo** (public, fictitious data wiped nightly), **Découverte** (free forever, capped), **Trial** (14 days, Professional plan), **Active** (current subscription), **Grace** (7 days after expiry, access maintained) and **Expired** (read-only after grace, data retained then purged per the backup policy). No licence is perpetual: every key carries an end date. When the trial ends, the workspace automatically switches to Découverte, never to a cut-off.
 
 ## Permitted use
 
@@ -173,6 +182,7 @@ GESTMONEY is intended for professional use. Any use for unlawful, fraudulent pur
 
 - Provide accurate and up-to-date information
 - Not attempt to circumvent security mechanisms
+- Not circumvent the free-tier caps by creating multiple accounts
 - Respect intellectual property rights
 - Report any anomaly or fraud detected
 
@@ -208,7 +218,11 @@ GESTMONEY est proposé selon plusieurs formules : **Starter**, **Essentiel**, **
 
 ## Essai gratuit
 
-Un essai gratuit de 14 jours est proposé, sans carte bancaire requise pour démarrer. Voir la page « Conditions du programme d'essai ».
+Un essai gratuit de 14 jours donne accès à toutes les fonctionnalités de la formule Professional, sans carte bancaire requise pour démarrer. À son terme, l'espace bascule **automatiquement** vers le palier gratuit **Découverte** : aucune donnée n'est supprimée, seules les fonctions avancées et le volume au-delà des plafonds se ferment.
+
+## Palier Découverte (gratuit à vie)
+
+Le palier **Découverte** est gratuit et sans limite de durée. Il donne accès aux fonctions de base dans la limite de plafonds d'usage (nombre d'agences, d'agents et de transactions par mois), vérifiés côté serveur. Au-delà d'un plafond, la création est refusée sans suppression des données existantes ; une formule payante lève la limite. IBIG Soft peut faire évoluer ces plafonds pour les **nouveaux** espaces, sans effet rétroactif sur les espaces existants. Les documents générés au palier Découverte portent la mention « Généré avec GESTMONEY — ibigsoft.com », retirée automatiquement dès le premier paiement.
 
 ## Prix et facturation
 
@@ -242,7 +256,11 @@ GESTMONEY is offered under several plans: **Starter**, **Essentiel**, **Professi
 
 ## Free trial
 
-A 14-day free trial is offered, with no bank card required to start. See the "Trial programme terms" page.
+A 14-day free trial gives access to all Professional-plan features, with no bank card required to start. When it ends, the workspace **automatically** switches to the free **Découverte** tier: no data is deleted, only advanced features and volume beyond the caps are closed.
+
+## Découverte tier (free forever)
+
+The **Découverte** tier is free with no time limit. It gives access to core features within usage caps (number of agencies, agents and transactions per month), enforced server-side. Beyond a cap, creation is refused without deleting existing data; a paid plan lifts the limit. IBIG Soft may change these caps for **new** workspaces, with no retroactive effect on existing ones. Documents generated on the Découverte tier carry the notice "Generated with GESTMONEY — ibigsoft.com", removed automatically upon the first payment.
 
 ## Pricing and billing
 
@@ -352,6 +370,10 @@ GESTMONEY collecte uniquement les données nécessaires au fonctionnement du ser
 - Données d'utilisation (transactions, agents, float)
 - Données techniques (journaux, adresse IP, navigateur)
 
+## Démonstration publique
+
+La démonstration publique de GESTMONEY ne collecte **aucune** donnée personnelle : elle ne requiert ni inscription, ni email, ni numéro. Les données qu'elle affiche sont entièrement fictives et remises à zéro chaque nuit. Aucune donnée saisie dans la démo n'est conservée ni exploitée.
+
 ## Finalités
 
 Les données sont utilisées pour :
@@ -398,6 +420,10 @@ GESTMONEY only collects the data necessary to operate the service:
 - Identification information (last name, first name, email, phone)
 - Usage data (transactions, agents, float)
 - Technical data (logs, IP address, browser)
+
+## Public demonstration
+
+The public GESTMONEY demonstration collects **no** personal data: it requires no sign-up, no email and no phone number. The data it displays is entirely fictitious and reset every night. Nothing entered in the demo is retained or used.
 
 ## Purposes
 

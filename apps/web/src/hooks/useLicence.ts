@@ -15,9 +15,22 @@ export type StatutLicence =
   | 'PROVISOIRE'
   | 'ACTIVE'
   | 'GRACE'
+  | 'DECOUVERTE'
   | 'EXPIREE'
   | 'SUSPENDUE'
   | 'REVOQUEE';
+
+/** Compteur de quota — miroir de `CompteurQuota` côté API. */
+export type CompteurQuota = 'agences' | 'agents' | 'transactionsMois';
+
+/** État d'un compteur de quota (palier Découverte). */
+export interface EtatQuota {
+  compteur: CompteurQuota;
+  valeur: number;
+  plafond: number;
+  restant: number;
+  autorise: boolean;
+}
 
 /** Miroir de `StatutLicenceResultat` (les dates arrivent sérialisées en ISO). */
 export interface StatutLicenceResultat {
@@ -55,6 +68,28 @@ export function useStatutLicence() {
       return data;
     },
     staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+}
+
+export const CLE_QUOTAS = ['licence', 'mon-statut', 'quotas'] as const;
+
+/**
+ * Quotas du palier Découverte (agences, agents, transactions/mois).
+ *
+ * Hors palier gratuit, l'API renvoie `plafond = Infinity` : le composant
+ * consommateur n'affiche alors aucun compteur. `staleTime` court (15 s) car ces
+ * valeurs bougent à chaque création, contrairement au statut.
+ */
+export function useQuotas() {
+  return useQuery<EtatQuota[]>({
+    queryKey: CLE_QUOTAS,
+    queryFn: async () => {
+      const { data } = await api.get<EtatQuota[]>('/licences/mon-statut/quotas');
+      return data;
+    },
+    staleTime: 15_000,
     refetchOnWindowFocus: true,
     retry: false,
   });
