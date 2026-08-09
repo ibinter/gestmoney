@@ -3550,7 +3550,7 @@ export const fr = {
       },
       aa3: {
         question: 'Combien d\'agents peut-on créer dans GESTMONEY ?',
-        reponse: 'Le nombre d\'agents dépend de votre plan : Starter (5 agents max), Business (25 agents max), Enterprise (illimité). Si vous atteignez la limite, GESTMONEY vous notifie et vous invite à upgrader votre plan. Les agents inactifs (désactivés) comptent dans le quota. Pour libérer des places, vous pouvez supprimer les comptes d\'agents définitivement partis (attention : la suppression est irréversible).',
+        reponse: 'Le nombre d\'agents dépend de votre formule : Découverte (1 agent), Starter (5 agents), Essentiel (15 agents), Professional et Enterprise (agents illimités). Si vous atteignez la limite, GESTMONEY vous notifie et vous invite à passer à une formule supérieure. Les agents inactifs (désactivés) comptent dans le quota. Pour libérer des places, vous pouvez supprimer les comptes d\'agents définitivement partis (attention : la suppression est irréversible).',
         motsCles: ['nombre agents', 'limite', 'quota', 'plan', 'maximum'],
       },
       aa4: {
@@ -3735,7 +3735,7 @@ export const fr = {
       },
       st5: {
         question: 'Que faire si le support n\'a pas résolu mon problème ?',
-        reponse: 'Si après plusieurs échanges le problème n\'est pas résolu : (1) Demandez dans le ticket à être escaladé vers l\'équipe technique senior. (2) Mentionnez explicitement le délai écoulé et l\'impact opérationnel. (3) Contactez directement votre Account Manager IBIG Soft si vous êtes sur un plan Business ou Enterprise. (4) Pour les litiges, écrivez à ceo@ibigsoft.com en copie de votre ticket. GESTMONEY s\'engage à résoudre tous les tickets dans les délais SLA.',
+        reponse: 'Si après plusieurs échanges le problème n\'est pas résolu : (1) Demandez dans le ticket à être escaladé vers l\'équipe technique senior. (2) Mentionnez explicitement le délai écoulé et l\'impact opérationnel. (3) Contactez directement votre Account Manager IBIG Soft si vous êtes sur un plan Professional ou Enterprise. (4) Pour les litiges, écrivez à ceo@ibigsoft.com en copie de votre ticket. GESTMONEY s\'engage à résoudre tous les tickets dans les délais SLA.',
         motsCles: ['non résolu', 'escalade senior', 'litige', 'account manager', 'sla'],
       },
       si1: {

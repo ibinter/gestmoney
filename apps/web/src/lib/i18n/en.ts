@@ -3517,7 +3517,7 @@ export const en: Translations = {
       },
       aa3: {
         question: 'How many agents can be created in GESTMONEY?',
-        reponse: 'The number of agents depends on your plan: Starter (5 agents max), Business (25 agents max), Enterprise (unlimited). If you reach the limit, GESTMONEY notifies you and invites you to upgrade your plan. Inactive (deactivated) agents count towards the quota. To free up slots, you can permanently delete the accounts of agents who have left for good (warning: deletion is irreversible).',
+        reponse: 'The number of agents depends on your plan: Découverte (1 agent), Starter (5 agents), Essentiel (15 agents), Professional and Enterprise (unlimited agents). If you reach the limit, GESTMONEY notifies you and invites you to move to a higher plan. Inactive (deactivated) agents count towards the quota. To free up slots, you can permanently delete the accounts of agents who have left for good (warning: deletion is irreversible).',
         motsCles: ['number of agents', 'limit', 'quota', 'plan', 'maximum'],
       },
       aa4: {
@@ -3702,7 +3702,7 @@ export const en: Translations = {
       },
       st5: {
         question: 'What should I do if support has not resolved my issue?',
-        reponse: 'If the problem is still unresolved after several exchanges: (1) Ask in the ticket to be escalated to the senior technical team. (2) Explicitly state how much time has elapsed and the operational impact. (3) Contact your IBIG Soft Account Manager directly if you are on a Business or Enterprise plan. (4) For disputes, write to ceo@ibigsoft.com copying your ticket. GESTMONEY commits to resolving every ticket within the SLA timeframes.',
+        reponse: 'If the problem is still unresolved after several exchanges: (1) Ask in the ticket to be escalated to the senior technical team. (2) Explicitly state how much time has elapsed and the operational impact. (3) Contact your IBIG Soft Account Manager directly if you are on a Professional or Enterprise plan. (4) For disputes, write to ceo@ibigsoft.com copying your ticket. GESTMONEY commits to resolving every ticket within the SLA timeframes.',
         motsCles: ['unresolved', 'senior escalation', 'dispute', 'account manager', 'sla'],
       },
       si1: {
