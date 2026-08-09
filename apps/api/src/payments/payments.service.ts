@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -22,6 +23,8 @@ import { CreatePaiementDto, ListPaiementsQueryDto } from './dto/create-paiement.
 import { UploadProofDto } from './dto/payment-proof.dto';
 import { IContexteAudit } from './payment-config.service';
 import { PAYMENT_EVENTS } from './payments.events';
+import { LicencesService } from '../licences/licences.service';
+import { StatutLicence } from '../licences/dto/licences.dto';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -116,6 +119,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly licences: LicencesService,
   ) {
     this.dossierPreuves = path.resolve(
       this.configService.get<string>('PAYMENT_PROOFS_DIR') ??
@@ -195,6 +199,20 @@ export class PaymentsService {
     tenantId?: string,
     userId?: string,
   ): Promise<IPaiement> {
+    // §4.5 cahier : le paiement est FERMÉ en mode démonstration. Un tenant en
+    // DEMO ne peut pas initier de transaction de paiement d'abonnement. Ne
+    // bloque QUE 'DEMO' — ACTIVE/ESSAI/GRACE/DECOUVERTE/… restent ouverts, y
+    // compris les licences expirées qui doivent pouvoir repayer.
+    if (tenantId) {
+      const { statut } = await this.licences.getStatutLicenceCache(tenantId);
+      if (statut === StatutLicence.DEMO) {
+        throw new ForbiddenException({
+          code: 'PAIEMENT_INDISPONIBLE_DEMO',
+          message: 'Le paiement est désactivé en mode démonstration.',
+        });
+      }
+    }
+
     const devise = (dto.devise ?? 'XOF').toUpperCase();
 
     // Boucle de sécurité : la contrainte @unique reste l'arbitre final.

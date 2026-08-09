@@ -4,13 +4,14 @@ import { NextResponse } from 'next/server';
 const DEMO_EMAIL = process.env.DEMO_EMAIL || 'admin@gestmoney.demo';
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || '';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010/api/v1';
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || '';
+// Tenant DÉDIÉ à la démo (données fictives isolées), distinct du tenant principal.
+const DEMO_TENANT_ID = process.env.DEMO_TENANT_ID || '';
 
 export async function POST() {
-  // Si pas de credentials démo configurés, refuser
-  if (!DEMO_PASSWORD) {
+  // Si le tenant démo ou les credentials démo ne sont pas configurés, refuser.
+  if (!DEMO_TENANT_ID || !DEMO_PASSWORD) {
     return NextResponse.json(
-      { error: 'Accès démo non configuré sur ce serveur.' },
+      { error: 'Accès démo non configuré' },
       { status: 503 }
     );
   }
@@ -20,12 +21,12 @@ export async function POST() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(TENANT_ID && { 'x-tenant-id': TENANT_ID }),
+        'x-tenant-id': DEMO_TENANT_ID,
       },
       body: JSON.stringify({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
-        ...(TENANT_ID && { tenantId: TENANT_ID }),
+        tenantId: DEMO_TENANT_ID,
       }),
     });
 

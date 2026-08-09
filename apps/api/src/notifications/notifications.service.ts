@@ -142,6 +142,31 @@ export class NotificationsService {
     }
   }
 
+  // ─── Détection du mode démonstration ─────────────────────────────────────────
+
+  /**
+   * Lecture LÉGÈRE : un tenant est en démonstration si `settings.demoMode` vaut
+   * `true` OU si `settings.licence.statut` vaut `'DEMO'`. Toute erreur de lecture
+   * est absorbée (retour `false`) : la détection démo ne doit jamais casser un
+   * flux d'envoi. Volontairement sans injection de LicencesService pour éviter la
+   * dépendance circulaire NotificationsModule ↔ LicencesModule.
+   */
+  private async estTenantEnDemo(tenantId: string): Promise<boolean> {
+    try {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { settings: true },
+      });
+      const settings = (tenant?.settings ?? {}) as Record<string, any>;
+      return settings.demoMode === true || settings.licence?.statut === 'DEMO';
+    } catch (error: any) {
+      this.logger.warn(
+        `Détection du mode démo impossible pour le tenant ${tenantId}: ${error?.message ?? error}`,
+      );
+      return false;
+    }
+  }
+
   // ─── Email via Nodemailer ────────────────────────────────────────────────────
 
   /**
@@ -153,6 +178,19 @@ export class NotificationsService {
    * seulement journalisée — aucune exception ne remonte à l'appelant.
    */
   async sendEmail(options: SendEmailOptions): Promise<void> {
+    // §4.5 cahier : en mode démonstration, aucun e-mail réel n'est envoyé.
+    // Lecture LÉGÈRE du tenant via Prisma (pas d'injection de LicencesService :
+    // NotificationsModule est importé par LicencesModule, l'injection créerait
+    // une dépendance circulaire). Si le tenantId n'est pas fourni, on ne change
+    // rien au comportement historique.
+    if (options.tenantId && (await this.estTenantEnDemo(options.tenantId))) {
+      this.logger.debug(
+        `[EMAIL bloqué — démo] Envoi supprimé pour le tenant ${options.tenantId} ` +
+          `(to: ${options.to} | subject: ${options.subject})`,
+      );
+      return;
+    }
+
     const transport = this.obtenirTransport();
 
     // Repli : pas de transport disponible → comportement historique (log seul).

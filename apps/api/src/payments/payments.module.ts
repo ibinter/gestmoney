@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
+import { LicencesModule } from '../licences/licences.module';
 import { PaymentConfigService } from './payment-config.service';
 import { PaymentsService } from './payments.service';
 import { VouchersService } from './vouchers.service';
@@ -21,7 +22,7 @@ import { WebhooksController } from './webhooks.controller';
  * interne et n'est exposée par aucun contrôleur.
  */
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, LicencesModule],
   controllers: [PaymentsController, PaymentsAdminController, WebhooksController],
   providers: [PaymentConfigService, PaymentsService, VouchersService, WebhookService],
   exports: [PaymentConfigService, PaymentsService, VouchersService, WebhookService],

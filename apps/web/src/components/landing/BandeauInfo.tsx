@@ -8,19 +8,43 @@ const VERT = '#009E00';
 
 export function BandeauInfo() {
   const [langue, setLangue] = useState<'FR' | 'EN'>('FR');
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const textes = {
     FR: {
       essai: 'Essai gratuit disponible — aucune carte bancaire requise',
       support: 'Assistance Lun–Sam 8h–18h · +225 07 78 88 25 92',
+      demo: 'Explorer la démo',
+      demoLoading: 'Connexion…',
+      demoErr: 'La démo est momentanément indisponible. Réessayez plus tard.',
     },
     EN: {
       essai: 'Free trial available — no credit card required',
       support: 'Support Mon–Sat 8am–6pm · +225 07 78 88 25 92',
+      demo: 'Explorer la démo',
+      demoLoading: 'Connexion…',
+      demoErr: 'La démo est momentanément indisponible. Réessayez plus tard.',
     },
   };
 
   const t = textes[langue];
+
+  const lancerDemo = async () => {
+    if (demoLoading) return;
+    setDemoLoading(true);
+    try {
+      const res = await fetch('/api/demo-access', { method: 'POST' });
+      if (res.ok) {
+        window.location.href = '/dashboard';
+        return;
+      }
+      window.alert(t.demoErr);
+    } catch {
+      window.alert(t.demoErr);
+    } finally {
+      setDemoLoading(false);
+    }
+  };
 
   return (
     <div
@@ -39,14 +63,34 @@ export function BandeauInfo() {
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}
     >
-      {/* Bloc mobile : premier message uniquement, centré */}
-      <span className="bi-mobile">{t.essai}</span>
+      {/* Bloc mobile : premier message + accès démo, centré */}
+      <span className="bi-mobile">
+        <span>{t.essai}</span>
+        <span className="bi-sep" aria-hidden>·</span>
+        <button
+          onClick={lancerDemo}
+          disabled={demoLoading}
+          className="bi-demo-btn"
+          aria-busy={demoLoading}
+        >
+          {demoLoading ? t.demoLoading : t.demo}
+        </button>
+      </span>
 
       {/* Blocs desktop : 3 blocs séparés par · */}
       <div className="bi-desktop">
         <span>{t.essai}</span>
         <span className="bi-sep" aria-hidden>·</span>
         <span>{t.support}</span>
+        <span className="bi-sep" aria-hidden>·</span>
+        <button
+          onClick={lancerDemo}
+          disabled={demoLoading}
+          className="bi-demo-btn"
+          aria-busy={demoLoading}
+        >
+          {demoLoading ? t.demoLoading : t.demo}
+        </button>
         <span className="bi-sep" aria-hidden>·</span>
         <span className="bi-lang" role="group" aria-label="Langue">
           {(['FR', 'EN'] as const).map((l) => (
@@ -77,6 +121,22 @@ export function BandeauInfo() {
         }
 
         .bi-lang { display: flex; align-items: center; gap: 6px; }
+
+        .bi-demo-btn {
+          background: none;
+          border: 1px solid ${OR};
+          border-radius: 999px;
+          color: ${OR};
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 3px 12px;
+          line-height: 1;
+          transition: background .15s ease, color .15s ease, opacity .15s ease;
+        }
+        .bi-demo-btn:hover:not(:disabled) { background: ${OR}; color: ${FOND}; }
+        .bi-demo-btn:focus-visible { outline: 2px solid ${VERT}; outline-offset: 2px; }
+        .bi-demo-btn:disabled { opacity: 0.6; cursor: wait; }
 
         .bi-lang-btn {
           background: none;

@@ -54,7 +54,7 @@ export class CommissionsController {
    */
   private async assurerExportAutorise(tenantId: string): Promise<void> {
     const { statut } = await this.licences.getStatutLicenceCache(tenantId);
-    if (statut === StatutLicence.DECOUVERTE) {
+    if (statut === StatutLicence.DECOUVERTE || statut === StatutLicence.DEMO) {
       throw new ForbiddenException({
         code: 'EXPORT_INDISPONIBLE_DECOUVERTE',
         message:

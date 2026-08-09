@@ -39,6 +39,45 @@ export function BandeauLicence() {
 
   const jours = data.joursRestants;
 
+  // DÉMO : environnement de démonstration publique. Bandeau PERMANENT et
+  // purement informatif (bleu, ni alarmiste ni promotionnel) prévenant que les
+  // données sont fictives et remises à zéro chaque nuit (cahier §8.4).
+  if (data.statut === 'DEMO') {
+    return (
+      <div
+        className="gm-alert-banner"
+        role="status"
+        style={{
+          background: '#EFF6FF',
+          borderColor: '#3b82f655',
+        }}
+      >
+        <span className="gm-alert-icon" aria-hidden="true">
+          🧪
+        </span>
+
+        <div className="gm-alert-content">
+          <div className="gm-alert-title" style={{ color: '#1e40af' }}>
+            Démonstration publique
+          </div>
+          <div className="gm-alert-desc" style={{ color: '#1e40af' }}>
+            Les données sont fictives et effacées chaque nuit.
+          </div>
+        </div>
+
+        <div className="gm-alert-actions">
+          <Link
+            href="/register"
+            className="gm-btn gm-btn-sm"
+            style={{ color: '#1e40af' }}
+          >
+            Créer mon espace
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // DÉCOUVERTE : palier gratuit. Bandeau INFORMATIF (non alarmiste) rappelant
   // les plafonds et invitant à passer sur une formule payante (cahier §8.4).
   if (data.statut === 'DECOUVERTE') {
