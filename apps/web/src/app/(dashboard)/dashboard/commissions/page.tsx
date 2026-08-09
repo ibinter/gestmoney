@@ -49,7 +49,7 @@ function usePlans() {
   const fetchPlans = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/commissions/plans', { credentials: 'include' });
+      const res = await fetch('/api/v1/commissions/plans', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setPlans(Array.isArray(data) ? data : []);
@@ -72,7 +72,7 @@ function useTableau(mois: number, annee: number) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/commissions/tableau?mois=${mois}&annee=${annee}`, { credentials: 'include' })
+    fetch(`/api/v1/commissions/tableau?mois=${mois}&annee=${annee}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setTableau(d))
       .catch(() => setTableau(null))
@@ -89,7 +89,7 @@ async function simulerApi(
   montantTransaction: number,
 ): Promise<{ tauxAgent: number; commissionBrute: number; plafondMensuel: number | null } | null> {
   try {
-    const res = await fetch(`/api/commissions/plans/${planId}/simuler`, {
+    const res = await fetch(`/api/v1/commissions/plans/${planId}/simuler`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -118,7 +118,7 @@ function OngletPlans({ t }: { t: Translations }) {
   const handleAddPalier = async (planId: string) => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/commissions/plans/${planId}/volume-paliers`, {
+      const res = await fetch(`/api/v1/commissions/plans/${planId}/volume-paliers`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -319,7 +319,7 @@ function OngletTableau({ t }: { t: Translations }) {
   const tt = t.commissions.tableau;
 
   const handleExportCsv = () => {
-    window.open(`/api/commissions/export-csv?mois=${mois}&annee=${annee}`, '_blank');
+    window.open(`/api/v1/commissions/export-csv?mois=${mois}&annee=${annee}`, '_blank');
   };
 
   const MOIS_LABELS = [

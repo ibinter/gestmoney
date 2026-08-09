@@ -271,7 +271,7 @@ export default function RapportMensuelPage() {
   };
 
   const exporterHtml = () => {
-    window.open(`/api/analytics/rapport-mensuel?annee=${annee}&mois=${mois}`, '_blank');
+    window.open(`/api/v1/analytics/rapport-mensuel?annee=${annee}&mois=${mois}`, '_blank');
   };
 
   return (

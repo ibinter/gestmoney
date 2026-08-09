@@ -761,7 +761,7 @@ function RapportMensuelBtn() {
   const [open, setOpen] = React.useState(false);
 
   const telecharger = () => {
-    window.open(`/api/analytics/rapport-mensuel?annee=${annee}&mois=${mois}`, '_blank');
+    window.open(`/api/v1/analytics/rapport-mensuel?annee=${annee}&mois=${mois}`, '_blank');
     setOpen(false);
   };
 

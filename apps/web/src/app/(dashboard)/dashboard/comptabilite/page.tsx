@@ -575,7 +575,7 @@ export default function ComptabilitePage() {
                 disabled={bilanAnnuel.isLoading || bilanAnnuel.isError || !bilanAnnuel.data}
                 onClick={async () => {
                   try {
-                    const res = await fetch(`/api/accounting/bilan/${anneeSelectionnee}/pdf`, { credentials: 'include' });
+                    const res = await fetch(`/api/v1/accounting/bilan/${anneeSelectionnee}/pdf`, { credentials: 'include' });
                     if (!res.ok) return;
                     const blob = await res.blob();
                     const url = URL.createObjectURL(blob);
@@ -706,7 +706,7 @@ export default function ComptabilitePage() {
               disabled={compteResultatOhada.isLoading || compteResultatOhada.isError || !compteResultatOhada.data}
               onClick={async () => {
                 try {
-                  const res = await fetch(`/api/accounting/compte-resultat/${anneeSelectionnee}/pdf`, { credentials: 'include' });
+                  const res = await fetch(`/api/v1/accounting/compte-resultat/${anneeSelectionnee}/pdf`, { credentials: 'include' });
                   if (!res.ok) return;
                   const blob = await res.blob();
                   const url = URL.createObjectURL(blob);

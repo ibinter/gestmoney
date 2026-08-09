@@ -86,7 +86,7 @@ export default function TransactionsPage() {
   useEffect(() => {
     const montant = parseFloat(formTx.montant);
     if (!montant || formTx.devise === 'XOF') { setMontantXOFApercu(null); return; }
-    fetch(`/api/devises/convertir?montant=${montant}&de=${formTx.devise}&vers=XOF`)
+    fetch(`/api/v1/devises/convertir?montant=${montant}&de=${formTx.devise}&vers=XOF`)
       .then((r) => r.json())
       .then((d) => setMontantXOFApercu(typeof d.resultat === 'number' ? Math.round(d.resultat) : null))
       .catch(() => setMontantXOFApercu(null));
