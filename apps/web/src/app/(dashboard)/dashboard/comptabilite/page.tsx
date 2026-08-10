@@ -399,7 +399,7 @@ export default function ComptabilitePage() {
           <div className="gm-kpi-icon">📈</div>
           <div className="gm-kpi-label">{t.comptabilite.kpi.produits}</div>
           <div className="gm-kpi-value" style={{ color: 'var(--gm-success)' }}>
-            {resultat.isLoading ? '…' : resultat.isError ? '—' : montant(totalProduits)}
+            {resultat.isLoading ? '…' : resultat.isError ? '—' : <>{montant(totalProduits)}<span className="gm-kpi-unit"> XOF</span></>}
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
             {resultat.isError ? t.comptabilite.kpi.unavailable : t.comptabilite.kpi.periodCumul}
@@ -410,7 +410,7 @@ export default function ComptabilitePage() {
           <div className="gm-kpi-icon">📉</div>
           <div className="gm-kpi-label">{t.comptabilite.kpi.charges}</div>
           <div className="gm-kpi-value" style={{ color: 'var(--gm-danger)' }}>
-            {resultat.isLoading ? '…' : resultat.isError ? '—' : montant(totalCharges)}
+            {resultat.isLoading ? '…' : resultat.isError ? '—' : <>{montant(totalCharges)}<span className="gm-kpi-unit"> XOF</span></>}
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
             {resultat.isError ? t.comptabilite.kpi.unavailable : t.comptabilite.kpi.periodCumul}
@@ -424,7 +424,7 @@ export default function ComptabilitePage() {
             className="gm-kpi-value"
             style={{ color: resultatNetNum >= 0 ? 'var(--gm-success)' : 'var(--gm-danger)' }}
           >
-            {resultat.isLoading ? '…' : resultat.isError ? '—' : montant(resultatNet)}
+            {resultat.isLoading ? '…' : resultat.isError ? '—' : <>{montant(resultatNet)}<span className="gm-kpi-unit"> XOF</span></>}
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
             {resultat.isError
@@ -439,7 +439,7 @@ export default function ComptabilitePage() {
           <div className="gm-kpi-icon">🏦</div>
           <div className="gm-kpi-label">{t.comptabilite.kpi.tresorerie}</div>
           <div className="gm-kpi-value">
-            {bilan.isLoading ? '…' : bilan.isError || tresorerie === undefined ? '—' : montant(tresorerie)}
+            {bilan.isLoading ? '…' : bilan.isError || tresorerie === undefined ? '—' : <>{montant(tresorerie)}<span className="gm-kpi-unit"> XOF</span></>}
           </div>
           <div className="gm-kpi-trend gm-trend-neutral">
             {bilan.isError ? t.comptabilite.kpi.unavailable : t.comptabilite.kpi.bilanTresorerie}

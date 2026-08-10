@@ -43,7 +43,15 @@ export function useCommissions(periode?: string) {
     queryFn: async (): Promise<CommissionsResult> => {
       try {
         const params: Record<string, string> = {};
-        if (periode) params.period = periode;
+        // Le backend filtre par bornes ISO (dateDebut/dateFin), pas par `period` :
+        // on convertit `YYYY-MM` en 1er → dernier jour du mois.
+        if (periode && /^\d{4}-\d{2}$/.test(periode)) {
+          const [an, mois] = periode.split('-').map(Number);
+          const debut = new Date(Date.UTC(an, mois - 1, 1));
+          const fin = new Date(Date.UTC(an, mois, 0, 23, 59, 59)); // jour 0 du mois suivant = dernier jour
+          params.dateDebut = debut.toISOString();
+          params.dateFin = fin.toISOString();
+        }
         const res = await api.get('/commissions', { params });
         const items = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
         // Une liste vide est une donnée VALIDE (aucune commission sur la

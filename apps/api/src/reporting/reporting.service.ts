@@ -496,12 +496,38 @@ export class ReportingService {
       orderBy: { _sum: { amount: 'desc' } },
       take: 50,
     });
-    return data.map((r) => ({
-      agentId: r.agentId,
-      transactions: r._count.id,
-      montant: Number(r._sum.amount ?? 0),
-      commissions: Number(r._sum.commission ?? 0),
-    }));
+    // Résolution des noms (agent → user) et de l'agence : sans ça, l'UI
+    // retombe sur l'agentId brut (CUID) en guise de nom.
+    const agentIds = data.map((r) => r.agentId!).filter(Boolean);
+    const agents = agentIds.length
+      ? await this.prisma.agent.findMany({
+          where: { id: { in: agentIds } },
+          select: { id: true, userId: true, agency: { select: { name: true } } },
+        })
+      : [];
+    const userIds = agents.map((a) => a.userId).filter(Boolean);
+    const users = userIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const agentMap = new Map(agents.map((a) => [a.id, a]));
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return data.map((r) => {
+      const ag = r.agentId ? agentMap.get(r.agentId) : undefined;
+      const u = ag ? userMap.get(ag.userId) : undefined;
+      const nom = u ? `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() : '';
+      return {
+        agentId: r.agentId,
+        nom: nom || 'Agent',
+        agence: ag?.agency?.name ?? '—',
+        transactions: r._count.id,
+        montant: Number(r._sum.amount ?? 0),
+        commissions: Number(r._sum.commission ?? 0),
+      };
+    });
   }
 
   async getOperatorsComparison(tenantId: string, period: { start: Date; end: Date }) {

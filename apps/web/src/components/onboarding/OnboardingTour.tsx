@@ -288,10 +288,13 @@ function computeTooltipPos(
 interface OnboardingTourProps {
   /** Force l'affichage même si la visite a déjà été faite (bouton « Relancer »). */
   forceStart?: boolean;
+  /** Suspend le démarrage automatique (ex. tant que le wizard d'accueil est ouvert)
+   *  pour ne pas empiler deux modales. Le tour démarre dès que ça repasse à false. */
+  suspended?: boolean;
   onClose?: () => void;
 }
 
-export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourProps) {
+export function OnboardingTour({ forceStart = false, suspended = false, onClose }: OnboardingTourProps) {
   const user = useAuthStore((s) => s.user);
   const [visible, setVisible] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -317,6 +320,9 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
       const t = setTimeout(ouvrir, 150);
       return () => clearTimeout(t);
     }
+    // Suspendu (ex. wizard d'accueil ouvert) : on ne démarre pas encore. L'effet
+    // se ré-exécute quand `suspended` repasse à false et lance alors le tour.
+    if (suspended) return;
     let done = false;
     try {
       done = localStorage.getItem(TOUR_STORAGE_KEY) === 'true';
@@ -327,7 +333,7 @@ export function OnboardingTour({ forceStart = false, onClose }: OnboardingTourPr
       const timer = setTimeout(ouvrir, 1200);
       return () => clearTimeout(timer);
     }
-  }, [forceStart, ouvrir]);
+  }, [forceStart, suspended, ouvrir]);
 
   // Met à jour la position de l'élément ciblé
   const updateTarget = useCallback(() => {

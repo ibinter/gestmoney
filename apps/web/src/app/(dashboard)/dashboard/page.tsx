@@ -852,8 +852,9 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Tour d'onboarding (première connexion) */}
-      <OnboardingTour />
+      {/* Tour d'onboarding (première connexion). Suspendu tant que le wizard
+          admin est ouvert pour éviter deux modales empilées. */}
+      <OnboardingTour suspended={isAdmin && wizardVisible} />
 
       <GmPageHeader
         titre={`${salutation}, ${prenom} 👋`}

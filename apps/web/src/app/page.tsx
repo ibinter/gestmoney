@@ -48,7 +48,7 @@ const MODULES = [
 ];
 
 const STATS = [
-  { valeur: '12', label: 'Opérateurs Mobile Money', bg: '#009E00', txt: '#fff' },
+  { valeur: '12+', label: 'Opérateurs Mobile Money', bg: '#009E00', txt: '#fff' },
   { valeur: '10+', label: 'Modules métier intégrés', bg: '#FFD000', txt: '#111' },
   { valeur: 'OHADA', label: 'Comptabilité conforme', bg: '#E60000', txt: '#fff' },
   { valeur: '99,9%', label: 'Objectif de disponibilité SLA', bg: '#111', txt: '#FFD000' },

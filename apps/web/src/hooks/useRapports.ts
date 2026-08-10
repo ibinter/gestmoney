@@ -144,8 +144,8 @@ export function useRapports(periode?: string) {
       // ─── Top agents réels ───────────────────────────────────────────────
       const agentsRaw = toArray(agentsRes.data);
       const topAgents = agentsRaw.slice(0, 5).map((a, i) => ({
-        nom: String(a.agentId ?? '—'),
-        agence: '—',
+        nom: String(a.nom ?? a.agentId ?? '—'),
+        agence: String(a.agence ?? '—'),
         montant: Number(a.montant ?? 0),
         nbTx: Number(a.transactions ?? 0),
         badge: ['🥇', '🥈', '🥉'][i] ?? '',

@@ -24,9 +24,12 @@ export function SaraBubble() {
   const [saisie, setSaisie] = useState('');
   const [enCours, setEnCours] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
-  const [sessionId] = useState(
-    () => `web_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
-  );
+  // Généré côté client uniquement (Math.random/Date.now diffèrent serveur↔client
+  // et provoqueraient un avertissement d'hydratation).
+  const [sessionId, setSessionId] = useState('');
+  useEffect(() => {
+    setSessionId(`web_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
+  }, []);
 
   useEffect(() => {
     if (ouvert) finRef.current?.scrollIntoView({ behavior: 'smooth' });

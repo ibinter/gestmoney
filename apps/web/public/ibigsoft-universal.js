@@ -117,7 +117,10 @@
     render: attr('render', 'all'),
     speed: parseFloat(attr('speed', '45')),
     masquerCourante: attr('masquer-courante', 'false') === 'true',
-    chargerPolices: attr('polices', 'true') !== 'false'
+    // Désactivé par défaut : le CSP strict (style-src/font-src 'self') bloque
+    // fonts.googleapis.com. Les polices sont déjà self-hébergées (next/font) et
+    // le stack de repli ui-sans-serif suffit. Réactivable via data-polices="true".
+    chargerPolices: attr('polices', 'false') === 'true'
   };
 
   /* Détection de la solution courante : attribut, puis nom de domaine. */

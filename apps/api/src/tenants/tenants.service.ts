@@ -61,8 +61,23 @@ export class TenantsService {
       this.prisma.tenant.count({ where }),
     ]);
 
+    // Transactions du mois courant, par tenant (la console SuperAdmin affiche
+    // une colonne « TX ce mois » — sans ça elle retombait toujours sur 0).
+    const debutMois = new Date();
+    debutMois.setHours(0, 0, 0, 0);
+    debutMois.setDate(1);
+    const txParTenant = await this.prisma.transaction.groupBy({
+      by: ['tenantId'],
+      where: {
+        tenantId: { in: data.map((t) => t.id) },
+        createdAt: { gte: debutMois },
+      },
+      _count: { id: true },
+    });
+    const txMoisMap = new Map(txParTenant.map((r) => [r.tenantId, r._count.id]));
+
     return {
-      data,
+      data: data.map((t) => ({ ...t, transactions_mois: txMoisMap.get(t.id) ?? 0 })),
       meta: { page: p, limit: l, total, totalPages: Math.ceil(total / l) },
     };
   }

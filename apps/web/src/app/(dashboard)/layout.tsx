@@ -11,7 +11,6 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { BandeauLicence } from '@/components/layout/BandeauLicence';
 import { DashboardFooter } from '@/components/layout/DashboardFooter';
 import { CommandPalette } from '@/components/ui/CommandPalette';
-import { Onboarding } from '@/components/ui/Onboarding';
 import { AssistantIA } from '@/components/ui/AssistantIA';
 import { useAuthStore } from '@/store/authStore';
 import ImpersonationBanner from '@/components/ui/ImpersonationBanner';
@@ -95,7 +94,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Palettes & overlays globaux */}
         <CommandPalette />
-        <Onboarding />
+        {/* Onboarding retiré du layout : il rouvrait sa modale sur CHAQUE page et
+            doublonnait le wizard d'accueil (OnboardingWizard). Le parcours de
+            démarrage vit désormais uniquement sur le tableau de bord. */}
         <AssistantIA />
 
         {/* Contenu des pages */}
