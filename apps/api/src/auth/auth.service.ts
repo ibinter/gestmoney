@@ -203,6 +203,13 @@ export class AuthService {
       tenantId: resolvedTenantId,
     });
 
+    // Notification à l'adresse principale de la solution : une inscription =
+    // un e-mail. Fire-and-forget — l'inscription reste valide même si l'envoi
+    // échoue (sendEmail ne lève jamais). On NE passe PAS de tenantId au
+    // notificateur : c'est un e-mail plateforme (pour l'exploitant), qui ne doit
+    // pas être supprimé par le blocage « mode démo » propre aux tenants démo.
+    void this.notifierNouvelleInscription(user, resolvedTenantId);
+
     return {
       ...tokens,
       user: {
@@ -214,6 +221,66 @@ export class AuthService {
         tenantId: user.tenantId,
       },
     };
+  }
+
+  /**
+   * Envoie l'e-mail « Nouvelle inscription » à l'adresse principale de la
+   * solution. Adresse configurable à UN SEUL endroit : la variable
+   * d'environnement `INSCRIPTION_NOTIF_EMAIL` (repli sur MAIL_FROM / EMAIL_FROM
+   * / SMTP_USER / SUPER_ADMIN_EMAIL pour fonctionner sans configuration
+   * supplémentaire). Ne lève jamais : tout est capturé.
+   */
+  private async notifierNouvelleInscription(
+    user: { id: string; email: string; firstName: string; lastName: string; phone?: string | null; status: string; createdAt: Date },
+    tenantId: string,
+  ): Promise<void> {
+    try {
+      const destinataire =
+        this.configService.get<string>('INSCRIPTION_NOTIF_EMAIL') ??
+        this.configService.get<string>('MAIL_FROM') ??
+        this.configService.get<string>('EMAIL_FROM') ??
+        this.configService.get<string>('SMTP_USER') ??
+        this.configService.get<string>('SUPER_ADMIN_EMAIL');
+      if (!destinataire) return; // aucune adresse configurée → rien à faire
+
+      const nomSolution =
+        this.configService.get<string>('APP_NAME') ?? 'GESTMONEY';
+
+      // Contexte établissement (offre + nom) — lecture légère, best-effort.
+      const tenant = await this.prisma.tenant
+        .findUnique({ where: { id: tenantId }, select: { name: true, plan: true, status: true } })
+        .catch(() => null);
+
+      const dateInscription = new Date(user.createdAt).toLocaleString('fr-FR', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+        timeZone: 'Africa/Abidjan',
+      });
+
+      await this.notifications.sendEmail({
+        to: destinataire,
+        subject: `Nouvelle inscription sur ${nomSolution}`,
+        body: [
+          `Nouvelle inscription sur ${nomSolution}.`,
+          '',
+          `Nom et prénoms   : ${user.lastName ?? ''} ${user.firstName ?? ''}`.trim(),
+          `E-mail           : ${user.email}`,
+          // Pas de champ WhatsApp dédié en base : on affiche le numéro joignable.
+          `WhatsApp         : ${user.phone ?? 'Non renseigné'}`,
+          `Téléphone        : ${user.phone ?? 'Non renseigné'}`,
+          `Statut du compte : ${user.status ?? 'ACTIVE'}`,
+          `Offre souscrite  : ${tenant?.plan ?? 'Non renseignée'}`,
+          `Établissement    : ${tenant?.name ?? tenantId}`,
+          `Date et heure    : ${dateInscription}`,
+          `ID du client     : ${user.id}`,
+          '',
+          '— Notification automatique GESTMONEY',
+        ].join('\n'),
+        // volontairement SANS tenantId (e-mail plateforme, jamais bloqué démo).
+      });
+    } catch (e: any) {
+      this.logger?.warn?.(`Notif inscription non envoyée : ${e?.message ?? e}`);
+    }
   }
 
   // ─── Logout ──────────────────────────────────────────────────────────────────

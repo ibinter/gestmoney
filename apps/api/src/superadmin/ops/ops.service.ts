@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normaliserPagination } from '../../common/utils/pagination';
 import { seedDemoTenant } from '@gestmoney/database';
+import { LicencesService } from '../../licences/licences.service';
 
 /**
  * Service de consultation (LECTURE SEULE) pour la console SuperAdmin :
@@ -14,7 +15,156 @@ import { seedDemoTenant } from '@gestmoney/database';
  */
 @Injectable()
 export class OpsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly licences: LicencesService,
+  ) {}
+
+  // ─── EXPORT CLIENTS / UTILISATEURS (CSV) ───────────────────────────────────
+
+  /**
+   * Exporte toute la base clients/utilisateurs de la plateforme au format CSV
+   * (une ligne par compte utilisateur, joint à son établissement/tenant).
+   *
+   * AUCUN statut n'est exclu : démo, test, actif, expiré, suspendu, inactif…
+   * tout remonte. Le paramètre `statut` (optionnel) ne fait que RESTREINDRE
+   * l'export à un statut donné — jamais exclure silencieusement des comptes.
+   *
+   * Le statut de licence est calculé via `LicencesService` (source unique de
+   * vérité, jamais dupliquée ici), mis en cache et résolu une seule fois par
+   * établissement distinct.
+   *
+   * @param statut  filtre optionnel : valeur de StatutLicence (DEMO, ACTIVE,
+   *                EXPIREE, SUSPENDUE, DECOUVERTE…) OU de statut de compte
+   *                (INACTIVE, PENDING_VERIFICATION…). Comparaison insensible à
+   *                la casse, appliquée au statut de licence OU au statut du compte.
+   */
+  async exporterClientsCsv(statut?: string): Promise<string> {
+    // 1. Tous les utilisateurs de la plateforme + leur établissement.
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        status: true,
+        createdAt: true,
+        tenantId: true,
+        tenant: {
+          select: {
+            name: true,
+            plan: true,
+            status: true,
+            settings: true,
+            subscriptionEndsAt: true,
+            trialEndsAt: true,
+          },
+        },
+      },
+    });
+
+    // 2. Statut de licence par établissement distinct (résolu une seule fois).
+    const tenantIds = Array.from(new Set(users.map((u) => u.tenantId)));
+    const statutParTenant = new Map<string, string>();
+    await Promise.all(
+      tenantIds.map(async (tid) => {
+        try {
+          const res = await this.licences.getStatutLicenceCache(tid);
+          statutParTenant.set(tid, String(res.statut ?? ''));
+        } catch {
+          statutParTenant.set(tid, '');
+        }
+      }),
+    );
+
+    // 3. Construction des lignes + filtre éventuel.
+    const filtre = statut?.trim().toUpperCase();
+    const entete = [
+      'ID client',
+      'Nom',
+      'Prénoms',
+      'E-mail',
+      'WhatsApp',
+      'Téléphone',
+      'Adresse',
+      'Statut',
+      'Statut compte',
+      'Offre / Formule',
+      'Établissement',
+      "Date d'inscription",
+      "Date d'expiration",
+    ];
+
+    const lignes: string[][] = [];
+    for (const u of users) {
+      const statutLicence = statutParTenant.get(u.tenantId) || '';
+      const statutCompte = String(u.status ?? '');
+
+      // Filtre : on garde la ligne si le filtre matche le statut de licence
+      // OU le statut de compte (insensible à la casse).
+      if (
+        filtre &&
+        statutLicence.toUpperCase() !== filtre &&
+        statutCompte.toUpperCase() !== filtre
+      ) {
+        continue;
+      }
+
+      const contact = this.lireContact(u.tenant?.settings);
+      const expiration = u.tenant?.subscriptionEndsAt ?? u.tenant?.trialEndsAt ?? null;
+
+      lignes.push([
+        u.id,
+        u.lastName ?? '',
+        u.firstName ?? '',
+        u.email ?? '',
+        // WhatsApp : pas de colonne dédiée en base → on lit un éventuel contact
+        // stocké dans settings, sinon on retombe sur le numéro de téléphone
+        // (qui est, sur ce marché, le numéro joignable sur WhatsApp).
+        contact.whatsapp || u.phone || '',
+        u.phone ?? '',
+        contact.adresse || '',
+        statutLicence,
+        statutCompte,
+        String(u.tenant?.plan ?? ''),
+        u.tenant?.name ?? '',
+        this.formaterDate(u.createdAt),
+        this.formaterDate(expiration),
+      ]);
+    }
+
+    return this.versCsv(entete, lignes);
+  }
+
+  /** Lit un éventuel contact (whatsapp/adresse) stocké dans Tenant.settings. */
+  private lireContact(settings: unknown): { whatsapp: string; adresse: string } {
+    const s = (settings ?? {}) as Record<string, any>;
+    const c = (s.contact ?? {}) as Record<string, any>;
+    return {
+      whatsapp: String(s.whatsapp ?? c.whatsapp ?? ''),
+      adresse: String(s.adresse ?? s.address ?? c.adresse ?? c.address ?? ''),
+    };
+  }
+
+  /** Date ISO courte lisible (YYYY-MM-DD HH:mm) ou chaîne vide. */
+  private formaterDate(d: Date | null | undefined): string {
+    if (!d) return '';
+    const iso = new Date(d).toISOString();
+    return `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
+  }
+
+  /**
+   * Sérialise en CSV (séparateur `;` — Excel FR l'ouvre en colonnes sans
+   * réglage). Chaque champ est échappé (guillemets doublés) et toujours
+   * entouré de guillemets pour tolérer `;`, retours à la ligne et accents.
+   */
+  private versCsv(entete: string[], lignes: string[][]): string {
+    const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const toRow = (cols: string[]) => cols.map(esc).join(';');
+    return [toRow(entete), ...lignes.map(toRow)].join('\r\n');
+  }
 
   // ─── PAIEMENTS ────────────────────────────────────────────────────────────
 

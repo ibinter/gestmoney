@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { OpsService } from './ops.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -19,6 +20,36 @@ import { RoleType } from '../../common/enums/role.enum';
 @Controller('superadmin/ops')
 export class OpsController {
   constructor(private readonly opsService: OpsService) {}
+
+  // ─── EXPORT CLIENTS / UTILISATEURS ─────────────────────────────────────────
+
+  @Get('clients/export')
+  @ApiOperation({
+    summary:
+      'Exporte toute la base clients/utilisateurs en CSV (tous statuts). ' +
+      'Paramètre `statut` optionnel pour restreindre à un statut. SUPER_ADMIN uniquement.',
+  })
+  @ApiQuery({
+    name: 'statut',
+    required: false,
+    type: String,
+    description:
+      'Filtre optionnel : DEMO, ESSAI, ACTIVE, DECOUVERTE, EXPIREE, SUSPENDUE, ' +
+      'PROVISOIRE, GRACE, EN_ATTENTE_PAIEMENT, REVOQUEE, ou statut de compte ' +
+      '(ACTIVE, INACTIVE, SUSPENDED, PENDING_VERIFICATION). Absent = tous.',
+  })
+  async exporterClients(@Res() res: Response, @Query('statut') statut?: string) {
+    const csv = await this.opsService.exporterClientsCsv(statut);
+    const suffixe = statut?.trim() ? `-${statut.trim().toLowerCase()}` : '-tous';
+    const jour = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="clients-gestmoney${suffixe}-${jour}.csv"`,
+    );
+    // BOM UTF-8 : Excel ouvre alors le fichier avec les accents corrects.
+    res.send('﻿' + csv);
+  }
 
   // ─── PAIEMENTS ────────────────────────────────────────────────────────────
 

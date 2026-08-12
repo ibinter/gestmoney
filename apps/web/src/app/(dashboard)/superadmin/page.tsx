@@ -72,6 +72,81 @@ function KpiCard({ titre, valeur, soustitre, icone, couleur }: { titre: string; 
   );
 }
 
+// ─── Export de la base clients/utilisateurs (CSV) ───────────────────────────
+// Réservé au SUPER_ADMIN (la page l'est déjà). Le téléchargement passe par le
+// cookie httpOnly gestmoney_token via nginx (même origine) — aucune donnée
+// sensible dans l'URL. Aucun statut n'est exclu ; le filtre ne fait que
+// restreindre.
+const STATUTS_EXPORT: { valeur: string; label: string }[] = [
+  { valeur: 'DEMO', label: 'Démo' },
+  { valeur: 'ESSAI', label: 'Essai' },
+  { valeur: 'ACTIVE', label: 'Actif' },
+  { valeur: 'DECOUVERTE', label: 'Découverte (gratuit)' },
+  { valeur: 'PROVISOIRE', label: 'Provisoire' },
+  { valeur: 'GRACE', label: 'Grâce' },
+  { valeur: 'EN_ATTENTE_PAIEMENT', label: 'En attente de paiement' },
+  { valeur: 'EXPIREE', label: 'Expiré' },
+  { valeur: 'SUSPENDUE', label: 'Suspendu' },
+  { valeur: 'REVOQUEE', label: 'Révoqué' },
+  { valeur: 'INACTIVE', label: 'Compte inactif' },
+  { valeur: 'PENDING_VERIFICATION', label: 'Compte en attente de vérification' },
+];
+
+function ExportClients() {
+  const [statut, setStatut] = React.useState('');
+  const base = '/api/v1/superadmin/ops/clients/export';
+  const telecharger = (url: string) => window.open(url, '_blank');
+
+  return (
+    <div className="bg-white dark:bg-white/03 rounded-card shadow-card p-5 mb-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="font-semibold text-text-main flex items-center gap-2">
+            <Users size={16} /> Export de la base clients
+          </h2>
+          <p className="text-xs text-text-muted mt-1 max-w-xl">
+            Exporte tous les comptes (Nom, Prénoms, E-mail, WhatsApp, Téléphone,
+            Adresse, Statut, Offre, dates d'inscription et d'expiration) au format
+            CSV — exploitable avec Excel / Google Sheets. Aucun statut n'est exclu.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <button
+          onClick={() => telecharger(base)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:opacity-90 transition"
+        >
+          ⬇ Exporter tous les clients
+        </button>
+
+        <div className="flex items-end gap-2">
+          <div>
+            <label className="block text-[11px] uppercase tracking-wide text-text-muted mb-1">Par statut</label>
+            <select
+              value={statut}
+              onChange={(e) => setStatut(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-gray-200 dark:border-white/15 bg-white dark:bg-white/05 text-sm text-text-main"
+            >
+              <option value="">— Choisir un statut —</option>
+              {STATUTS_EXPORT.map((s) => (
+                <option key={s.valeur} value={s.valeur}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => statut && telecharger(`${base}?statut=${encodeURIComponent(statut)}`)}
+            disabled={!statut}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/15 text-sm font-semibold text-text-main hover:bg-gray-50 dark:hover:bg-white/05 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            ⬇ Exporter par statut
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SuperAdminPage() {
   const t = useT();
   const STATUT_LABEL = statutLabels(t);
@@ -186,6 +261,9 @@ export default function SuperAdminPage() {
           <KpiCard titre={t.superadmin.apiLatency} valeur={s.sante ? `${n(s.sante.api_latency_ms)} ms` : '—'} soustitre={s.sante ? `${n(s.sante.erreurs_24h)} ${t.superadmin.kpi.errors24h}` : t.superadmin.kpi.monitoringOffline} icone={<Server size={18} />} couleur="#6B7280" />
         </div>
       )}
+
+      {/* Export de la base clients/utilisateurs (CSV) — SUPER_ADMIN */}
+      <ExportClients />
 
       {/* Tableau des tenants */}
       <div className="bg-white dark:bg-white/03 rounded-card shadow-card">
