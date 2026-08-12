@@ -132,7 +132,7 @@ export class AuthService {
   // ─── Register ────────────────────────────────────────────────────────────────
 
   async register(registerDto: RegisterDto, tenantId: string) {
-    const { email, password, firstName, lastName, phone, role } = registerDto;
+    const { email, password, firstName, lastName, phone, whatsapp, role } = registerDto;
     // JAMAIS de repli vers un tenant littéral 'default' : risque de fuite
     // inter-établissement. Le tenant doit être fourni explicitement.
     const resolvedTenantId = tenantId || registerDto.tenantId;
@@ -164,6 +164,7 @@ export class AuthService {
         firstName,
         lastName,
         phone,
+        whatsapp,
         tenantId: resolvedTenantId,
         status: 'ACTIVE',
         ...(userRole && {
@@ -231,7 +232,7 @@ export class AuthService {
    * supplémentaire). Ne lève jamais : tout est capturé.
    */
   private async notifierNouvelleInscription(
-    user: { id: string; email: string; firstName: string; lastName: string; phone?: string | null; status: string; createdAt: Date },
+    user: { id: string; email: string; firstName: string; lastName: string; phone?: string | null; whatsapp?: string | null; status: string; createdAt: Date },
     tenantId: string,
   ): Promise<void> {
     try {
@@ -265,8 +266,7 @@ export class AuthService {
           '',
           `Nom et prénoms   : ${user.lastName ?? ''} ${user.firstName ?? ''}`.trim(),
           `E-mail           : ${user.email}`,
-          // Pas de champ WhatsApp dédié en base : on affiche le numéro joignable.
-          `WhatsApp         : ${user.phone ?? 'Non renseigné'}`,
+          `WhatsApp         : ${user.whatsapp || user.phone || 'Non renseigné'}`,
           `Téléphone        : ${user.phone ?? 'Non renseigné'}`,
           `Statut du compte : ${user.status ?? 'ACTIVE'}`,
           `Offre souscrite  : ${tenant?.plan ?? 'Non renseignée'}`,

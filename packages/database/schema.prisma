@@ -200,6 +200,7 @@ model User {
   tenantId            String
   email               String
   phone               String?
+  whatsapp            String?
   passwordHash        String
   firstName           String
   lastName            String

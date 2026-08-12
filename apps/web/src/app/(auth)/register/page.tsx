@@ -23,6 +23,7 @@ function RegisterContent() {
     lastName: '',
     email: '',
     phone: '',
+    whatsapp: '',
     password: '',
     confirmPassword: '',
     companyName: '',
@@ -85,6 +86,7 @@ function RegisterContent() {
           email: form.email.trim().toLowerCase(),
           password: form.password,
           ...(form.phone.trim() && { phone: form.phone.trim() }),
+          ...(form.whatsapp.trim() && { whatsapp: form.whatsapp.trim() }),
           ...(tenantId && { tenantId }),
         }),
       });
@@ -213,10 +215,17 @@ function RegisterContent() {
                     style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
                 </div>
 
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 5 }}>Téléphone / WhatsApp</label>
-                  <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+225 07 XX XX XX XX"
-                    style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 5 }}>Téléphone</label>
+                    <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+225 07 XX XX XX XX"
+                      style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 5 }}>WhatsApp</label>
+                    <input type="tel" value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)} placeholder="+225 07 XX XX XX XX"
+                      style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: 14 }}>

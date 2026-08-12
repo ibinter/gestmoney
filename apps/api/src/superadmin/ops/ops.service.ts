@@ -49,6 +49,7 @@ export class OpsService {
         lastName: true,
         email: true,
         phone: true,
+        whatsapp: true,
         status: true,
         createdAt: true,
         tenantId: true,
@@ -120,10 +121,9 @@ export class OpsService {
         u.lastName ?? '',
         u.firstName ?? '',
         u.email ?? '',
-        // WhatsApp : pas de colonne dédiée en base → on lit un éventuel contact
-        // stocké dans settings, sinon on retombe sur le numéro de téléphone
-        // (qui est, sur ce marché, le numéro joignable sur WhatsApp).
-        contact.whatsapp || u.phone || '',
+        // WhatsApp : champ dédié saisi à l'inscription ; repli sur un contact
+        // éventuel dans settings, puis sur le téléphone.
+        u.whatsapp || contact.whatsapp || u.phone || '',
         u.phone ?? '',
         contact.adresse || '',
         statutLicence,

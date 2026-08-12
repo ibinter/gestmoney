@@ -40,6 +40,12 @@ export class RegisterDto {
   @IsString()
   phone?: string;
 
+  @ApiPropertyOptional({ example: '+2250102030405', description: 'Numéro WhatsApp' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  whatsapp?: string;
+
   @ApiPropertyOptional({ enum: RoleType, description: 'Rôle initial' })
   @IsOptional()
   @IsEnum(RoleType)
